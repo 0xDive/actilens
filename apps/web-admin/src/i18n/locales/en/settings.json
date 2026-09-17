@@ -99,7 +99,9 @@
       "deviceRestored": "Device restored",
       "unknown": "Administrative action",
       "memberRoleChanged": "Member role changed",
-      "memberMonitoringChanged": "Member monitoring changed"
+      "memberMonitoringChanged": "Member monitoring changed",
+      "memberEnrollmentCreated": "Enrollment code created",
+      "memberEnrollmentRedeemed": "Enrollment code redeemed"
     },
     "targets": {
       "employee": "employee",
