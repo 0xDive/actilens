@@ -14,6 +14,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   bibotracking:
     image: ${BIBO_IMAGE:-ghcr.io/0xdive/emplooyee-tracking:main}
@@ -45,6 +50,11 @@ services:
       interval: 10s
       timeout: 3s
       retries: 12
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
 volumes:
   pgdata:
