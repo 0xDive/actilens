@@ -47,7 +47,8 @@
       "edit": "Edit",
       "password": "Change password",
       "archive": "Block",
-      "restore": "Unblock"
+      "restore": "Unblock",
+      "enrollment": "Install code"
     },
     "prompts": {
       "displayName": "New display name",
@@ -70,6 +71,29 @@
       "off": "Off",
       "saving": "Saving…",
       "aria": "Monitoring for {{name}}"
+    },
+    "enrollment": {
+      "title": "Install ActiLens for {{name}}",
+      "description": "Create a short-lived one-time enrollment code. The raw code is shown only here; the server stores only its hash. Creating a new code revokes the previous unused code.",
+      "expires": "Code lifetime",
+      "ttl1": "1 hour",
+      "ttl24": "24 hours",
+      "ttl72": "3 days",
+      "ttl168": "7 days",
+      "cancel": "Cancel",
+      "generate": "Generate code",
+      "generating": "Generating…",
+      "created": "Enrollment code created. It expires {{expires}}.",
+      "tokenLabel": "One-time enrollment code",
+      "copyToken": "Copy code",
+      "powershellLabel": "Windows provisioning command",
+      "copyPowershell": "Copy PowerShell",
+      "copied": "Copied",
+      "oneTime": "The code can be redeemed only once. The PowerShell command sets the server URL and enrollment code for the Windows user; ActiLens will consume it on its next launch.",
+      "regenerate": "Generate another",
+      "done": "Done",
+      "failed": "Could not create an enrollment code.",
+      "copyFailed": "Could not copy to the clipboard."
     }
   },
   "newBusinessModal": {
