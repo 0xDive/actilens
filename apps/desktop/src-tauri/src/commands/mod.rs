@@ -510,7 +510,7 @@ pub fn logout(
         current.org_monitoring_enabled = true;
         crate::settings::save(&settings.path, &current).map_err(err)?;
     }
-    settings.managed.lock().unwrap().monitoring_enabled = true;
+    *settings.managed.lock().unwrap() = crate::settings::CaptureManaged::default();
     Ok(())
 }
 
