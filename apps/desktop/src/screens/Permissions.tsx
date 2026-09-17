@@ -99,13 +99,13 @@ function Action({
   const { t } = useTranslation("permissions");
   if (cap.state === "granted")
     return (
-      <span className="bibo-badge bibo-badge--positive">
+      <span className="actilens-badge actilens-badge--positive">
         <CheckIcon />
         {t("granted")}
       </span>
     );
   if (cap.state === "needs_restart")
-    return <button className="bibo-btn bibo-btn--secondary bibo-btn--sm">{t("quitReopen")}</button>;
+    return <button className="actilens-btn actilens-btn--secondary actilens-btn--sm">{t("quitReopen")}</button>;
 
   // Not granted: a single Request button — it triggers the OS prompt, or opens
   // System Settings where a direct request isn't available (or the one-shot OS
@@ -113,7 +113,7 @@ function Action({
   if (cap.can_request || cap.can_open_settings)
     return (
       <button
-        className="bibo-btn bibo-btn--secondary bibo-btn--sm"
+        className="actilens-btn actilens-btn--secondary actilens-btn--sm"
         onClick={() => (cap.can_request ? onRequest(cap.key) : onOpen(cap.key))}
       >
         <span>{askedOnce && cap.can_open_settings ? t("openSettings") : t("request")}</span>
@@ -122,7 +122,7 @@ function Action({
 
   // No OS action available (e.g. Windows capture rows): reflect the off state; the
   // user enables it via the consent flow / Settings opt-outs.
-  return <span className="bibo-badge bibo-badge--negative">{t("off")}</span>;
+  return <span className="actilens-badge actilens-badge--negative">{t("off")}</span>;
 }
 
 /* Compact action for the onboarding step: a single Request/Open/Granted control. */
@@ -238,14 +238,14 @@ export function Permissions({ compact = false }: { compact?: boolean } = {}) {
   const orderedRows = [...rows].sort((a, b) => rank(a.key) - rank(b.key));
 
   return (
-    <div className="bibo-card bibo-card--default bb-card-pad">
+    <div className="actilens-card actilens-card--default bb-card-pad">
       <div className="bb-panel__head">
         <div>
           <div className="bb-panel__title">{t("title")}</div>
           <div className="bb-panel__sub">{t("intro")}</div>
         </div>
         <span style={{ marginLeft: "auto" }}>
-          <button className="bibo-btn bibo-btn--ghost bibo-btn--sm" onClick={refresh}>
+          <button className="actilens-btn actilens-btn--ghost actilens-btn--sm" onClick={refresh}>
             <span style={{ display: "inline-flex", lineHeight: 0 }}>
               <RefreshIcon />
             </span>

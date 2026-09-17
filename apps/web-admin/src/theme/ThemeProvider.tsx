@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 export type ThemeMode = "light" | "dark" | "system";
-const KEY = "ctracking.admin.theme";
+const KEY = "actilens.admin.theme";
 
 interface ThemeState {
   mode: ThemeMode;

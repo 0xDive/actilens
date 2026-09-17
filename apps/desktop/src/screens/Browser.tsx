@@ -16,7 +16,7 @@ type BrowserLinkInfo = { port: number | null; token_active: boolean };
 
 // Where the "Get the extension" button points. Chrome-only for now; published
 // page can be swapped without code changes elsewhere.
-const EXTENSION_URL = "https://bibotracker.com/extension";
+const EXTENSION_URL = "https://github.com/0xDive/actilens/extension";
 
 /**
  * ExtensionGuide — shown on the Browser screen until the extension has reported

@@ -2,9 +2,9 @@
 set -Eeuo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_FILE="$ROOT/corporate/.env"
-COMPOSE_FILE="$ROOT/corporate/docker-compose.yml"
-HTTPS_COMPOSE_FILE="$ROOT/corporate/docker-compose.https.yml"
+ENV_FILE="$ROOT/deploy/.env"
+COMPOSE_FILE="$ROOT/deploy/docker-compose.yml"
+HTTPS_COMPOSE_FILE="$ROOT/deploy/docker-compose.https.yml"
 
 PORT_ARG=""
 ORIGIN_ARG=""
@@ -16,7 +16,7 @@ OPEN_FIREWALL=0
 
 usage() {
   cat <<'EOF'
-BiBoTracking Corporate — one-command Linux installer
+ActiLens — one-command Linux installer
 
 Usage:
   ./install-linux.sh [options]
@@ -25,7 +25,7 @@ Options:
   --port N               Published HTTP port (default: 8081)
   --origin URL           Public URL, e.g. http://192.168.1.50:8081
   --domain NAME          Enable automatic HTTPS with Caddy for this DNS name
-  --image IMAGE          Docker image (default: ghcr.io/0xdive/emplooyee-tracking:main)
+  --image IMAGE          Docker image (default: ghcr.io/0xdive/actilens:main)
   --local-build          Always build the app image from this checkout
   --install-docker       Install Docker using Docker's official installer if missing
   --open-firewall        Open required UFW ports if UFW is active
@@ -159,8 +159,8 @@ if [[ -f "$ENV_FILE" ]]; then
   set +a
 fi
 
-PORT="${PORT_ARG:-${BIBO_PORT:-8081}}"
-IMAGE="${IMAGE_ARG:-${BIBO_IMAGE:-ghcr.io/0xdive/emplooyee-tracking:main}}"
+PORT="${PORT_ARG:-${ACTILENS_PORT:-8081}}"
+IMAGE="${IMAGE_ARG:-${ACTILENS_IMAGE:-ghcr.io/0xdive/actilens:main}}"
 DOMAIN="${DOMAIN_ARG:-${DOMAIN:-}}"
 
 if ! [[ "$PORT" =~ ^[0-9]+$ ]] || (( PORT < 1 || PORT > 65535 )); then
@@ -183,31 +183,31 @@ fi
 if [[ -n "$DOMAIN" ]]; then
   BIND_ADDR="127.0.0.1"
 else
-  BIND_ADDR="${BIBO_BIND_ADDR:-0.0.0.0}"
+  BIND_ADDR="${ACTILENS_BIND_ADDR:-0.0.0.0}"
 fi
 
-mkdir -p "$ROOT/corporate/backups"
+mkdir -p "$ROOT/deploy/backups"
 
 if [[ ! -f "$ENV_FILE" ]]; then
   DB_PASSWORD="$(random_hex)"
   cat > "$ENV_FILE" <<EOF
-POSTGRES_USER=ctracking
-POSTGRES_DB=ctracking
+POSTGRES_USER=actilens
+POSTGRES_DB=actilens
 POSTGRES_PASSWORD=$DB_PASSWORD
-BIBO_PORT=$PORT
-BIBO_BIND_ADDR=$BIND_ADDR
+ACTILENS_PORT=$PORT
+ACTILENS_BIND_ADDR=$BIND_ADDR
 PUBLIC_ORIGIN=$ORIGIN
-BIBO_IMAGE=$IMAGE
+ACTILENS_IMAGE=$IMAGE
 DOMAIN=$DOMAIN
 EOF
   chmod 600 "$ENV_FILE"
   echo "Created $ENV_FILE with a random database password."
 else
   echo "Using existing $ENV_FILE (database credentials were preserved)."
-  set_env_value BIBO_PORT "$PORT"
-  set_env_value BIBO_BIND_ADDR "$BIND_ADDR"
+  set_env_value ACTILENS_PORT "$PORT"
+  set_env_value ACTILENS_BIND_ADDR "$BIND_ADDR"
   set_env_value PUBLIC_ORIGIN "$ORIGIN"
-  set_env_value BIBO_IMAGE "$IMAGE"
+  set_env_value ACTILENS_IMAGE "$IMAGE"
   set_env_value DOMAIN "$DOMAIN"
 fi
 
@@ -232,21 +232,21 @@ if (( OPEN_FIREWALL )) && command -v ufw >/dev/null 2>&1; then
 fi
 
 echo
-echo "Starting BiBoTracking Corporate..."
+echo "Starting ActiLens..."
 compose pull db >/dev/null
 if [[ -n "$DOMAIN" ]]; then
   compose pull caddy >/dev/null
 fi
 
 if (( LOCAL_BUILD )); then
-  compose build --pull bibotracking
+  compose build --pull actilens
   compose up -d
 else
-  if compose pull bibotracking; then
+  if compose pull actilens; then
     compose up -d --no-build
   else
     echo "Prebuilt image could not be pulled; falling back to a local source build."
-    compose build --pull bibotracking
+    compose build --pull actilens
     compose up -d
   fi
 fi
@@ -260,7 +260,7 @@ for _ in $(seq 1 60); do
   elif command -v wget >/dev/null 2>&1; then
     if wget -qO- "$health_url" >/dev/null 2>&1; then ok=1; break; fi
   else
-    state="$("${DOCKER[@]}" inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' bibotracking 2>/dev/null || true)"
+    state="$("${DOCKER[@]}" inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' actilens 2>/dev/null || true)"
     if [[ "$state" == "healthy" || "$state" == "running" ]]; then ok=1; break; fi
   fi
   sleep 2
@@ -269,7 +269,7 @@ done
 if (( ! ok )); then
   echo "ERROR: server did not become healthy." >&2
   compose ps >&2 || true
-  compose logs --tail=120 bibotracking >&2 || true
+  compose logs --tail=120 actilens >&2 || true
   exit 1
 fi
 
@@ -285,7 +285,7 @@ fi
 
 echo
 echo "============================================================"
-echo "BiBoTracking Corporate is running."
+echo "ActiLens is running."
 echo "Admin:  $ORIGIN/admin/"
 echo "Health: $ORIGIN/healthz"
 echo "Config: $ENV_FILE"
@@ -295,7 +295,7 @@ fi
 echo "============================================================"
 echo
 echo "Useful commands:"
-echo "  ./biboctl.sh status"
-echo "  ./biboctl.sh logs"
-echo "  ./biboctl.sh update"
-echo "  ./biboctl.sh backup"
+echo "  ./actilensctl.sh status"
+echo "  ./actilensctl.sh logs"
+echo "  ./actilensctl.sh update"
+echo "  ./actilensctl.sh backup"

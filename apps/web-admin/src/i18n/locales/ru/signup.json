@@ -23,7 +23,7 @@
     "addMember": "Не удалось добавить сотрудника."
   },
   "persona": {
-    "heading": "Как вы будете использовать BiBoTracking?",
+    "heading": "Как вы будете использовать ActiLens?",
     "sub": "Позже это можно изменить.",
     "back": "Назад",
     "justMeTitle": "Только для себя",
@@ -48,7 +48,7 @@
   "account": {
     "back": "← Назад",
     "title": "Создать аккаунт",
-    "sub": "Настройте BiBoTracking.",
+    "sub": "Настройте ActiLens.",
     "name": "Ваше имя",
     "identifier": "Email или логин",
     "identifierPlaceholder": "you@example.com или login",
@@ -81,7 +81,7 @@
     "goToDashboard": "Перейти в панель"
   },
   "clipboard": {
-    "text": "BiBoTracking\nЛогин: {{login}}\nПароль: {{password}}"
+    "text": "ActiLens\nЛогин: {{login}}\nПароль: {{password}}"
   },
   "members": {
     "title": "Добавить сотрудников",

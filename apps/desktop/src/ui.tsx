@@ -74,23 +74,23 @@ export function StatCard({
   chart?: ReactNode;
 }) {
   return (
-    <div className={`bibo-stat${focal ? " is-focal" : ""}`}>
-      <div className="bibo-stat__top">
-        {icon && <span className="bibo-stat__icon">{icon}</span>}
-        <span className="bibo-stat__label">{label}</span>
+    <div className={`actilens-stat${focal ? " is-focal" : ""}`}>
+      <div className="actilens-stat__top">
+        {icon && <span className="actilens-stat__icon">{icon}</span>}
+        <span className="actilens-stat__label">{label}</span>
       </div>
-      <div className="bibo-stat__value num">{value}</div>
+      <div className="actilens-stat__value num">{value}</div>
       {(delta || sub || chart) && (
-        <div className="bibo-stat__foot">
+        <div className="actilens-stat__foot">
           {delta && (
-            <span className={`bibo-stat__delta bibo-stat__delta--${deltaDir}`}>
+            <span className={`actilens-stat__delta actilens-stat__delta--${deltaDir}`}>
               {deltaDir === "up" && <TrendUpIcon />}
               {deltaDir === "down" && <TrendDownIcon />}
               {delta}
             </span>
           )}
-          {sub && <span className="bibo-stat__sub">{sub}</span>}
-          {chart && <span className="bibo-stat__chart">{chart}</span>}
+          {sub && <span className="actilens-stat__sub">{sub}</span>}
+          {chart && <span className="actilens-stat__chart">{chart}</span>}
         </div>
       )}
     </div>

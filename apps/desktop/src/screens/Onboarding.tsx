@@ -87,7 +87,7 @@ type Persona = "personal" | "employee" | "kid";
 
 type TF = ReturnType<typeof useTranslation>["t"];
 
-/* ---- Step 1: What BiBoTracking captures (capture cards + who-sees) ---- */
+/* ---- Step 1: What ActiLens captures (capture cards + who-sees) ---- */
 function StepCaptures({ t, persona }: { t: TF; persona: Persona }) {
   return (
     <>

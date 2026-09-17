@@ -13,14 +13,14 @@ const DOWNLOAD_URL = import.meta.env.VITE_DOWNLOAD_URL || "/";
 function LogoMark() {
   return (
     <span className="ad-login__logo" aria-hidden>
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="BiBoTracking">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="ActiLens">
         <defs>
-          <linearGradient id="biboLogoGrad" x1="6" y1="4" x2="42" y2="46" gradientUnits="userSpaceOnUse">
+          <linearGradient id="actilensLogoGrad" x1="6" y1="4" x2="42" y2="46" gradientUnits="userSpaceOnUse">
             <stop offset="0" stopColor="#9a90f7" />
             <stop offset="1" stopColor="#6157e6" />
           </linearGradient>
         </defs>
-        <rect x="0" y="0" width="48" height="48" rx="15" fill="url(#biboLogoGrad)" />
+        <rect x="0" y="0" width="48" height="48" rx="15" fill="url(#actilensLogoGrad)" />
         <path
           d="M12 24h6l3 8 6-16 3 8h6"
           fill="none"
@@ -109,10 +109,10 @@ export function SignIn() {
         )}
 
         <form className="ad-form" onSubmit={submit}>
-          <label className="bibo-field">
-            <span className="bibo-field__lbl">{t("signIn.identifier")}</span>
-            <span className="bibo-input">
-              <span className="bibo-input__icon">
+          <label className="actilens-field">
+            <span className="actilens-field__lbl">{t("signIn.identifier")}</span>
+            <span className="actilens-input">
+              <span className="actilens-input__icon">
                 <AtSignIcon />
               </span>
               <input
@@ -126,10 +126,10 @@ export function SignIn() {
             </span>
           </label>
 
-          <label className="bibo-field">
-            <span className="bibo-field__lbl">{t("signIn.password")}</span>
-            <span className="bibo-input">
-              <span className="bibo-input__icon">
+          <label className="actilens-field">
+            <span className="actilens-field__lbl">{t("signIn.password")}</span>
+            <span className="actilens-input">
+              <span className="actilens-input__icon">
                 <LockIcon />
               </span>
               <input
@@ -143,7 +143,7 @@ export function SignIn() {
             </span>
           </label>
 
-          <button className="bibo-btn bibo-btn--primary bibo-btn--block" type="submit" disabled={busy}>
+          <button className="actilens-btn actilens-btn--primary actilens-btn--block" type="submit" disabled={busy}>
             <span>{busy ? t("signIn.submitting") : t("signIn.submit")}</span>
           </button>
         </form>

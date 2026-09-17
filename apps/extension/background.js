@@ -1,7 +1,7 @@
-// ctracking browser extension — MV3 service worker.
+// actilens browser extension — MV3 service worker.
 //
 // Tracks the active tab and reports each completed page visit (URL + time on page)
-// to the local ctracking app. Discovers the app's loopback port by probing a fixed
+// to the local actilens app. Discovers the app's loopback port by probing a fixed
 // candidate list and reads the shared token from /whoami. See docs/04-browser-extension.md.
 
 const CANDIDATE_PORTS = [47615, 48291, 49377, 50603, 51719, 52837];
@@ -28,7 +28,7 @@ async function discover() {
       const res = await fetch(`http://127.0.0.1:${port}/whoami`);
       if (!res.ok) continue;
       const j = await res.json();
-      if (j && j.app === "employeetrack" && j.token) {
+      if (j && j.app === "actilens" && j.token) {
         const link = { port, token: j.token };
         await chrome.storage.local.set({ link });
         return link;
@@ -51,7 +51,7 @@ async function postVisit(visit) {
   const send = (l) =>
     fetch(`http://127.0.0.1:${l.port}/ingest`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-ctracking-token": l.token },
+      headers: { "Content-Type": "application/json", "x-actilens-token": l.token },
       body: JSON.stringify(visit),
     });
   try {
@@ -80,7 +80,7 @@ async function reportError(err, context) {
     if (!link) return; // no app to report to; don't trigger discovery just for this
     await fetch(`http://127.0.0.1:${link.port}/report-error`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-ctracking-token": link.token },
+      headers: { "Content-Type": "application/json", "x-actilens-token": link.token },
       body: JSON.stringify({
         message: String((err && err.message) || err),
         stack: err && err.stack ? String(err.stack) : null,

@@ -39,7 +39,7 @@ export function BrowserPanel({ visits }: { visits: BrowserVisit[] }) {
   const rows = [...visits].sort((a, b) => b.duration_s - a.duration_s);
 
   return (
-    <div className="bibo-card bibo-card--default ad-tablecard">
+    <div className="actilens-card actilens-card--default ad-tablecard">
       <div className="ad-panelhead" style={{ padding: "24px 20px 4px" }}>
         <div className="ad-paneltitle">{t("browser.title")}</div>
       </div>

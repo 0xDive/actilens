@@ -1,4 +1,4 @@
-"""Generate the BiBoTracking icon sets from the BrandMark (ui.tsx): a purple
+"""Generate the ActiLens icon sets from the BrandMark (ui.tsx): a purple
 gradient tile (150deg, #8170f2 -> #6c5ce7, like `.welcome .brand-mark`) holding
 the white circle + pulse-line glyph.
 

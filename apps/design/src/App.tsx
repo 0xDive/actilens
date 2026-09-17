@@ -56,7 +56,7 @@ export function App() {
     <div className="app">
       <aside className="sidebar">
         <div className="brand">
-          <span className="dot" /> ctracking
+          <span className="dot" /> actilens
         </div>
         {NAV.map((n) => (
           <div

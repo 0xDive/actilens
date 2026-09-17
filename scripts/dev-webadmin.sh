@@ -2,7 +2,7 @@
 # One command to run web-admin locally: starts the Go backend (:8090) AND the
 # Vite web-admin dev server (:5174) together. Ctrl-C stops both.
 #
-# Prereqs (see CHAY-LOCAL.md): Postgres running on :5432 with role/db `ctracking`,
+# Prereqs (see CHAY-LOCAL.md): Postgres running on :5432 with role/db `actilens`,
 # plus Go + Node + pnpm installed. No Docker needed.
 set -euo pipefail
 

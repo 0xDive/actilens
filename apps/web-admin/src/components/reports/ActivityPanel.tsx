@@ -117,7 +117,7 @@ export function ActivityPanel({ data }: { data: ActivityResponse }) {
   return (
     <div className="ad-twocol">
       {/* Today's timeline */}
-      <div className="bibo-card bibo-card--default ad-cardpad">
+      <div className="actilens-card actilens-card--default ad-cardpad">
         <div className="ad-panelhead">
           <div className="ad-paneltitle">{t("activity.timeline")}</div>
         </div>
@@ -175,12 +175,12 @@ export function ActivityPanel({ data }: { data: ActivityResponse }) {
       </div>
 
       {/* App & window breakdown */}
-      <div className="bibo-card bibo-card--default ad-cardpad">
+      <div className="actilens-card actilens-card--default ad-cardpad">
         <div className="ad-panelhead">
           <div className="ad-paneltitle">{t("activity.breakdown")}</div>
         </div>
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
-          <div className="bibo-donut" style={{ position: "relative", width: 130, height: 130 }}>
+          <div className="actilens-donut" style={{ position: "relative", width: 130, height: 130 }}>
             <svg width="130" height="130">
               {arcs.map((a, i) => (
                 <circle

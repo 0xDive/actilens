@@ -84,11 +84,11 @@ fn default_skip_apps() -> Vec<String> {
 const DEFAULT_BACKEND_URL: &str = if cfg!(feature = "local") {
     "http://localhost:8090"
 } else if cfg!(feature = "staging") {
-    // Private pre-prod host — set via CTRACKING_BACKEND_URL at runtime, or edit locally.
+    // Private pre-prod host — set via ACTILENS_BACKEND_URL at runtime, or edit locally.
     "https://staging.example.com"
 } else {
     // production (default)
-    "https://bibotracker.com"
+    "https://github.com/0xDive/actilens"
 };
 
 /// Compile-time environment label (matches the backend-URL feature resolution).
@@ -104,12 +104,12 @@ pub fn env_label() -> &'static str {
 }
 
 /// Base URL of the sync backend. Corporate builds can bake a self-host URL at
-/// compile time with CTRACKING_BUILD_SERVER_URL. Runtime override still wins.
+/// compile time with ACTILENS_BUILD_SERVER_URL. Runtime override still wins.
 pub fn backend_base_url() -> String {
-    std::env::var("CTRACKING_BACKEND_URL")
+    std::env::var("ACTILENS_BACKEND_URL")
         .ok()
         .filter(|s| !s.is_empty())
-        .or_else(|| option_env!("CTRACKING_BUILD_SERVER_URL").map(str::to_string).filter(|s| !s.is_empty()))
+        .or_else(|| option_env!("ACTILENS_BUILD_SERVER_URL").map(str::to_string).filter(|s| !s.is_empty()))
         .unwrap_or_else(|| DEFAULT_BACKEND_URL.to_string())
 }
 
@@ -220,14 +220,14 @@ mod tests {
 
     #[test]
     fn load_defaults_when_missing() {
-        let s = load(Path::new("/nonexistent/ctracking/settings.json"));
+        let s = load(Path::new("/nonexistent/actilens/settings.json"));
         assert_eq!(s.idle_threshold_s, DEFAULT_IDLE_THRESHOLD_S);
         assert!(!s.domain_only);
     }
 
     #[test]
     fn save_then_load_round_trips() {
-        let dir = std::env::temp_dir().join(format!("ctracking_settings_{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("actilens_settings_{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("settings.json");
         let mut s = Settings::default();
@@ -242,7 +242,7 @@ mod tests {
 
     #[test]
     fn device_id_is_created_once_and_stable() {
-        let dir = std::env::temp_dir().join(format!("ctracking_devid_{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("actilens_devid_{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("settings.json");
 
@@ -258,11 +258,11 @@ mod tests {
     #[test]
     fn backend_base_url_uses_compiled_env_default() {
         // No override env set → falls back to the compile-time env default.
-        std::env::remove_var("CTRACKING_BACKEND_URL");
+        std::env::remove_var("ACTILENS_BACKEND_URL");
         assert_eq!(backend_base_url(), DEFAULT_BACKEND_URL);
         // Sanity: the default build targets production.
         if cfg!(all(feature = "production", not(feature = "local"), not(feature = "staging"))) {
-            assert_eq!(backend_base_url(), "https://bibotracker.com");
+            assert_eq!(backend_base_url(), "https://github.com/0xDive/actilens");
         }
     }
 }

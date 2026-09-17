@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"ctracking/backend/internal/auth"
-	"ctracking/backend/internal/filestore"
-	"ctracking/backend/internal/store"
+	"actilens/backend/internal/auth"
+	"actilens/backend/internal/filestore"
+	"actilens/backend/internal/store"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"

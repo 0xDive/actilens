@@ -70,21 +70,21 @@ function StatCard(props: {
 }) {
   const { icon, label, value, focal, delta, sub } = props;
   return (
-    <div className={`bibo-card ${focal ? "bibo-card--focal" : "bibo-card--default"} ad-cardpad`}>
-      <div className={`bibo-stat${focal ? " bibo-stat--focal" : ""}`}>
-        <div className="bibo-stat__top">
-          <div className="bibo-stat__icon">{icon}</div>
-          <div className="bibo-stat__label">{label}</div>
+    <div className={`actilens-card ${focal ? "actilens-card--focal" : "actilens-card--default"} ad-cardpad`}>
+      <div className={`actilens-stat${focal ? " actilens-stat--focal" : ""}`}>
+        <div className="actilens-stat__top">
+          <div className="actilens-stat__icon">{icon}</div>
+          <div className="actilens-stat__label">{label}</div>
         </div>
-        <div className="bibo-stat__value">{value}</div>
-        <div className="bibo-stat__foot">
+        <div className="actilens-stat__value">{value}</div>
+        <div className="actilens-stat__foot">
           {delta && (
-            <span className="bibo-stat__delta bibo-stat__delta--up">
+            <span className="actilens-stat__delta actilens-stat__delta--up">
               {TrendUp}
               {delta}
             </span>
           )}
-          {sub && <span className="bibo-stat__sub">{sub}</span>}
+          {sub && <span className="actilens-stat__sub">{sub}</span>}
         </div>
       </div>
     </div>
@@ -196,15 +196,15 @@ export function EmployeeDetail() {
 
       {/* detail header */}
       <div className="ad-detailhead">
-        <span className="bibo-avatar" style={{ ["--_s" as string]: "48px" }}>
+        <span className="actilens-avatar" style={{ ["--_s" as string]: "48px" }}>
           <span
-            className="bibo-avatar__img"
+            className="actilens-avatar__img"
             aria-label={name}
             style={{ background: "var(--info-soft)", color: "var(--info)" }}
           >
             {initials(name)}
           </span>
-          <span className={`bibo-avatar__dot bibo-avatar__dot--${status}`} />
+          <span className={`actilens-avatar__dot actilens-avatar__dot--${status}`} />
         </span>
         <div className="ad-detailhead__id">
           <div className="ad-detailhead__name">
@@ -217,11 +217,11 @@ export function EmployeeDetail() {
         </div>
 
         <div className="ad-datemode">
-          <div className="bibo-seg bibo-seg--sm" role="tablist" aria-label={t("detail.dateMode")}>
+          <div className="actilens-seg actilens-seg--sm" role="tablist" aria-label={t("detail.dateMode")}>
             <button
               role="tab"
               aria-selected={mode === "day"}
-              className={`bibo-seg__opt${mode === "day" ? " bibo-seg__opt--on" : ""}`}
+              className={`actilens-seg__opt${mode === "day" ? " actilens-seg__opt--on" : ""}`}
               onClick={() => setMode("day")}
             >
               {t("detail.singleDay")}
@@ -229,7 +229,7 @@ export function EmployeeDetail() {
             <button
               role="tab"
               aria-selected={mode === "range"}
-              className={`bibo-seg__opt${mode === "range" ? " bibo-seg__opt--on" : ""}`}
+              className={`actilens-seg__opt${mode === "range" ? " actilens-seg__opt--on" : ""}`}
               onClick={() => setMode("range")}
             >
               {t("detail.dateRange")}
@@ -294,13 +294,13 @@ export function EmployeeDetail() {
 
       {/* tabs + panel */}
       <div className="ad-tabwrap">
-        <div className="bibo-tabs bibo-tabs--pill" role="tablist">
+        <div className="actilens-tabs actilens-tabs--pill" role="tablist">
           {TABS.map((key) => (
             <button
               key={key}
               role="tab"
               aria-selected={tab === key}
-              className={`bibo-tab${tab === key ? " bibo-tab--on" : ""}`}
+              className={`actilens-tab${tab === key ? " actilens-tab--on" : ""}`}
               onClick={() => setTab(key)}
             >
               {t(`detail.tabs.${key}`)}
@@ -319,7 +319,7 @@ export function EmployeeDetail() {
                 {/* Browser panel renders its own table card */}
                 {tab === "browser" && (visits ? <BrowserPanel visits={visits} /> : <Spinner />)}
                 {(tab === "keystrokes" || tab === "screenshots") && (
-                  <div className="bibo-card bibo-card--default ad-cardpad">
+                  <div className="actilens-card actilens-card--default ad-cardpad">
                     {tab === "keystrokes" &&
                       (keystrokes ? <KeystrokePanel buckets={keystrokes} /> : <Spinner />)}
                     {tab === "screenshots" &&

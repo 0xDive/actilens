@@ -1,6 +1,6 @@
 {
-  "name": "@ctracking/extension",
+  "name": "@actilens/extension",
   "private": true,
   "version": "0.1.0",
-  "description": "employeetrack browser extension (Manifest V3) — reports active tab to the local app."
+  "description": "actilens browser extension (Manifest V3) — reports active tab to the local app."
 }

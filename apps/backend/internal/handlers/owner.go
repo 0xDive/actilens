@@ -7,8 +7,8 @@ import (
 	"regexp"
 	"strings"
 
-	"ctracking/backend/internal/auth"
-	"ctracking/backend/internal/store"
+	"actilens/backend/internal/auth"
+	"actilens/backend/internal/store"
 
 	"github.com/gin-gonic/gin"
 )

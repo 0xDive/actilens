@@ -1,6 +1,6 @@
-# ctracking — UI mockups (React)
+# actilens — UI mockups (React)
 
-Runnable, static mockups of the ctracking app + browser-extension popup. Pure visual
+Runnable, static mockups of the actilens app + browser-extension popup. Pure visual
 design (mock data, no real tracking), using the semantic tokens from
 [../docs/07-ui-design.md](../docs/07-ui-design.md). Flat, low-color, dark + light.
 

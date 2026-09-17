@@ -1,8 +1,8 @@
 [package]
-name = "ctracking"
+name = "actilens"
 version = "1.5.2"
 description = "Local-only macOS employee activity tracker"
-authors = ["Brian Nguyen"]
+authors = ["0xDive"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -11,7 +11,7 @@ edition = "2021"
 # The `_lib` suffix may seem redundant but it is necessary
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
-name = "ctracking_lib"
+name = "actilens_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -57,7 +57,7 @@ winreg = "0.52"
 
 # Backend environment selected at compile time. Resolution order in code is
 # local > staging > production (see settings::DEFAULT_BACKEND_URL). The runtime
-# CTRACKING_BACKEND_URL env var still overrides everything (used in dev).
+# ACTILENS_BACKEND_URL env var still overrides everything (used in dev).
 #   local:      cargo ... --no-default-features --features local
 #   staging:    cargo ... --no-default-features --features staging
 #   production: default

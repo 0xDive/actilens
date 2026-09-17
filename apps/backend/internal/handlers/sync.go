@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"ctracking/backend/internal/auth"
-	"ctracking/backend/internal/obs"
-	"ctracking/backend/internal/store"
+	"actilens/backend/internal/auth"
+	"actilens/backend/internal/obs"
+	"actilens/backend/internal/store"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"

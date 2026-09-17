@@ -164,7 +164,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <div>
       <div className="bb-set__sec-title">{title}</div>
-      <div className="bibo-card bibo-card--default bb-card-pad">{children}</div>
+      <div className="actilens-card actilens-card--default bb-card-pad">{children}</div>
     </div>
   );
 }
@@ -190,7 +190,7 @@ function Row({
   );
 }
 
-/* A styled dropdown (button trigger + popup listbox) matching the design's bibo-select. */
+/* A styled dropdown (button trigger + popup listbox) matching the design's actilens-select. */
 function Select<T extends string | number>({
   value,
   options,
@@ -225,29 +225,29 @@ function Select<T extends string | number>({
   }, [open]);
 
   return (
-    <div className="bibo-select" ref={ref} style={width ? { width } : undefined}>
+    <div className="actilens-select" ref={ref} style={width ? { width } : undefined}>
       <button
         type="button"
-        className="bibo-select__btn"
+        className="actilens-select__btn"
         aria-haspopup="listbox"
         aria-expanded={open}
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
       >
-        <span className="bibo-select__val">{current?.label ?? ""}</span>
-        <span className="bibo-select__chev">
+        <span className="actilens-select__val">{current?.label ?? ""}</span>
+        <span className="actilens-select__chev">
           <ChevronDownIcon />
         </span>
       </button>
       {open && (
-        <div className="bibo-select__menu" role="listbox">
+        <div className="actilens-select__menu" role="listbox">
           {options.map((o) => (
             <button
               type="button"
               key={String(o.value)}
               role="option"
               aria-selected={o.value === value}
-              className={`bibo-select__opt${o.value === value ? " active" : ""}`}
+              className={`actilens-select__opt${o.value === value ? " active" : ""}`}
               onClick={() => {
                 onChange(o.value);
                 setOpen(false);
@@ -273,7 +273,7 @@ function Switch({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <label className={`bibo-switch${checked ? " bibo-switch--on" : ""}`}>
+    <label className={`actilens-switch${checked ? " actilens-switch--on" : ""}`}>
       <input
         type="checkbox"
         role="switch"
@@ -281,8 +281,8 @@ function Switch({
         disabled={disabled}
         onChange={(e) => onChange(e.currentTarget.checked)}
       />
-      <span className="bibo-switch__track">
-        <span className="bibo-switch__knob" />
+      <span className="actilens-switch__track">
+        <span className="actilens-switch__knob" />
       </span>
     </label>
   );
@@ -454,7 +454,7 @@ export function Settings({
         </Row>
         <Row title={t("checkForUpdates")}>
           <button
-            className="bibo-btn bibo-btn--secondary bibo-btn--sm"
+            className="actilens-btn actilens-btn--secondary actilens-btn--sm"
             onClick={runUpdateCheck}
             disabled={updBusy}
           >
@@ -513,7 +513,7 @@ export function Settings({
                         {t("skipAppsCount", { count: settings.screenshot_skip_apps.length })}
                       </span>
                       <button
-                        className="bibo-btn bibo-btn--secondary bibo-btn--sm"
+                        className="actilens-btn actilens-btn--secondary actilens-btn--sm"
                         onClick={() => setSkipOpen(true)}
                       >
                         {t("skipAppsManage")}
@@ -581,7 +581,7 @@ export function Settings({
           />
         </Row>
         <Row title={t("permissionsCaptured")}>
-          <button className="bibo-btn bibo-btn--ghost bibo-btn--sm" onClick={onOpenPermissions}>
+          <button className="actilens-btn actilens-btn--ghost actilens-btn--sm" onClick={onOpenPermissions}>
             <span>{IS_WINDOWS ? t("whatsCaptured") : t("permissions")}</span>
             <span style={{ display: "inline-flex", lineHeight: 0 }}>
               <ArrowRightIcon />
@@ -598,12 +598,12 @@ export function Settings({
         </Row>
         <Row title={t("pairingToken")}>
           {link?.token_active ? (
-            <span className="bibo-badge bibo-badge--positive">
+            <span className="actilens-badge actilens-badge--positive">
               <KeyIcon />
               {t("tokenActive")}
             </span>
           ) : (
-            <span className="bibo-badge bibo-badge--negative">{t("tokenNone")}</span>
+            <span className="actilens-badge actilens-badge--negative">{t("tokenNone")}</span>
           )}
         </Row>
       </Section>
@@ -612,7 +612,7 @@ export function Settings({
         <Row title={t("export")}>
           <div className="bb-flex" style={{ gap: 8 }}>
             <button
-              className="bibo-btn bibo-btn--white bibo-btn--sm"
+              className="actilens-btn actilens-btn--white actilens-btn--sm"
               onClick={() => runExport("csv")}
               disabled={exporting}
             >
@@ -622,7 +622,7 @@ export function Settings({
               <span>{exporting ? t("exporting") : t("exportCsv")}</span>
             </button>
             <button
-              className="bibo-btn bibo-btn--white bibo-btn--sm"
+              className="actilens-btn actilens-btn--white actilens-btn--sm"
               onClick={() => runExport("json")}
               disabled={exporting}
             >
@@ -654,7 +654,7 @@ export function Settings({
           }}
         >
           <div
-            className="bibo-card bibo-card--default"
+            className="actilens-card actilens-card--default"
             onClick={(e) => e.stopPropagation()}
             style={{
               width: 480,
@@ -702,7 +702,7 @@ export function Settings({
                 }}
               />
               <button
-                className="bibo-btn bibo-btn--secondary bibo-btn--sm"
+                className="actilens-btn actilens-btn--secondary actilens-btn--sm"
                 disabled={!skipAppInput.trim()}
                 onClick={addSkipApp}
               >
@@ -715,7 +715,7 @@ export function Settings({
                 <div className="bb-row__desc" style={{ marginBottom: 4 }}>{t("skipAppsCustom")}</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {customSkipApps.map((a) => (
-                    <span key={a} className="bibo-badge bibo-badge--positive">
+                    <span key={a} className="actilens-badge actilens-badge--positive">
                       {a}
                       <button
                         type="button"
@@ -751,7 +751,7 @@ export function Settings({
                       {added.length < cat.apps.length && (
                         <button
                           type="button"
-                          className="bibo-btn bibo-btn--ghost bibo-btn--sm"
+                          className="actilens-btn actilens-btn--ghost actilens-btn--sm"
                           style={{ padding: "1px 8px", fontSize: 11 }}
                           onClick={() => addSkipApps(cat.apps)}
                         >
@@ -761,7 +761,7 @@ export function Settings({
                       {added.length > 0 && (
                         <button
                           type="button"
-                          className="bibo-btn bibo-btn--ghost bibo-btn--sm"
+                          className="actilens-btn actilens-btn--ghost actilens-btn--sm"
                           style={{ padding: "1px 8px", fontSize: 11 }}
                           onClick={() => removeSkipApps(cat.apps)}
                         >
@@ -778,7 +778,7 @@ export function Settings({
                             type="button"
                             role="checkbox"
                             aria-checked={on}
-                            className="bibo-btn bibo-btn--sm"
+                            className="actilens-btn actilens-btn--sm"
                             style={{
                               padding: "2px 10px",
                               fontSize: 12,
@@ -802,7 +802,7 @@ export function Settings({
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
-              <button className="bibo-btn bibo-btn--secondary bibo-btn--sm" onClick={() => setSkipOpen(false)}>
+              <button className="actilens-btn actilens-btn--secondary actilens-btn--sm" onClick={() => setSkipOpen(false)}>
                 {t("skipAppsDone")}
               </button>
             </div>

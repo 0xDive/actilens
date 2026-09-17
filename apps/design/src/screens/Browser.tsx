@@ -8,9 +8,9 @@ const topSites = [
 ];
 
 const visits = [
-  { title: "ctracking · Pull requests", url: "github.com/you/ctracking/pulls", time: "22m", at: "14:32" },
+  { title: "actilens · Pull requests", url: "github.com/you/actilens/pulls", time: "22m", at: "14:32" },
   { title: "Inbox (3) — Gmail", url: "mail.google.com/mail/u/0", time: "18m", at: "14:05" },
-  { title: "ctracking — Figma", url: "figma.com/file/abc/ctracking", time: "15m", at: "13:40" },
+  { title: "actilens — Figma", url: "figma.com/file/abc/actilens", time: "15m", at: "13:40" },
   { title: "rust - tokio mutex - Stack Overflow", url: "stackoverflow.com/q/123", time: "9m", at: "13:18" },
   { title: "Tauri v2 | Docs", url: "tauri.app/start", time: "12m", at: "12:55" },
 ];

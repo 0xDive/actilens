@@ -1,4 +1,4 @@
-// Command server is the ctracking backend HTTP entrypoint.
+// Command server is the actilens backend HTTP entrypoint.
 package main
 
 import (
@@ -11,13 +11,13 @@ import (
 	"syscall"
 	"time"
 
-	"ctracking/backend/internal/config"
-	"ctracking/backend/internal/db"
-	"ctracking/backend/internal/filestore"
-	"ctracking/backend/internal/obs"
-	"ctracking/backend/internal/retention"
-	"ctracking/backend/internal/server"
-	"ctracking/backend/internal/store"
+	"actilens/backend/internal/config"
+	"actilens/backend/internal/db"
+	"actilens/backend/internal/filestore"
+	"actilens/backend/internal/obs"
+	"actilens/backend/internal/retention"
+	"actilens/backend/internal/server"
+	"actilens/backend/internal/store"
 
 	"github.com/getsentry/sentry-go"
 )

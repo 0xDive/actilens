@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-REPO_URL="https://github.com/0xDive/emplooyee-tracking.git"
+REPO_URL="https://github.com/0xDive/actilens.git"
 
 if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
-  INSTALL_DIR="${BIBO_INSTALL_DIR:-/opt/bibotracking}"
+  INSTALL_DIR="${ACTILENS_INSTALL_DIR:-/opt/actilens}"
 else
-  INSTALL_DIR="${BIBO_INSTALL_DIR:-$HOME/bibotracking}"
+  INSTALL_DIR="${ACTILENS_INSTALL_DIR:-$HOME/actilens}"
 fi
 
 need_root_cmd() {
@@ -44,7 +44,7 @@ elif [[ -e "$INSTALL_DIR" ]]; then
   echo "ERROR: $INSTALL_DIR exists but is not a git checkout." >&2
   exit 1
 else
-  echo "Cloning BiBoTracking Corporate to $INSTALL_DIR"
+  echo "Cloning ActiLens to $INSTALL_DIR"
   mkdir -p "$(dirname "$INSTALL_DIR")"
   git clone --depth 1 --branch main "$REPO_URL" "$INSTALL_DIR"
 fi

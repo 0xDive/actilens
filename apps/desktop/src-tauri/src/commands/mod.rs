@@ -18,7 +18,7 @@ use crate::trackers::TrackerControl;
 /// commands exist (task 9+).
 #[tauri::command]
 pub fn ping() -> String {
-    "ctracking: ok".to_string()
+    "actilens: ok".to_string()
 }
 
 /// Pause or resume all tracking. Routed through the tray helper so the menu bar
@@ -408,13 +408,13 @@ pub fn export_json_to_dir(
         "browser_visit": serde_json::to_value(&visits).map_err(err)?,
     });
 
-    let path = Path::new(dir).join("employeetrack_export.json");
+    let path = Path::new(dir).join("actilens_export.json");
     std::fs::write(&path, serde_json::to_string_pretty(&doc).map_err(err)?).map_err(err)?;
 
     Ok(ExportSummary {
         dir: dir.to_string(),
         files: vec![FileResult {
-            name: "employeetrack_export.json".into(),
+            name: "actilens_export.json".into(),
             rows,
         }],
     })
@@ -650,7 +650,7 @@ mod tests {
         })
         .unwrap();
 
-        let dir = std::env::temp_dir().join(format!("ctracking_export_test_{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("actilens_export_test_{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let summary = export_to_dir(&db, dir.to_str().unwrap(), 0, i64::MAX).unwrap();
         assert_eq!(summary.files.len(), 4);
@@ -679,11 +679,11 @@ mod tests {
         db.add_keystrokes(60, 9).unwrap();
 
         let dir =
-            std::env::temp_dir().join(format!("ctracking_json_test_{}", std::process::id()));
+            std::env::temp_dir().join(format!("actilens_json_test_{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         export_json_to_dir(&db, dir.to_str().unwrap(), 0, i64::MAX).unwrap();
 
-        let text = std::fs::read_to_string(dir.join("employeetrack_export.json")).unwrap();
+        let text = std::fs::read_to_string(dir.join("actilens_export.json")).unwrap();
         let v: serde_json::Value = serde_json::from_str(&text).unwrap();
         assert_eq!(v["activity_sample"][0]["app_name"], "Code");
         assert_eq!(v["keystroke_bucket"][0]["count"], 9);

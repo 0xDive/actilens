@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"ctracking/backend/internal/privacyapps"
+	"actilens/backend/internal/privacyapps"
 
 	"github.com/jackc/pgx/v5"
 )

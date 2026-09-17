@@ -1,20 +1,22 @@
 {
-  "name": "ctracking",
+  "name": "actilens",
   "version": "0.1.0",
   "private": true,
-  "description": "Local-only macOS employee activity tracker (Tauri + React).",
+  "description": "Workstation activity monitoring and analytics platform.",
   "packageManager": "pnpm@10.30.1",
   "engines": {
     "node": ">=20",
     "pnpm": ">=10"
   },
   "scripts": {
-    "design": "pnpm --filter @ctracking/design dev",
-    "design:build": "pnpm --filter @ctracking/design build",
+    "design": "pnpm --filter @actilens/design dev",
+    "design:build": "pnpm --filter @actilens/design build",
     "typecheck": "pnpm -r --if-present typecheck",
     "build": "pnpm -r --if-present build"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }

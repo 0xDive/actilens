@@ -1,0 +1,63 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: actilens-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-actilens}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-actilens-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-actilens}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-actilens} -d ${POSTGRES_DB:-actilens}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  actilens:
+    image: ${ACTILENS_IMAGE:-ghcr.io/0xdive/actilens:main}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: actilens
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: "8080"
+      DATABASE_URL: postgres://${POSTGRES_USER:-actilens}:${POSTGRES_PASSWORD:-actilens-change-me}@db:5432/${POSTGRES_DB:-actilens}?sslmode=disable
+      STORAGE_DIR: /app/storage
+      STATIC_DIR: /app/static
+      WEB_ADMIN_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:8081}
+      APP_ENV: production
+      SENTRY_DSN: ""
+      LOG_DIR: /app/logs
+    ports:
+      - "${ACTILENS_BIND_ADDR:-0.0.0.0}:${ACTILENS_PORT:-8081}:8080"
+    volumes:
+      - screenshots:/app/storage
+      - appconfig:/app/config
+      - applogs:/app/logs
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  pgdata:
+  screenshots:
+  appconfig:
+  applogs:

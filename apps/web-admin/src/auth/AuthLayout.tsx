@@ -31,8 +31,8 @@ export function AuthLayout({
       </div>
       {!hideLockup && (
         <>
-          <img className="auth-logo logo-light" src={lockupLight} alt="BiBoTracking" />
-          <img className="auth-logo logo-dark" src={lockupDark} alt="BiBoTracking" />
+          <img className="auth-logo logo-light" src={lockupLight} alt="ActiLens" />
+          <img className="auth-logo logo-dark" src={lockupDark} alt="ActiLens" />
         </>
       )}
       {bare ? children : <div className={wide ? "auth-card wide" : "auth-card"}>{children}</div>}

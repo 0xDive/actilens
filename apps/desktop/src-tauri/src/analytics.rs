@@ -60,7 +60,7 @@ fn build_event(event_name: &str, locale: &str, session_id: &str, props: Option<V
             "osName": os_name(),
             "osVersion": os_info::get().version().to_string(),
             "appVersion": env!("CARGO_PKG_VERSION"),
-            "sdkVersion": "ctracking-rust@1.0.0",
+            "sdkVersion": "actilens-rust@1.0.0",
         },
     });
     if let Some(p) = props {

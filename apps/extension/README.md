@@ -1,11 +1,11 @@
-# ctracking browser extension
+# actilens browser extension
 
 Manifest V3 extension (Chrome/Edge) that reports the active tab's URL + time-on-page
-to the local ctracking desktop app. No build step — plain files.
+to the local actilens desktop app. No build step — plain files.
 
 ## Load it (unpacked)
 
-1. Make sure the **ctracking desktop app is running** (it hosts the local server).
+1. Make sure the **actilens desktop app is running** (it hosts the local server).
 2. Open **chrome://extensions** (or **edge://extensions**).
 3. Toggle **Developer mode** on (top-right).
 4. Click **Load unpacked** and select this folder (`apps/extension`).
@@ -14,7 +14,7 @@ to the local ctracking desktop app. No build step — plain files.
 ## How it works
 
 - **Discovery:** probes the candidate ports `47615, 48291, 49377, 50603, 51719, 52837`
-  with `GET /whoami`, confirms `app == "ctracking"`, and caches `{port, token}`.
+  with `GET /whoami`, confirms `app == "actilens"`, and caches `{port, token}`.
 - **Tracking:** on tab activation / URL change / window focus change, it finalizes the
   previous page (time on page) and `POST`s it to `/ingest` with the shared token.
   Only counts while a browser window is focused.

@@ -236,7 +236,7 @@ export function SignupWizard() {
           </div>
 
           <div className="ad-wiz-foot">
-            <button type="button" className="bibo-btn bibo-btn--ghost" onClick={() => nav("/login")}>
+            <button type="button" className="actilens-btn actilens-btn--ghost" onClick={() => nav("/login")}>
               <Ic>
                 <path d="m12 19-7-7 7-7" />
                 <path d="M19 12H5" />
@@ -299,10 +299,10 @@ export function SignupWizard() {
           )}
 
           <div className="ad-form">
-            <label className="bibo-field">
-              <span className="bibo-field__lbl">{t("account.name")}</span>
-              <span className="bibo-input">
-                <span className="bibo-input__icon">
+            <label className="actilens-field">
+              <span className="actilens-field__lbl">{t("account.name")}</span>
+              <span className="actilens-input">
+                <span className="actilens-input__icon">
                   <Ic>
                     <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
                     <circle cx="12" cy="7" r="4" />
@@ -319,10 +319,10 @@ export function SignupWizard() {
             </label>
 
             <div>
-              <label className="bibo-field">
-                <span className="bibo-field__lbl">{t("account.identifier")}</span>
-                <span className="bibo-input">
-                  <span className="bibo-input__icon">
+              <label className="actilens-field">
+                <span className="actilens-field__lbl">{t("account.identifier")}</span>
+                <span className="actilens-input">
+                  <span className="actilens-input__icon">
                     <Ic>
                       <circle cx="12" cy="12" r="4" />
                       <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8" />
@@ -350,10 +350,10 @@ export function SignupWizard() {
             </div>
 
             <div>
-              <label className="bibo-field">
-                <span className="bibo-field__lbl">{t("account.password")}</span>
-                <span className="bibo-input">
-                  <span className="bibo-input__icon">
+              <label className="actilens-field">
+                <span className="actilens-field__lbl">{t("account.password")}</span>
+                <span className="actilens-input">
+                  <span className="actilens-input__icon">
                     <Ic>
                       <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
                       <path d="M7 11V7a5 5 0 0 1 10 0v4" />
@@ -385,14 +385,14 @@ export function SignupWizard() {
           </div>
 
           <div className="ad-wiz-foot">
-            <button type="button" className="bibo-btn bibo-btn--ghost" onClick={() => setStep("persona")}>
+            <button type="button" className="actilens-btn actilens-btn--ghost" onClick={() => setStep("persona")}>
               <Ic>
                 <path d="m12 19-7-7 7-7" />
                 <path d="M19 12H5" />
               </Ic>
               <span>{t("persona.back")}</span>
             </button>
-            <button type="submit" className="bibo-btn bibo-btn--primary" disabled={busy || !accountReady}>
+            <button type="submit" className="actilens-btn actilens-btn--primary" disabled={busy || !accountReady}>
               <span>{t("account.continue")}</span>
               <Ic>
                 <path d="M5 12h14" />
@@ -429,10 +429,10 @@ export function SignupWizard() {
           )}
 
           <div className="ad-form">
-            <label className="bibo-field">
-              <span className="bibo-field__lbl">{t("setup.nameLabel", { noun })}</span>
-              <span className="bibo-input">
-                <span className="bibo-input__icon">
+            <label className="actilens-field">
+              <span className="actilens-field__lbl">{t("setup.nameLabel", { noun })}</span>
+              <span className="actilens-input">
+                <span className="actilens-input__icon">
                   <Ic>
                     <path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" />
                     <path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -450,14 +450,14 @@ export function SignupWizard() {
           </div>
 
           <div className="ad-wiz-foot">
-            <button type="button" className="bibo-btn bibo-btn--ghost" onClick={() => setStep("account")}>
+            <button type="button" className="actilens-btn actilens-btn--ghost" onClick={() => setStep("account")}>
               <Ic>
                 <path d="m12 19-7-7 7-7" />
                 <path d="M19 12H5" />
               </Ic>
               <span>{t("persona.back")}</span>
             </button>
-            <button type="submit" className="bibo-btn bibo-btn--primary" disabled={busy || !setupReady}>
+            <button type="submit" className="actilens-btn actilens-btn--primary" disabled={busy || !setupReady}>
               <span>{t("setup.continue")}</span>
               <Ic>
                 <path d="M5 12h14" />
@@ -551,7 +551,7 @@ export function SignupWizard() {
 
         <div className="ad-wiz-foot">
           <span className="sp" />
-          <button type="button" className="bibo-btn bibo-btn--primary" onClick={() => nav("/", { replace: true })}>
+          <button type="button" className="actilens-btn actilens-btn--primary" onClick={() => nav("/", { replace: true })}>
             <span>{t("done.goToDashboard")}</span>
             <Ic>
               <path d="M5 12h14" />
@@ -657,16 +657,16 @@ function AddMembers({
       )}
 
       <div className="ad-addmember">
-        <label className="bibo-field">
-          <span className="bibo-field__lbl">{t("members.name")}</span>
-          <span className="bibo-input">
+        <label className="actilens-field">
+          <span className="actilens-field__lbl">{t("members.name")}</span>
+          <span className="actilens-input">
             <input ref={nameRef} value={name} onChange={(e) => setName(e.target.value)} required placeholder={t("members.namePlaceholder")} autoFocus />
           </span>
         </label>
 
-        <label className="bibo-field">
-          <span className="bibo-field__lbl">{t("members.loginLabel")}</span>
-          <span className="bibo-input">
+        <label className="actilens-field">
+          <span className="actilens-field__lbl">{t("members.loginLabel")}</span>
+          <span className="actilens-input">
             <input value={login} onChange={(e) => setLogin(e.target.value)} required placeholder={suggested} autoComplete="off" />
           </span>
         </label>
@@ -674,14 +674,14 @@ function AddMembers({
         <div className="ad-addmember__full">
           <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
             <div style={{ flex: 1 }}>
-              <label className="bibo-field">
-                <span className="bibo-field__lbl">{t("members.tempPassword")}</span>
-                <span className="bibo-input">
+              <label className="actilens-field">
+                <span className="actilens-field__lbl">{t("members.tempPassword")}</span>
+                <span className="actilens-input">
                   <input type="text" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
                 </span>
               </label>
             </div>
-            <button type="button" className="bibo-btn bibo-btn--secondary" title={t("members.generateTitle")} onClick={() => setPassword(genTempPassword())}>
+            <button type="button" className="actilens-btn actilens-btn--secondary" title={t("members.generateTitle")} onClick={() => setPassword(genTempPassword())}>
               <Ic>
                 <rect width="12" height="12" x="2" y="10" rx="2" ry="2" />
                 <path d="m17.92 14 3.5-3.5a2.24 2.24 0 0 0 0-3l-5-4.92a2.24 2.24 0 0 0-3 0L10 6" />
@@ -692,7 +692,7 @@ function AddMembers({
               </Ic>
               <span>{t("members.newPassword")}</span>
             </button>
-            <button type="submit" className="bibo-btn bibo-btn--primary" disabled={busy}>
+            <button type="submit" className="actilens-btn actilens-btn--primary" disabled={busy}>
               <Ic>
                 <path d="M5 12h14" />
                 <path d="M12 5v14" />
@@ -758,7 +758,7 @@ function AddMembers({
       )}
 
       <div className="ad-wiz-foot">
-        <button type="button" className="bibo-btn bibo-btn--ghost" onClick={onBack}>
+        <button type="button" className="actilens-btn actilens-btn--ghost" onClick={onBack}>
           <Ic>
             <path d="m12 19-7-7 7-7" />
             <path d="M19 12H5" />
@@ -766,10 +766,10 @@ function AddMembers({
           <span>{t("persona.back")}</span>
         </button>
         <span className="sp" />
-        <button type="button" className="bibo-btn bibo-btn--ghost" onClick={onFinish}>
+        <button type="button" className="actilens-btn actilens-btn--ghost" onClick={onFinish}>
           <span>{t("members.skip")}</span>
         </button>
-        <button type="button" className="bibo-btn bibo-btn--primary" onClick={onFinish}>
+        <button type="button" className="actilens-btn actilens-btn--primary" onClick={onFinish}>
           <Ic>
             <path d="M20 6 9 17l-5-5" />
           </Ic>

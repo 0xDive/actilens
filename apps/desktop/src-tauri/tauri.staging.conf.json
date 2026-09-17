@@ -1,11 +1,11 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "BiBoTracking Staging",
-  "identifier": "com.briannguyen.ctracking",
+  "productName": "ActiLens Staging",
+  "identifier": "com.actilens.actilens",
   "app": {
     "windows": [
       {
-        "title": "BiBoTracking [STAGING]",
+        "title": "ActiLens [STAGING]",
         "width": 1040,
         "height": 720,
         "minWidth": 880,

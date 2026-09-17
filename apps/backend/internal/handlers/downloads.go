@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"ctracking/backend/internal/obs"
-	"ctracking/backend/internal/store"
+	"actilens/backend/internal/obs"
+	"actilens/backend/internal/store"
 
 	"github.com/gin-gonic/gin"
 )

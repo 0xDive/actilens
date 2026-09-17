@@ -73,7 +73,7 @@ export const demoBusinesses: Business[] = [
 
 // ageMin = minutes since last seen (drives active/idle/offline dot).
 const MEMBERS: { id: string; name: string; login: string; role: "owner" | "employee"; ageMin: number }[] = [
-  { id: "demo-owner", name: "Brian Nguyen", login: "brian@home.app", role: "owner", ageMin: 1 },
+  { id: "demo-owner", name: "0xDive", login: "brian@home.app", role: "owner", ageMin: 1 },
   { id: "demo-hannah", name: "Hannah Tran", login: "hannah@home.app", role: "employee", ageMin: 3 },
   { id: "demo-leo", name: "Leo Tran", login: "leo_home", role: "employee", ageMin: 18 },
   { id: "demo-mia", name: "Mia Tran", login: "mia@home.app", role: "employee", ageMin: 120 },

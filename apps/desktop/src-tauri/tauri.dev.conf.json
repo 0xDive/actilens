@@ -1,11 +1,11 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "BiBoTracking Dev",
-  "identifier": "com.briannguyen.bibotrackingdev",
+  "productName": "ActiLens Dev",
+  "identifier": "com.actilens.actilensdev",
   "app": {
     "windows": [
       {
-        "title": "BiBoTracking [DEV]",
+        "title": "ActiLens [DEV]",
         "width": 1040,
         "height": 720,
         "minWidth": 880,

@@ -11,15 +11,15 @@ import { LanguageSwitcher } from "./LanguageSwitcher";
 /** Brand mark — violet gradient tile with the pulse glyph (matches the auth logo). */
 function RailLogo() {
   return (
-    <span className="ad-rail__logo" aria-label="BiBoTracking">
-      <svg viewBox="0 0 48 48" role="img" aria-label="BiBoTracking">
+    <span className="ad-rail__logo" aria-label="ActiLens">
+      <svg viewBox="0 0 48 48" role="img" aria-label="ActiLens">
         <defs>
-          <linearGradient id="biboRailGrad" x1="6" y1="4" x2="42" y2="46" gradientUnits="userSpaceOnUse">
+          <linearGradient id="actilensRailGrad" x1="6" y1="4" x2="42" y2="46" gradientUnits="userSpaceOnUse">
             <stop offset="0" stopColor="#a99df8" />
             <stop offset="1" stopColor="#6c5ce7" />
           </linearGradient>
         </defs>
-        <rect x="0" y="0" width="48" height="48" rx="17" fill="url(#biboRailGrad)" />
+        <rect x="0" y="0" width="48" height="48" rx="17" fill="url(#actilensRailGrad)" />
         <path
           d="M12 24h6l3 8 6-16 3 8h6"
           fill="none"
@@ -230,9 +230,9 @@ function AccountMenu() {
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
-        <span className="bibo-avatar bibo-avatar--sm">
-          <span className="bibo-avatar__img">{initials(displayName)}</span>
-          <span className="bibo-avatar__dot bibo-avatar__dot--active" />
+        <span className="actilens-avatar actilens-avatar--sm">
+          <span className="actilens-avatar__img">{initials(displayName)}</span>
+          <span className="actilens-avatar__dot actilens-avatar__dot--active" />
         </span>
       </button>
       {open && (
@@ -310,9 +310,9 @@ export function AppShell() {
         </nav>
 
         <div className="ad-rail__foot">
-          <span className="bibo-avatar" aria-label={displayName}>
-            <span className="bibo-avatar__img">{initials(displayName)}</span>
-            <span className="bibo-avatar__dot bibo-avatar__dot--active" />
+          <span className="actilens-avatar" aria-label={displayName}>
+            <span className="actilens-avatar__img">{initials(displayName)}</span>
+            <span className="actilens-avatar__dot actilens-avatar__dot--active" />
           </span>
         </div>
       </aside>
@@ -323,14 +323,14 @@ export function AppShell() {
           <div className="ad-topbar__right">
             {!isDetail && <BizPicker />}
             <LanguageSwitcher />
-            <div className="bibo-seg bibo-seg--sm" role="tablist" aria-label={t("language")}>
+            <div className="actilens-seg actilens-seg--sm" role="tablist" aria-label={t("language")}>
               {(["light", "dark", "system"] as ThemeMode[]).map((m) => (
                 <button
                   key={m}
                   type="button"
                   role="tab"
                   aria-selected={m === mode}
-                  className={`bibo-seg__opt${m === mode ? " bibo-seg__opt--on" : ""}`}
+                  className={`actilens-seg__opt${m === mode ? " actilens-seg__opt--on" : ""}`}
                   onClick={() => setMode(m)}
                 >
                   {m === "light" ? t("theme.light") : m === "dark" ? t("theme.dark") : t("theme.auto")}

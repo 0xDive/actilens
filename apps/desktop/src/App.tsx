@@ -351,7 +351,7 @@ function App() {
   }
 
   // First-run onboarding (3 steps: what's captured → configure → permissions),
-  // shown once per install. Step 1 is the "What BiBoTracking captures" disclosure,
+  // shown once per install. Step 1 is the "What ActiLens captures" disclosure,
   // so finishing/skipping it also records `consented` (gates capture on Windows).
   if (settings && !settings.onboarding_completed) {
     return (
@@ -376,7 +376,7 @@ function App() {
   return (
     <div className="app">
       <div className="app-titlebar" onMouseDown={dragWindow}>
-        <span className="app-titlebar-title">BiBoTracking — {t(`nav.${screen}`)}</span>
+        <span className="app-titlebar-title">ActiLens — {t(`nav.${screen}`)}</span>
         <AppTrayMenu status={status} onToggleTracking={toggleTracking} />
       </div>
       <div className="app-body">
@@ -461,7 +461,7 @@ function App() {
               }}
               onChange={(v) => updateSettings({ theme: v })}
             />
-            <span className="bibo-tip">
+            <span className="actilens-tip">
               <button
                 className={`bb-trackpill ${trackClass}`}
                 onClick={toggleTracking}
@@ -470,7 +470,7 @@ function App() {
                 {status === "paused" ? <PauseBars /> : <span className="bb-trackpill__dot" />}
                 {t(`status.${status}`)}
               </button>
-              <span className="bibo-tip__bubble" role="tooltip">{pillTitle}</span>
+              <span className="actilens-tip__bubble" role="tooltip">{pillTitle}</span>
             </span>
           </div>
         </header>

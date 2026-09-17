@@ -23,7 +23,7 @@
     "addMember": "Tidak dapat menambahkan {{member}}."
   },
   "persona": {
-    "heading": "Bagaimana Anda akan menggunakan BiBoTracking?",
+    "heading": "Bagaimana Anda akan menggunakan ActiLens?",
     "sub": "Anda dapat mengubahnya nanti.",
     "back": "Kembali",
     "justMeTitle": "Hanya saya",
@@ -48,7 +48,7 @@
   "account": {
     "back": "← Kembali",
     "title": "Buat akun",
-    "sub": "Manfaatkan BiBoTracking secara maksimal.",
+    "sub": "Manfaatkan ActiLens secara maksimal.",
     "name": "Nama Anda",
     "identifier": "Email atau nama pengguna",
     "identifierPlaceholder": "you@example.com atau nama pengguna",
@@ -77,7 +77,7 @@
     "goToDashboard": "Ke dasbor"
   },
   "clipboard": {
-    "text": "Info login BiBoTracking\nNama pengguna atau email: {{login}}\nKata sandi: {{password}}"
+    "text": "Info login ActiLens\nNama pengguna atau email: {{login}}\nKata sandi: {{password}}"
   },
   "members": {
     "title": "Tambahkan {{members}} Anda",

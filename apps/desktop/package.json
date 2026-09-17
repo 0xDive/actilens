@@ -1,5 +1,5 @@
 {
-  "name": "@ctracking/desktop",
+  "name": "@actilens/desktop",
   "private": true,
   "version": "1.5.1",
   "type": "module",
@@ -12,7 +12,7 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "tauri:build:universal": "tauri build --target universal-apple-darwin",
-    "sign:dev": "../../scripts/sign-macos.sh src-tauri/target/debug/bundle/macos/ctracking.app"
+    "sign:dev": "../../scripts/sign-macos.sh src-tauri/target/debug/bundle/macos/actilens.app"
   },
   "dependencies": {
     "@fontsource-variable/manrope": "^5.2.8",

@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"ctracking/backend/internal/privacyapps"
+	"actilens/backend/internal/privacyapps"
 
 	"github.com/gin-gonic/gin"
 )

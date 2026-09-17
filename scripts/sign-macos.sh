@@ -6,7 +6,7 @@
 set -euo pipefail
 
 APP_PATH="${1:?usage: sign-macos.sh <path-to-.app>}"
-IDENTITY="${CTRACKING_SIGN_IDENTITY:-Apple Development: ngnclht@gmail.com (CGC2675CK3)}"
+IDENTITY="${ACTILENS_SIGN_IDENTITY:-Apple Development: ngnclht@gmail.com (CGC2675CK3)}"
 
 if [ ! -d "$APP_PATH" ]; then
   echo "error: app not found at $APP_PATH" >&2

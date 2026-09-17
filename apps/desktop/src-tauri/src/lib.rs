@@ -1,4 +1,4 @@
-//! ctracking — local-only macOS activity tracker.
+//! actilens — local-only macOS activity tracker.
 //! Module layout per docs/01-architecture.md.
 
 mod analytics;
@@ -51,7 +51,7 @@ fn ensure_windows_autostart() {
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let Ok((run, _)) = hkcu.create_subkey(r"Software\Microsoft\Windows\CurrentVersion\Run") else { return; };
     let command = format!("\"{}\" --autostart", exe.display());
-    let _ = run.set_value("BiBoTracking", &command);
+    let _ = run.set_value("ActiLens", &command);
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -76,14 +76,14 @@ pub async fn fetch_privacy_apps_or_baked() -> Vec<sync::client::PrivacyAppCatego
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Sentry error reporting for the Rust core. Held for the whole process (drop =
-    // flush); no-op when CTRACKING_SENTRY_DSN is unset. Installs the panic hook too.
+    // flush); no-op when ACTILENS_SENTRY_DSN is unset. Installs the panic hook too.
     let _sentry = obs::init();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         // Corporate build: updates are distributed by the administrator, not the
-        // public bibotracker.com updater.
+        // public github.com/0xDive/actilens updater.
         .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             commands::ping,

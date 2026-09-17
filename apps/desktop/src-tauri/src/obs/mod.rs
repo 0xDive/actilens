@@ -2,7 +2,7 @@
 //!
 //! DSN resolution mirrors the backend-URL pattern: a compile-time default that's empty
 //! for `local` builds (so dev stays quiet) and the desktop-rust project otherwise, with
-//! a runtime `CTRACKING_SENTRY_DSN` override. The returned guard must be kept alive for
+//! a runtime `ACTILENS_SENTRY_DSN` override. The returned guard must be kept alive for
 //! the whole process (dropping it flushes pending events). The `panic` feature installs
 //! a panic hook that captures Rust panics automatically.
 
@@ -10,7 +10,7 @@
 /// **production-only**: empty in debug/dev builds (`tauri dev` → `debug_assertions`) and
 /// in non-production release builds (staging etc.); baked in only for production release
 /// builds, where end-user machines have no env vars. Override anytime with
-/// `CTRACKING_SENTRY_DSN` (e.g. to smoke-test from `tauri dev`).
+/// `ACTILENS_SENTRY_DSN` (e.g. to smoke-test from `tauri dev`).
 const DEFAULT_SENTRY_DSN: &str = if cfg!(debug_assertions) {
     ""
 } else if cfg!(feature = "production") {
@@ -22,7 +22,7 @@ const DEFAULT_SENTRY_DSN: &str = if cfg!(debug_assertions) {
 /// Initialize Sentry if a DSN is configured. Keep the returned guard alive for the
 /// process lifetime. Returns `None` when reporting is disabled (no DSN).
 pub fn init() -> Option<sentry::ClientInitGuard> {
-    let dsn = std::env::var("CTRACKING_SENTRY_DSN")
+    let dsn = std::env::var("ACTILENS_SENTRY_DSN")
         .ok()
         .filter(|d| !d.is_empty())
         .unwrap_or_else(|| DEFAULT_SENTRY_DSN.to_string());

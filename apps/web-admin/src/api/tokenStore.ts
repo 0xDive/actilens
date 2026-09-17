@@ -8,8 +8,8 @@ import type { Tokens, User } from "./types";
 // by keeping the SPA dependency surface small and serving it from the backend
 // origin. A native (desktop) client uses the secure keychain instead.
 
-const TOKENS_KEY = "ctracking.admin.tokens";
-const USER_KEY = "ctracking.admin.user";
+const TOKENS_KEY = "actilens.admin.tokens";
+const USER_KEY = "actilens.admin.user";
 
 let accessToken: string | null = null;
 let refreshToken: string | null = null;

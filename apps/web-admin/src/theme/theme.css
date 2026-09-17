@@ -1,4 +1,4 @@
-/* ctracking — semantic design tokens (see docs/07-ui-design.md) */
+/* actilens — semantic design tokens (see docs/07-ui-design.md) */
 
 :root,
 :root[data-theme="light"] {
@@ -274,11 +274,11 @@ body {
   flex-direction: column;
   align-items: center;
 }
-.ad-rail__foot .bibo-avatar {
+.ad-rail__foot .actilens-avatar {
   --_s: 39px;
 }
 /* Avatar monogram + presence dot (rail foot + topbar account). */
-.bibo-avatar {
+.actilens-avatar {
   --_s: 40px;
   position: relative;
   display: inline-flex;
@@ -286,10 +286,10 @@ body {
   width: var(--_s);
   height: var(--_s);
 }
-.bibo-avatar--sm {
+.actilens-avatar--sm {
   --_s: 34px;
 }
-.bibo-avatar__img {
+.actilens-avatar__img {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -302,12 +302,12 @@ body {
   background: #deeafe;
   color: #3b82f6;
 }
-:root[data-theme="dark"] .bibo-avatar__img {
+:root[data-theme="dark"] .actilens-avatar__img {
   background: color-mix(in srgb, #6c8cff 16%, transparent);
   color: #9db4ff;
   border-color: var(--bg);
 }
-.bibo-avatar__dot {
+.actilens-avatar__dot {
   position: absolute;
   right: 0;
   bottom: 0;
@@ -317,26 +317,26 @@ body {
   border: 2px solid #fff;
   background: var(--text-muted);
 }
-:root[data-theme="dark"] .bibo-avatar__dot {
+:root[data-theme="dark"] .actilens-avatar__dot {
   border-color: var(--bg);
 }
-.bibo-avatar--sm .bibo-avatar__dot {
+.actilens-avatar--sm .actilens-avatar__dot {
   width: 10px;
   height: 10px;
 }
 /* smaller presence dot on roster-table avatars */
-.ad-name .bibo-avatar__dot {
+.ad-name .actilens-avatar__dot {
   width: 8px;
   height: 8px;
   border-width: 1.5px;
 }
-.bibo-avatar__dot--active {
+.actilens-avatar__dot--active {
   background: #10b981;
 }
-.bibo-avatar__dot--idle {
+.actilens-avatar__dot--idle {
   background: var(--data-amber);
 }
-.bibo-avatar__dot--offline {
+.actilens-avatar__dot--offline {
   background: var(--text-muted);
 }
 
@@ -404,7 +404,7 @@ body {
   background: #f5f7fc;
 }
 /* min-height so the seg still aligns at 38px but can grow with its padding */
-.ad-topbar .bibo-seg {
+.ad-topbar .actilens-seg {
   min-height: 38px;
   background: #f3f4fc;
 }
@@ -602,7 +602,7 @@ body {
 }
 
 /* theme segmented pill */
-.bibo-seg {
+.actilens-seg {
   display: inline-flex;
   align-items: center;
   gap: 2px;
@@ -611,10 +611,10 @@ body {
   border: 1px solid var(--border);
   border-radius: 999px;
 }
-.bibo-seg--sm {
+.actilens-seg--sm {
   padding: 4px 5px;
 }
-.bibo-seg__opt {
+.actilens-seg__opt {
   font: inherit;
   font-size: 12px;
   font-weight: 600;
@@ -626,18 +626,18 @@ body {
   cursor: pointer;
   white-space: nowrap;
 }
-.bibo-seg__opt--on {
+.actilens-seg__opt--on {
   background: #fff;
   color: var(--text);
   box-shadow: 0 2px 6px -2px rgba(0, 0, 0, 0.25);
 }
-:root[data-theme="dark"] .bibo-seg {
+:root[data-theme="dark"] .actilens-seg {
   background: #11151e;
 }
-:root[data-theme="dark"] .bibo-seg__opt {
+:root[data-theme="dark"] .actilens-seg__opt {
   color: #a6adbf;
 }
-:root[data-theme="dark"] .bibo-seg__opt--on {
+:root[data-theme="dark"] .actilens-seg__opt--on {
   background: #171a25;
   border-color: rgba(255, 255, 255, 0.06);
   color: #fff;
@@ -792,7 +792,7 @@ body {
   background: color-mix(in srgb, var(--warn) 12%, transparent);
 }
 
-/* segmented control — offline "bibo-seg" pill style (used only in Settings):
+/* segmented control — offline "actilens-seg" pill style (used only in Settings):
    rounded track with a white/navy raised thumb marking the active option */
 .segmented {
   display: inline-flex;
@@ -962,7 +962,7 @@ td {
 }
 
 /* ---------- settings ----------
-   cards match the offline "bibo-card" language: 18px radius, glass surface in
+   cards match the offline "actilens-card" language: 18px radius, glass surface in
    light, solid navy in dark (same surface as the report panels) */
 .set-group {
   background: var(--surface);
@@ -1310,7 +1310,7 @@ select.input:focus,
 }
 
 /* ---------- admin sign-in card (offline design language, violet accent) ----------
-   Self-contained bibo- and ad- prefixed classes ported from the desktop offline
+   Self-contained actilens- and ad- prefixed classes ported from the desktop offline
    design so the admin login matches it. Scoped to the sign-in card; the rest of
    web-admin keeps the blue --accent tokens until each screen is migrated. */
 .ad-loginbox {
@@ -1356,17 +1356,17 @@ select.input:focus,
   flex-direction: column;
   gap: 16px;
 }
-.bibo-field {
+.actilens-field {
   display: flex;
   flex-direction: column;
   gap: 7px;
 }
-.bibo-field__lbl {
+.actilens-field__lbl {
   font-size: 13px;
   font-weight: 500;
   color: var(--text);
 }
-.bibo-input {
+.actilens-input {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1377,20 +1377,20 @@ select.input:focus,
   background: var(--bg-inset);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.bibo-input:focus-within {
+.actilens-input:focus-within {
   border-color: #8b7df6;
   box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.45);
 }
-.bibo-input__icon {
+.actilens-input__icon {
   flex: none;
   display: inline-flex;
   color: var(--text-muted);
 }
-.bibo-input__icon svg {
+.actilens-input__icon svg {
   width: 18px;
   height: 18px;
 }
-.bibo-input input {
+.actilens-input input {
   flex: 1;
   min-width: 0;
   padding: 0;
@@ -1401,19 +1401,19 @@ select.input:focus,
   font-size: 14px;
   color: var(--text-muted);
 }
-.bibo-input input::placeholder {
+.actilens-input input::placeholder {
   color: var(--text-muted);
 }
 /* Chrome autofill paints its own light fill — erase it so the themed pill shows through */
-.bibo-input input:-webkit-autofill,
-.bibo-input input:-webkit-autofill:hover,
-.bibo-input input:-webkit-autofill:focus {
+.actilens-input input:-webkit-autofill,
+.actilens-input input:-webkit-autofill:hover,
+.actilens-input input:-webkit-autofill:focus {
   -webkit-text-fill-color: var(--text);
   caret-color: var(--text);
   -webkit-background-clip: text;
   background-clip: text;
 }
-.bibo-btn {
+.actilens-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1427,59 +1427,59 @@ select.input:focus,
   font-weight: 600;
   cursor: pointer;
 }
-.bibo-btn--sm {
+.actilens-btn--sm {
   height: 34px;
   padding: 0 14px;
   font-size: 13.5px;
   gap: 6px;
 }
-.bibo-btn--sm svg {
+.actilens-btn--sm svg {
   width: 16px;
   height: 16px;
 }
 /* dark: settings cleanup button sits on the card surface — matching fill,
    faint rim, lighter hover (offline surface-card / surface-hover) */
-:root[data-theme="dark"] .set-group .bibo-btn--secondary {
+:root[data-theme="dark"] .set-group .actilens-btn--secondary {
   background: #161b25;
   border-color: rgba(255, 255, 255, 0.1);
   color: #f1f3f8;
 }
-:root[data-theme="dark"] .set-group .bibo-btn--secondary:hover:not(:disabled) {
+:root[data-theme="dark"] .set-group .actilens-btn--secondary:hover:not(:disabled) {
   background: #1f2633;
   border-color: rgba(255, 255, 255, 0.1);
   color: #f1f3f8;
 }
-.bibo-btn--primary {
+.actilens-btn--primary {
   background: #6c5ce7;
   color: #fff;
   box-shadow: 0 12px 24px -12px rgba(108, 92, 231, 0.9);
 }
-.bibo-btn--primary:hover:not(:disabled) {
+.actilens-btn--primary:hover:not(:disabled) {
   background: #5f4dd0;
 }
-.bibo-btn--primary:disabled {
+.actilens-btn--primary:disabled {
   cursor: not-allowed;
   opacity: 0.5;
   box-shadow: none;
   transform: none;
 }
-.bibo-btn--block {
+.actilens-btn--block {
   width: 100%;
   margin-top: 4px;
 }
-.bibo-btn svg {
+.actilens-btn svg {
   width: 18px;
   height: 18px;
 }
-.bibo-btn--ghost {
+.actilens-btn--ghost {
   background: transparent;
   color: var(--text-muted);
   padding: 0 8px;
 }
-.bibo-btn--ghost:hover:not(:disabled) {
+.actilens-btn--ghost:hover:not(:disabled) {
   color: var(--text);
 }
-.bibo-btn--ghost svg {
+.actilens-btn--ghost svg {
   width: 22px;
   height: 22px;
 }
@@ -1722,10 +1722,10 @@ select.input:focus,
 .ad-addmember__full {
   grid-column: 1 / -1;
 }
-.ad-addmember .bibo-field__lbl {
+.ad-addmember .actilens-field__lbl {
   font-size: 11px;
 }
-.ad-addmember .bibo-btn {
+.ad-addmember .actilens-btn {
   height: 42px;
 }
 .ad-memberlist {
@@ -1866,16 +1866,16 @@ select.input:focus,
   color: var(--text-muted);
   background: color-mix(in srgb, var(--text-muted) 15%, transparent);
 }
-.bibo-btn--secondary {
+.actilens-btn--secondary {
   background: var(--bg-inset);
   color: var(--text);
   border: 1px solid var(--border);
 }
-.bibo-btn--secondary:hover:not(:disabled) {
+.actilens-btn--secondary:hover:not(:disabled) {
   border-color: #6c5ce7;
   color: #6c5ce7;
 }
-.bibo-btn--secondary svg {
+.actilens-btn--secondary svg {
   width: 20px;
   height: 20px;
 }
@@ -2249,15 +2249,15 @@ select.input:focus,
   margin: 0 0 var(--sp-3);
 }
 
-/* ---- bibo-dlg (offline-style dialog): icon + title + close, body, footer ---- */
-/* soften + blur the overlay when it wraps a bibo-dlg (scoped; other modals keep
+/* ---- actilens-dlg (offline-style dialog): icon + title + close, body, footer ---- */
+/* soften + blur the overlay when it wraps a actilens-dlg (scoped; other modals keep
    their solid backdrop) */
-.modal-backdrop:has(.bibo-dlg) {
+.modal-backdrop:has(.actilens-dlg) {
   background: rgba(20, 24, 40, 0.32);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
-.bibo-dlg {
+.actilens-dlg {
   width: var(--_w, 440px);
   max-width: 100%;
   background: #fff;
@@ -2265,14 +2265,14 @@ select.input:focus,
   border-radius: 18px;
   box-shadow: 0 30px 70px -18px rgba(20, 22, 40, 0.55), 0 8px 20px -12px rgba(20, 22, 40, 0.4);
   overflow: hidden;
-  animation: bibo-dlg-fade 0.18s ease;
+  animation: actilens-dlg-fade 0.18s ease;
 }
-:root[data-theme="dark"] .bibo-dlg {
+:root[data-theme="dark"] .actilens-dlg {
   background: #161b25;
   border-color: rgba(255, 255, 255, 0.08);
   box-shadow: 0 30px 80px -16px rgba(0, 0, 0, 0.7), 0 8px 24px -12px rgba(0, 0, 0, 0.55);
 }
-@keyframes bibo-dlg-fade {
+@keyframes actilens-dlg-fade {
   from {
     opacity: 0;
     transform: translateY(8px) scale(0.98);
@@ -2282,13 +2282,13 @@ select.input:focus,
     transform: none;
   }
 }
-.bibo-dlg__head {
+.actilens-dlg__head {
   display: flex;
   align-items: center;
   gap: 14px;
   padding: 22px 22px 0;
 }
-.bibo-dlg__icon {
+.actilens-dlg__icon {
   flex: none;
   display: grid;
   place-items: center;
@@ -2298,18 +2298,18 @@ select.input:focus,
   background: var(--brand-tint);
   color: var(--brand-600);
 }
-.bibo-dlg__icon svg {
+.actilens-dlg__icon svg {
   width: 22px;
   height: 22px;
 }
-.bibo-dlg__title {
+.actilens-dlg__title {
   flex: 1;
   min-width: 0;
   font-size: 18px;
   font-weight: 700;
   letter-spacing: -0.01em;
 }
-.bibo-dlg__close {
+.actilens-dlg__close {
   flex: none;
   display: grid;
   place-items: center;
@@ -2321,18 +2321,18 @@ select.input:focus,
   color: var(--text-muted);
   cursor: pointer;
 }
-.bibo-dlg__close:hover {
+.actilens-dlg__close:hover {
   background: var(--bg-inset);
   color: var(--text);
 }
-.bibo-dlg__close svg {
+.actilens-dlg__close svg {
   width: 18px;
   height: 18px;
 }
-.bibo-dlg__body {
+.actilens-dlg__body {
   padding: 18px 22px 6px;
 }
-.bibo-dlg__foot {
+.actilens-dlg__foot {
   display: flex;
   justify-content: flex-end;
   align-items: center;
@@ -2340,58 +2340,58 @@ select.input:focus,
   padding: 10px 22px 20px;
 }
 /* dialog field label: smaller + muted (scoped to the dialog) */
-.bibo-dlg__body .bibo-field__lbl {
+.actilens-dlg__body .actilens-field__lbl {
   font-size: 14px;
   color: #5b6276;
 }
 /* dialog primary (Create) button label colour */
-.bibo-dlg__foot .bibo-btn--primary {
+.actilens-dlg__foot .actilens-btn--primary {
   color: #f1f3f8;
 }
 /* dialog ghost (Cancel) button label colour */
-.bibo-dlg__foot .bibo-btn--ghost {
+.actilens-dlg__foot .actilens-btn--ghost {
   color: #a6adbf;
 }
 /* dialog secondary (Generate) button */
-.bibo-dlg .bibo-btn--secondary {
+.actilens-dlg .actilens-btn--secondary {
   font-size: 14px;
 }
-.bibo-dlg .bibo-btn--secondary svg {
+.actilens-dlg .actilens-btn--secondary svg {
   width: 24px;
   height: 24px;
 }
-:root[data-theme="dark"] .bibo-dlg .bibo-btn--secondary {
+:root[data-theme="dark"] .actilens-dlg .actilens-btn--secondary {
   background: #161b25;
   border-color: rgba(255, 255, 255, 0.1);
   color: #f1f3f8;
 }
-.bibo-dlg .bibo-btn--secondary:hover:not(:disabled) {
+.actilens-dlg .actilens-btn--secondary:hover:not(:disabled) {
   background: var(--surface-hover);
   border-color: var(--border-strong);
 }
 /* dialog input in dark theme: solid navy fill + light border, text/hover/focus */
-:root[data-theme="dark"] .bibo-dlg .bibo-input {
+:root[data-theme="dark"] .actilens-dlg .actilens-input {
   background: #1b212d;
   border-color: rgba(255, 255, 255, 0.1);
 }
-:root[data-theme="dark"] .bibo-dlg .bibo-input:hover:not(:focus-within) {
+:root[data-theme="dark"] .actilens-dlg .actilens-input:hover:not(:focus-within) {
   border-color: rgba(255, 255, 255, 0.18);
 }
-:root[data-theme="dark"] .bibo-dlg .bibo-input:focus-within {
+:root[data-theme="dark"] .actilens-dlg .actilens-input:focus-within {
   border-color: var(--brand-400);
   box-shadow: var(--ring-focus);
 }
-:root[data-theme="dark"] .bibo-dlg .bibo-input input {
+:root[data-theme="dark"] .actilens-dlg .actilens-input input {
   color: #f4f2fe;
 }
-:root[data-theme="dark"] .bibo-dlg .bibo-input input::placeholder {
+:root[data-theme="dark"] .actilens-dlg .actilens-input input::placeholder {
   color: #5b6276;
 }
-:root[data-theme="dark"] .bibo-dlg--org .bibo-input input::placeholder {
+:root[data-theme="dark"] .actilens-dlg--org .actilens-input input::placeholder {
   color: #a6adbf;
 }
 /* password field: larger, more-spaced placeholder dots */
-.bibo-input--dots input::placeholder {
+.actilens-input--dots input::placeholder {
   font-size: 16px;
   letter-spacing: 2px;
 }
@@ -2620,29 +2620,29 @@ select.input:focus,
 /* "New team" secondary button (scoped to the page header — leaves the wizard's
    secondary button untouched). Light: white with faint dark border; dark:
    outline that fills on hover. */
-.ad-pagehead__actions .bibo-btn--secondary {
+.ad-pagehead__actions .actilens-btn--secondary {
   background: #ffffff;
   color: var(--text);
   border: 1px solid rgba(20, 22, 27, 0.11);
 }
-.ad-pagehead__actions .bibo-btn--secondary:hover:not(:disabled) {
+.ad-pagehead__actions .actilens-btn--secondary:hover:not(:disabled) {
   background: #f5f7fc;
   color: var(--text);
   border-color: rgba(20, 22, 27, 0.18);
 }
-:root[data-theme="dark"] .ad-pagehead__actions .bibo-btn--secondary {
+:root[data-theme="dark"] .ad-pagehead__actions .actilens-btn--secondary {
   background: transparent;
   border-color: rgba(255, 255, 255, 0.1);
 }
-:root[data-theme="dark"] .ad-pagehead__actions .bibo-btn--secondary:hover:not(:disabled) {
+:root[data-theme="dark"] .ad-pagehead__actions .actilens-btn--secondary:hover:not(:disabled) {
   background: #1f2633;
   color: #fff;
   border-color: #1f2633;
 }
-.ad-pagehead__actions .bibo-btn {
+.ad-pagehead__actions .actilens-btn {
   font-size: 14px;
 }
-.ad-pagehead__actions .bibo-btn--secondary svg {
+.ad-pagehead__actions .actilens-btn--secondary svg {
   width: 22px;
   height: 22px;
 }
@@ -2670,45 +2670,45 @@ select.input:focus,
 .ad-cardpad {
   padding: 19px 23px;
 }
-.ad-stats .bibo-card {
+.ad-stats .actilens-card {
   box-shadow: 0 6px 18px -8px rgba(20, 22, 40, 0.22);
 }
-.ad-stats .bibo-card--focal {
+.ad-stats .actilens-card--focal {
   box-shadow: 0 16px 34px -10px rgba(20, 22, 40, 0.45);
 }
-.ad-stats .bibo-card--default {
+.ad-stats .actilens-card--default {
   background: #ffffff;
 }
-:root[data-theme="dark"] .ad-stats .bibo-card--default {
+:root[data-theme="dark"] .ad-stats .actilens-card--default {
   background: #161b25; /* offline --surface-card (solid, not glass) */
 }
-.bibo-card {
+.actilens-card {
   border: 1px solid var(--border);
   border-radius: 18px;
   background: var(--surface);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
-.bibo-card--focal {
+.actilens-card--focal {
   background: var(--focal-grad);
   border-color: var(--focal-border);
 }
 /* focal card sits on a dark surface in both themes → force light text */
-.bibo-stat--focal .bibo-stat__value {
+.actilens-stat--focal .actilens-stat__value {
   color: #fff;
 }
-.bibo-stat--focal .bibo-stat__label,
-.bibo-stat--focal .bibo-stat__unit,
-.bibo-stat--focal .bibo-stat__sub {
+.actilens-stat--focal .actilens-stat__label,
+.actilens-stat--focal .actilens-stat__unit,
+.actilens-stat--focal .actilens-stat__sub {
   color: var(--focal-muted);
 }
 
-.bibo-stat__top {
+.actilens-stat__top {
   display: flex;
   align-items: center;
   gap: 14px;
 }
-.bibo-stat__icon {
+.actilens-stat__icon {
   display: grid;
   place-items: center;
   width: 43px;
@@ -2718,27 +2718,27 @@ select.input:focus,
   border: none;
   color: var(--brand-600);
 }
-.bibo-stat__icon svg {
+.actilens-stat__icon svg {
   width: 20px;
   height: 20px;
 }
-:root[data-theme="dark"] .bibo-stat__icon {
+:root[data-theme="dark"] .actilens-stat__icon {
   background: var(--brand-tint);
   border-color: transparent;
   color: var(--brand-600);
 }
-.bibo-stat--focal .bibo-stat__icon,
-:root[data-theme="dark"] .bibo-stat--focal .bibo-stat__icon {
+.actilens-stat--focal .actilens-stat__icon,
+:root[data-theme="dark"] .actilens-stat--focal .actilens-stat__icon {
   background: #2c2d32;
   border-color: transparent;
   color: #fff;
 }
-.bibo-stat__label {
+.actilens-stat__label {
   color: var(--text-muted);
   font-size: 14px;
   font-weight: 500;
 }
-.bibo-stat__value {
+.actilens-stat__value {
   margin-top: 13px;
   font-size: 27px;
   font-weight: 800;
@@ -2746,36 +2746,36 @@ select.input:focus,
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
-.bibo-stat__unit {
+.actilens-stat__unit {
   margin-left: 2px;
   font-size: 15px;
   font-weight: 700;
   color: var(--text-muted);
 }
-.bibo-stat__foot {
+.actilens-stat__foot {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-top: 13px;
 }
-.bibo-stat__delta {
+.actilens-stat__delta {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   font-size: 13px;
   font-weight: 700;
 }
-.bibo-stat__delta svg {
+.actilens-stat__delta svg {
   width: 13px;
   height: 13px;
 }
-.bibo-stat__delta--up {
+.actilens-stat__delta--up {
   color: var(--positive);
 }
-.bibo-stat__delta--down {
+.actilens-stat__delta--down {
   color: var(--negative);
 }
-.bibo-stat__sub {
+.actilens-stat__sub {
   color: var(--text-muted);
   font-size: 13px;
 }
@@ -2945,7 +2945,7 @@ select.input:focus,
 /* ── Employee detail — offline-parity redesign ─────────────────────────
    Breadcrumb, detail header, date mode, pill tabs, activity timeline +
    app breakdown. Adapted from the offline design (ad-* classes) and reuses
-   the existing bibo-* stat/card/seg/avatar system. UI-only. */
+   the existing actilens-* stat/card/seg/avatar system. UI-only. */
 .ad-crumb {
   display: flex;
   align-items: center;
@@ -3010,7 +3010,7 @@ select.input:focus,
   flex-wrap: wrap;
 }
 /* date-mode segmented control track (light) */
-.ad-datemode .bibo-seg {
+.ad-datemode .actilens-seg {
   background: #f2f4fb;
 }
 .ad-datefield {
@@ -3051,12 +3051,12 @@ select.input:focus,
 }
 
 /* pill tabs */
-.bibo-tabs {
+.actilens-tabs {
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
 }
-.bibo-tab {
+.actilens-tab {
   appearance: none;
   border: none;
   cursor: pointer;
@@ -3071,16 +3071,16 @@ select.input:focus,
   transition: background 0.12s ease, color 0.12s ease;
 }
 /* hovering an unselected tab only changes the text — no background pill */
-.bibo-tab:hover {
+.actilens-tab:hover {
   color: var(--text);
 }
-.bibo-tab--on,
-.bibo-tab--on:hover {
+.actilens-tab--on,
+.actilens-tab--on:hover {
   color: var(--brand-600);
   background: var(--brand-tint);
 }
-:root[data-theme="dark"] .bibo-tab--on,
-:root[data-theme="dark"] .bibo-tab--on:hover {
+:root[data-theme="dark"] .actilens-tab--on,
+:root[data-theme="dark"] .actilens-tab--on:hover {
   color: #4a3bc0;
   background: #e9e8f3;
 }
@@ -3105,7 +3105,7 @@ select.input:focus,
 }
 /* dark: report panels (activity two-col + keystrokes/browser/screenshots)
    use a solid surface, not the glass default */
-:root[data-theme="dark"] .ad-panel .bibo-card--default {
+:root[data-theme="dark"] .ad-panel .actilens-card--default {
   background: #171a25;
 }
 
@@ -3194,7 +3194,7 @@ select.input:focus,
 }
 
 /* donut */
-.bibo-donut {
+.actilens-donut {
   flex: none;
 }
 

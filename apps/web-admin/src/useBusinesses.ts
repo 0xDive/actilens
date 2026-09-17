@@ -10,7 +10,7 @@ import {
 import { listMyBusinesses } from "./api/endpoints";
 import type { Business } from "./api/types";
 
-const SELECTED_KEY = "ctracking.admin.selectedBusiness";
+const SELECTED_KEY = "actilens.admin.selectedBusiness";
 
 type BusinessStore = {
   businesses: Business[];

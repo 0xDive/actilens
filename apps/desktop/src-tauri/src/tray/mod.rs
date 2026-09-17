@@ -64,7 +64,7 @@ fn tr(locale: &str, key: &str) -> String {
         "start" => s("Start", "开始", "開始", "Bắt đầu", "Mulai", "Démarrer", "Iniciar", "Начать"),
         "stop" => s("Stop", "停止", "停止", "Dừng", "Hentikan", "Arrêter", "Detener", "Остановить"),
         "version" => s("Version", "版本", "バージョン", "Phiên bản", "Versi", "Version", "Versión", "Версия"),
-        "quit" => s("Quit BiBoTracking", "退出 BiBoTracking", "BiBoTracking を終了", "Thoát BiBoTracking", "Keluar dari BiBoTracking", "Quitter BiBoTracking", "Salir de BiBoTracking", "Выйти из BiBoTracking"),
+        "quit" => s("Quit ActiLens", "退出 ActiLens", "ActiLens を終了", "Thoát ActiLens", "Keluar dari ActiLens", "Quitter ActiLens", "Salir de ActiLens", "Выйти из ActiLens"),
         "tip_tracking" => s("tracking", "正在跟踪", "トラッキング中", "đang theo dõi", "melacak", "suivi en cours", "en seguimiento", "отслеживание"),
         "tip_idle" => s("idle (not counting)", "空闲（未计数）", "アイドル（カウントなし）", "không hoạt động (không tính)", "diam (tidak menghitung)", "inactif (pas de comptage)", "inactivo (sin contar)", "простой (не считается)"),
         "tip_paused" => s("paused", "已暂停", "一時停止中", "đã tạm dừng", "dijeda", "en pause", "en pausa", "пауза"),
@@ -234,7 +234,7 @@ fn render(app: &AppHandle, state: State) {
             State::Idle => tr(&loc, "tip_idle"),
             State::Paused => tr(&loc, "tip_paused"),
         };
-        let tip = format!("BiBoTracking — {word}");
+        let tip = format!("ActiLens — {word}");
         // The glyph's tint conveys the state — no separate dot/badge needed.
         let _ = tray.set_icon(Some(icon_for(state)));
         let _ = tray.set_tooltip(Some(tip));

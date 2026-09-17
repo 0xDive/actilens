@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"ctracking/backend/internal/auth"
-	"ctracking/backend/internal/retention"
-	"ctracking/backend/internal/store"
+	"actilens/backend/internal/auth"
+	"actilens/backend/internal/retention"
+	"actilens/backend/internal/store"
 
 	"github.com/gin-gonic/gin"
 )

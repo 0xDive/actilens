@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "BiBoTracking Corporate",
-  "version": "1.5.2",
-  "identifier": "com.local.bibotracking.corporate",
+  "productName": "ActiLens",
+  "version": "0.1.0",
+  "identifier": "com.actilens.agent",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "BiBoTracking",
+        "title": "ActiLens",
         "width": 1040,
         "height": 720,
         "minWidth": 880,
@@ -46,8 +46,7 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "minimumSystemVersion": "13.0",
-      "signingIdentity": "Developer ID Application: Nguyen Giang Nam (MVT95X368D)"
+      "minimumSystemVersion": "13.0"
     }
   }
 }

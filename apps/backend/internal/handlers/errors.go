@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"ctracking/backend/internal/obs"
+	"actilens/backend/internal/obs"
 
 	"github.com/getsentry/sentry-go"
 	sentrygin "github.com/getsentry/sentry-go/gin"

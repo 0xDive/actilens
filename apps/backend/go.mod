@@ -1,4 +1,4 @@
-module ctracking/backend
+module actilens/backend
 
 go 1.26
 

@@ -2,7 +2,7 @@
 # Start one ENVIRONMENT (dev | staging | production) of the local full stack.
 #
 # Each environment is fully isolated:
-#   - its own Postgres database  (ctracking / ctracking_staging / ctracking_prod)
+#   - its own Postgres database  (actilens / actilens_staging / actilens_prod)
 #   - its own backend port        (8090 / 8081 / 8082)
 #   - its own desktop build        distinct bundle id + name + ribbon icon, so all
 #                                  three apps install & run side by side.
@@ -28,7 +28,7 @@ case "$ENV" in
   dev|local)
     ENV=dev
     FEATURE=local
-    DB=ctracking
+    DB=actilens
     PORT=8090
     TAURI_CONFIG="tauri.dev.conf.json"
     JWT_SECRET="dev-only-change-me"
@@ -36,7 +36,7 @@ case "$ENV" in
     ;;
   staging)
     FEATURE=staging
-    DB=ctracking_staging
+    DB=actilens_staging
     PORT=8081
     TAURI_CONFIG="tauri.staging.conf.json"
     JWT_SECRET="staging-only-change-me"
@@ -45,7 +45,7 @@ case "$ENV" in
   production|prod)
     ENV=production
     FEATURE=production
-    DB=ctracking_prod
+    DB=actilens_prod
     PORT=8082
     TAURI_CONFIG=""           # production uses the base tauri.conf.json
     JWT_SECRET="prod-change-me-to-a-long-random-secret"
@@ -63,7 +63,7 @@ case "$COMPONENT" in
 esac
 
 BACKEND_URL="http://localhost:$PORT"
-DATABASE_URL="postgres://ctracking:ctracking@localhost:5432/$DB?sslmode=disable"
+DATABASE_URL="postgres://actilens:actilens@localhost:5432/$DB?sslmode=disable"
 
 echo "╶─ environment: $ENV"
 echo "   database   : $DB"
@@ -90,8 +90,8 @@ start_desktop() {
   cd "$ROOT/apps/desktop"
   local cfg_args=()
   [[ -n "$TAURI_CONFIG" ]] && cfg_args=(--config "src-tauri/$TAURI_CONFIG")
-  export CTRACKING_BACKEND_URL="$BACKEND_URL"
-  echo "→ desktop ($ENV) → $CTRACKING_BACKEND_URL  (first build compiles Rust)"
+  export ACTILENS_BACKEND_URL="$BACKEND_URL"
+  echo "→ desktop ($ENV) → $ACTILENS_BACKEND_URL  (first build compiles Rust)"
   # `--config` is a native tauri flag; cargo feature flags are forwarded after `--`.
   # `${arr[@]+"${arr[@]}"}` expands to nothing for an empty array (production has no
   # override config) without tripping `set -u` on macOS's bash 3.2.

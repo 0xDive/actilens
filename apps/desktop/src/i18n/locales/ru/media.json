@@ -21,7 +21,7 @@
     "colDuration": "Длительность",
     "colBrowser": "Браузер",
     "title": "Отслеживание сайтов",
-    "subtitle": "Установите расширение BiBoTracking, чтобы видеть посещённые страницы.",
+    "subtitle": "Установите расширение ActiLens, чтобы видеть посещённые страницы.",
     "gifPlaceholder": "[ Инструкция по установке расширения ]",
     "step1": "Откройте Google Chrome или Edge",
     "step2Prefix": "Откройте страницу расширений — ",
@@ -39,7 +39,7 @@
     "colWhen": "Когда"
   },
   "ui": {
-    "brandAlt": "BiBoTracking",
+    "brandAlt": "ActiLens",
     "stepOf": "Шаг {{current}} из {{total}}"
   }
 }

@@ -27,7 +27,7 @@ use crate::trackers::TrackerControl;
 pub const CANDIDATE_PORTS: [u16; 6] = [47615, 48291, 49377, 50603, 51719, 52837];
 
 /// Header the extension sends with the shared token.
-const TOKEN_HEADER: &str = "x-ctracking-token";
+const TOKEN_HEADER: &str = "x-actilens-token";
 
 /// Reserved URL values the extension posts when the user flips its on/off toggle.
 /// These are control events, not page views: recorded even while tracking is paused
@@ -126,7 +126,7 @@ async fn whoami(State(s): State<AppState>) -> Json<Value> {
     // The extension reads the token here. A web page can't read this response
     // (no CORS headers), and `/ingest` additionally rejects web origins + bad tokens.
     Json(json!({
-        "app": "employeetrack",
+        "app": "actilens",
         "version": env!("CARGO_PKG_VERSION"),
         "token": *s.token,
     }))

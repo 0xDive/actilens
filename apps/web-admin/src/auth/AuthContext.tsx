@@ -10,7 +10,7 @@ import { Sentry } from "../sentry";
 const DEMO_USER: User = {
   id: "demo-owner",
   email: "brian@home.app",
-  display_name: "Brian Nguyen",
+  display_name: "0xDive",
   account_type: "parent",
 };
 

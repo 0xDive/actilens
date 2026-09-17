@@ -13,7 +13,7 @@ export function Popup() {
     <div className="popup-frame">
       <div className="popup-head">
         <div className="row" style={{ gap: 8 }}>
-          <span className="dot" /> <strong>ctracking</strong>
+          <span className="dot" /> <strong>actilens</strong>
         </div>
         <span className={`pill pill-${connected ? "success" : "danger"}`}>
           {connected ? "● Connected" : "▲ App not found"}
@@ -37,7 +37,7 @@ export function Popup() {
             Current page
           </div>
           <div style={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            ctracking · Pull requests
+            actilens · Pull requests
           </div>
           <div className="muted num" style={{ fontSize: 12 }}>
             github.com · 4m 12s

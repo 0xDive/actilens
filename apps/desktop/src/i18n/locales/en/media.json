@@ -21,7 +21,7 @@
     "colDuration": "Duration",
     "colBrowser": "Browser",
     "title": "Track web pages",
-    "subtitle": "Install the BiBoTracking extension to see the pages you visit here.",
+    "subtitle": "Install the ActiLens extension to see the pages you visit here.",
     "gifPlaceholder": "[ GIF: installing the Chrome extension ]",
     "step1": "Open Google Chrome",
     "step2Prefix": "Go to the Chrome Web Store — ",
@@ -39,7 +39,7 @@
     "colWhen": "When"
   },
   "ui": {
-    "brandAlt": "BiBoTracking",
+    "brandAlt": "ActiLens",
     "stepOf": "Step {{current}} of {{total}}"
   }
 }

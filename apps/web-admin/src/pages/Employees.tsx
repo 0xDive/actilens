@@ -148,11 +148,11 @@ export function Employees() {
           )}
         </div>
         <div className="ad-pagehead__actions">
-          <button className="bibo-btn bibo-btn--secondary" onClick={() => setShowBiz(true)}>
+          <button className="actilens-btn actilens-btn--secondary" onClick={() => setShowBiz(true)}>
             <span style={{ display: "inline-flex", lineHeight: 0 }}>{IconPlus}</span>
             <span>{t("employees.newOrg", { org: terms.org })}</span>
           </button>
-          <button className="bibo-btn bibo-btn--primary" onClick={() => setShowEmp(true)}>
+          <button className="actilens-btn actilens-btn--primary" onClick={() => setShowEmp(true)}>
             <span style={{ display: "inline-flex", lineHeight: 0 }}>{IconUserPlus}</span>
             <span>{terms.addCta}</span>
           </button>
@@ -188,7 +188,7 @@ export function Employees() {
       )}
 
       {employees.length > 0 && (
-        <div className="bibo-card bibo-card--default ad-tablecard">
+        <div className="actilens-card actilens-card--default ad-tablecard">
           <table className="ad-table ad-table--roster">
             <thead>
               <tr>
@@ -207,11 +207,11 @@ export function Employees() {
                   <tr key={e.id}>
                     <td>
                       <div className="ad-name">
-                        <span className="bibo-avatar" style={{ ["--_s" as string]: "34px" }}>
-                          <span className="bibo-avatar__img" aria-label={e.display_name} style={{ background: pal.bg, color: pal.fg }}>
+                        <span className="actilens-avatar" style={{ ["--_s" as string]: "34px" }}>
+                          <span className="actilens-avatar__img" aria-label={e.display_name} style={{ background: pal.bg, color: pal.fg }}>
                             {initials(e.display_name)}
                           </span>
-                          <span className={`bibo-avatar__dot bibo-avatar__dot--${status}`} />
+                          <span className={`actilens-avatar__dot actilens-avatar__dot--${status}`} />
                         </span>
                         <span className="ad-name__txt">
                           {e.display_name}
@@ -227,9 +227,9 @@ export function Employees() {
                         <Link className="ad-viewlink" to={`/employees/${e.id}?business=${selectedId}`}>
                           {t("employees.viewReports")}{IconArrowRight}
                         </Link>
-                        <button className="bibo-btn bibo-btn--ghost" onClick={() => editEmployeeAccount(e)}>{t("employees.actions.edit")}</button>
-                        <button className="bibo-btn bibo-btn--ghost" onClick={() => changeEmployeePassword(e)}>{t("employees.actions.password")}</button>
-                        <button className="bibo-btn bibo-btn--ghost" onClick={() => toggleEmployeeActive(e)}>
+                        <button className="actilens-btn actilens-btn--ghost" onClick={() => editEmployeeAccount(e)}>{t("employees.actions.edit")}</button>
+                        <button className="actilens-btn actilens-btn--ghost" onClick={() => changeEmployeePassword(e)}>{t("employees.actions.password")}</button>
+                        <button className="actilens-btn actilens-btn--ghost" onClick={() => toggleEmployeeActive(e)}>
                           {t(e.active ? "employees.actions.archive" : "employees.actions.restore")}
                         </button>
                       </div>
@@ -312,15 +312,15 @@ function NewBusinessModal({
 
   return (
     <Modal wide onClose={onClose}>
-      <div className="bibo-dlg bibo-dlg--org" role="dialog" aria-modal="true">
-        <div className="bibo-dlg__head">
-          <div className="bibo-dlg__icon">
+      <div className="actilens-dlg actilens-dlg--org" role="dialog" aria-modal="true">
+        <div className="actilens-dlg__head">
+          <div className="actilens-dlg__icon">
             <span style={{ display: "inline-flex", lineHeight: 0 }}>{isFamily ? IconHouse : IconBuilding}</span>
           </div>
-          <div className="bibo-dlg__title">{t("employees.newOrg", { org: terms.org })}</div>
+          <div className="actilens-dlg__title">{t("employees.newOrg", { org: terms.org })}</div>
           <button
             type="button"
-            className="bibo-dlg__close"
+            className="actilens-dlg__close"
             aria-label={t("newBusinessModal.cancel")}
             onClick={onClose}
           >
@@ -328,15 +328,15 @@ function NewBusinessModal({
           </button>
         </div>
         <form onSubmit={submit}>
-          <div className="bibo-dlg__body">
+          <div className="actilens-dlg__body">
             {error && (
               <div style={{ marginBottom: 12 }}>
                 <Notice kind="danger">{error}</Notice>
               </div>
             )}
-            <label className="bibo-field">
-              <span className="bibo-field__lbl">{t("newBusinessModal.orgNameLabel", { org: orgCap })}</span>
-              <span className="bibo-input">
+            <label className="actilens-field">
+              <span className="actilens-field__lbl">{t("newBusinessModal.orgNameLabel", { org: orgCap })}</span>
+              <span className="actilens-input">
                 <input
                   placeholder={t(isFamily ? "newBusinessModal.namePlaceholderFamily" : "newBusinessModal.namePlaceholder")}
                   value={name}
@@ -347,11 +347,11 @@ function NewBusinessModal({
               </span>
             </label>
           </div>
-          <div className="bibo-dlg__foot">
-            <button type="button" className="bibo-btn bibo-btn--ghost" onClick={onClose}>
+          <div className="actilens-dlg__foot">
+            <button type="button" className="actilens-btn actilens-btn--ghost" onClick={onClose}>
               {t("newBusinessModal.cancel")}
             </button>
-            <button className="bibo-btn bibo-btn--primary" disabled={busy || !name.trim()}>
+            <button className="actilens-btn actilens-btn--primary" disabled={busy || !name.trim()}>
               {busy ? t("newBusinessModal.creating") : t("newBusinessModal.create")}
             </button>
           </div>
@@ -419,15 +419,15 @@ function NewEmployeeModal({
 
   return (
     <Modal wide onClose={onClose}>
-      <div className="bibo-dlg" role="dialog" aria-modal="true" style={{ ["--_w" as string]: "460px" }}>
-        <div className="bibo-dlg__head">
-          <div className="bibo-dlg__icon">
+      <div className="actilens-dlg" role="dialog" aria-modal="true" style={{ ["--_w" as string]: "460px" }}>
+        <div className="actilens-dlg__head">
+          <div className="actilens-dlg__icon">
             <span style={{ display: "inline-flex", lineHeight: 0 }}>{IconUserPlus}</span>
           </div>
-          <div className="bibo-dlg__title">{terms.addCta}</div>
+          <div className="actilens-dlg__title">{terms.addCta}</div>
           <button
             type="button"
-            className="bibo-dlg__close"
+            className="actilens-dlg__close"
             aria-label={t("newEmployeeModal.cancel")}
             onClick={onClose}
           >
@@ -435,7 +435,7 @@ function NewEmployeeModal({
           </button>
         </div>
         <form onSubmit={submit}>
-          <div className="bibo-dlg__body">
+          <div className="actilens-dlg__body">
             {!businessId && (
               <div style={{ marginBottom: 12 }}>
                 <Notice kind="info">
@@ -449,9 +449,9 @@ function NewEmployeeModal({
               </div>
             )}
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <label className="bibo-field">
-                <span className="bibo-field__lbl">{t("newEmployeeModal.displayName")}</span>
-                <span className="bibo-input">
+              <label className="actilens-field">
+                <span className="actilens-field__lbl">{t("newEmployeeModal.displayName")}</span>
+                <span className="actilens-input">
                   <input
                     placeholder="Mia"
                     value={displayName}
@@ -461,9 +461,9 @@ function NewEmployeeModal({
                   />
                 </span>
               </label>
-              <label className="bibo-field">
-                <span className="bibo-field__lbl">{t("newEmployeeModal.usernameOrEmail")}</span>
-                <span className="bibo-input">
+              <label className="actilens-field">
+                <span className="actilens-field__lbl">{t("newEmployeeModal.usernameOrEmail")}</span>
+                <span className="actilens-input">
                   <input
                     type="text"
                     placeholder="mia_home"
@@ -477,9 +477,9 @@ function NewEmployeeModal({
               </label>
               <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
                 <div style={{ flex: "1 1 0%" }}>
-                  <label className="bibo-field">
-                    <span className="bibo-field__lbl">{t("newEmployeeModal.temporaryPassword")}</span>
-                    <span className="bibo-input bibo-input--dots">
+                  <label className="actilens-field">
+                    <span className="actilens-field__lbl">{t("newEmployeeModal.temporaryPassword")}</span>
+                    <span className="actilens-input actilens-input--dots">
                       <input
                         type="text"
                         placeholder="••••••••"
@@ -493,7 +493,7 @@ function NewEmployeeModal({
                 </div>
                 <button
                   type="button"
-                  className="bibo-btn bibo-btn--secondary"
+                  className="actilens-btn actilens-btn--secondary"
                   title={t("newEmployeeModal.generate")}
                   onClick={() => setPassword(genTempPassword())}
                 >
@@ -503,12 +503,12 @@ function NewEmployeeModal({
               </div>
             </div>
           </div>
-          <div className="bibo-dlg__foot">
-            <button type="button" className="bibo-btn bibo-btn--ghost" onClick={onClose}>
+          <div className="actilens-dlg__foot">
+            <button type="button" className="actilens-btn actilens-btn--ghost" onClick={onClose}>
               {t("newEmployeeModal.cancel")}
             </button>
             <button
-              className="bibo-btn bibo-btn--primary"
+              className="actilens-btn actilens-btn--primary"
               disabled={busy || !displayName.trim() || !login.trim() || !password}
             >
               {busy ? t("newEmployeeModal.adding") : terms.addCta}

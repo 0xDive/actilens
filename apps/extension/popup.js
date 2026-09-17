@@ -1,4 +1,4 @@
-// ctracking popup — shows link status, current page, today's count, pause toggle.
+// actilens popup — shows link status, current page, today's count, pause toggle.
 
 const CANDIDATE_PORTS = [47615, 48291, 49377, 50603, 51719, 52837];
 
@@ -10,7 +10,7 @@ async function probe() {
       const res = await fetch(`http://127.0.0.1:${port}/whoami`);
       if (res.ok) {
         const j = await res.json();
-        if (j && j.app === "employeetrack") return port;
+        if (j && j.app === "actilens") return port;
       }
     } catch (_) {}
   }

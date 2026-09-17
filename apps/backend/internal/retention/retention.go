@@ -7,9 +7,9 @@ import (
 	"context"
 	"time"
 
-	"ctracking/backend/internal/filestore"
-	"ctracking/backend/internal/obs"
-	"ctracking/backend/internal/store"
+	"actilens/backend/internal/filestore"
+	"actilens/backend/internal/obs"
+	"actilens/backend/internal/store"
 )
 
 // Service performs screenshot cleanup.

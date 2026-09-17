@@ -1,6 +1,6 @@
 {
   "welcome": {
-    "title": "Добро пожаловать в BiBoTracking",
+    "title": "Добро пожаловать в ActiLens",
     "sub": "Выберите режим работы.",
     "local": {
       "title": "Только для себя",
@@ -19,13 +19,13 @@
     "status": "Статус",
     "paused": "Пауза",
     "tracking": "Отслеживание",
-    "open": "Открыть BiBoTracking",
+    "open": "Открыть ActiLens",
     "start": "Начать отслеживание",
     "stop": "Остановить отслеживание",
-    "quit": "Выйти из BiBoTracking"
+    "quit": "Выйти из ActiLens"
   },
   "consent": {
-    "title": "Какие данные собирает BiBoTracking",
+    "title": "Какие данные собирает ActiLens",
     "subtitle": "Четыре вида рабочей активности.",
     "shots": {
       "t": "Скриншоты",

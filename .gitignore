@@ -17,8 +17,8 @@ deploy/.env.deploy
 .env
 .env.staging
 .env.prod
-corporate/.env
-corporate/backups/
+deploy/.env
+deploy/backups/
 
 # per-env screenshot blob dirs (created at runtime by start-env.sh)
 apps/backend/storage-staging/
@@ -42,6 +42,6 @@ marketing/site-staging/
 marketing/site/_*.html
 .playwright-mcp/*
 app.crediential.txt
-brian.nguyen.work@gmail.com-2026-06-20T08_55_14.616Z_public.pem
+0xDive-2026-06-20T08_55_14.616Z_public.pem
 certificate/mac_app_distribution.cer
 scripts/vps-monitor.sh

@@ -1,4 +1,4 @@
-/* ctracking — semantic design tokens (see docs/07-ui-design.md) */
+/* actilens — semantic design tokens (see docs/07-ui-design.md) */
 
 :root,
 :root[data-theme="light"] {
@@ -169,7 +169,7 @@ body {
   border-color: #353a45;
 }
 /* 3 non-focal stat cards + the 2 lower panels share the content tone */
-:root[data-theme="dark"] .bibo-stat {
+:root[data-theme="dark"] .actilens-stat {
   background: #171a25;
 }
 :root[data-theme="dark"] .bb-row2 .card {
@@ -178,7 +178,7 @@ body {
 /* visible elevation shadow on the stat cards + the two panels (the light-mode
    shadow is invisible against the dark surfaces) */
 :root[data-theme="dark"] .card,
-:root[data-theme="dark"] .bibo-stat {
+:root[data-theme="dark"] .actilens-stat {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 10px 26px rgba(0, 0, 0, 0.38);
 }
 
@@ -687,11 +687,11 @@ body {
 }
 
 /* hover tooltip bubble (used on the tracking pill) */
-.bibo-tip {
+.actilens-tip {
   position: relative;
   display: inline-flex;
 }
-.bibo-tip__bubble {
+.actilens-tip__bubble {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
@@ -710,8 +710,8 @@ body {
   transition: opacity 0.14s ease, transform 0.14s ease;
   pointer-events: none;
 }
-.bibo-tip:hover .bibo-tip__bubble,
-.bibo-tip:focus-within .bibo-tip__bubble {
+.actilens-tip:hover .actilens-tip__bubble,
+.actilens-tip:focus-within .actilens-tip__bubble {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
@@ -730,7 +730,7 @@ body {
 
 /* ---------- data ---------- */
 /* stat cards (Dashboard): icon tile · label · big value, with a dark focal card */
-.bibo-stat {
+.actilens-stat {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -745,13 +745,13 @@ body {
      when the window is narrow — BRI-20 */
   overflow: hidden;
 }
-.bibo-stat__top {
+.actilens-stat__top {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
 }
-.bibo-stat__icon {
+.actilens-stat__icon {
   width: 32px;
   height: 32px;
   border-radius: 9px;
@@ -762,15 +762,15 @@ body {
   color: #5b4bd6;
 }
 /* dark: keep the light lavender icon tile (#f4f2fe) with the deep-purple glyph */
-:root[data-theme="dark"] .bibo-stat__icon {
+:root[data-theme="dark"] .actilens-stat__icon {
   background: #f4f2fe;
   color: #5b4bd6;
 }
-.bibo-stat__icon svg {
+.actilens-stat__icon svg {
   width: 18px;
   height: 18px;
 }
-.bibo-stat__label {
+.actilens-stat__label {
   font-size: 11px;
   font-weight: 600;
   color: var(--text-muted);
@@ -780,7 +780,7 @@ body {
   line-height: 1.3;
   overflow-wrap: break-word;
 }
-.bibo-stat__value {
+.actilens-stat__value {
   font-size: 22px;
   font-weight: 800;
   letter-spacing: -0.02em;
@@ -794,13 +794,13 @@ body {
   overflow-wrap: anywhere;
   min-width: 0;
 }
-.bibo-stat__foot {
+.actilens-stat__foot {
   display: flex;
   align-items: center;
   gap: 6px;
   margin-top: auto;
 }
-.bibo-stat__delta {
+.actilens-stat__delta {
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -808,56 +808,56 @@ body {
   font-weight: 700;
   white-space: nowrap;
 }
-.bibo-stat__delta svg {
+.actilens-stat__delta svg {
   width: 11px;
   height: 11px;
 }
 /* stacked delta text ("3h" over "42m"), like the two-line "vs yesterday" sub */
-.bibo-stat__delta-stack {
+.actilens-stat__delta-stack {
   line-height: 1.05;
   text-align: left;
 }
-.bibo-stat__delta--up {
+.actilens-stat__delta--up {
   color: #10b981;
 }
-.bibo-stat__delta--down {
+.actilens-stat__delta--down {
   color: #ef4444;
 }
-.bibo-stat__delta--none {
+.actilens-stat__delta--none {
   color: var(--text-muted);
 }
-.bibo-stat__sub {
+.actilens-stat__sub {
   font-size: 12px;
   font-weight: 500;
   color: var(--text-muted);
 }
-.bibo-stat__chart {
+.actilens-stat__chart {
   margin-left: auto;
   display: inline-flex;
   align-items: flex-end;
 }
 /* focal (featured) card: dark fill, white text — same in light & dark */
-.bibo-stat.is-focal {
+.actilens-stat.is-focal {
   background: #16161f;
   border-color: #16161f;
   color: #fff;
 }
 /* dark: the hero card is near-black with a faint visible outline so it stands out */
-:root[data-theme="dark"] .bibo-stat.is-focal {
+:root[data-theme="dark"] .actilens-stat.is-focal {
   background: #0a0d11;
   border-color: #8b7df652;
 }
-.bibo-stat.is-focal .bibo-stat__icon {
+.actilens-stat.is-focal .actilens-stat__icon {
   background: rgba(255, 255, 255, 0.12);
   color: #fff;
 }
-.bibo-stat.is-focal .bibo-stat__label {
+.actilens-stat.is-focal .actilens-stat__label {
   color: rgba(255, 255, 255, 0.72);
 }
-.bibo-stat.is-focal .bibo-stat__value {
+.actilens-stat.is-focal .actilens-stat__value {
   color: #fff;
 }
-.bibo-stat.is-focal .bibo-stat__sub {
+.actilens-stat.is-focal .actilens-stat__sub {
   color: rgba(255, 255, 255, 0.6);
 }
 
@@ -1327,23 +1327,23 @@ td {
 /* ---------- Permissions screen (Settings → Permissions) ---------- */
 /* One bordered card (rounded 16px, dark #171A25 surface in dark) holding the
    header (title + intro + Re-check) and the per-capability rows. */
-.bibo-card {
+.actilens-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 16px;
   box-shadow: 0 4px 14px rgba(16, 18, 40, 0.08), 0 18px 44px rgba(16, 18, 40, 0.13);
 }
-:root[data-theme="dark"] .bibo-card {
+:root[data-theme="dark"] .actilens-card {
   background: #171a25;
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.42), 0 26px 64px rgba(0, 0, 0, 0.52);
 }
 /* dark only: deeper icon tile + pure-white headings (light mode keeps dark text) */
-:root[data-theme="dark"] .bibo-card .bb-perm__ic {
+:root[data-theme="dark"] .actilens-card .bb-perm__ic {
   background: #11151f;
   color: #a6adbf;
 }
-:root[data-theme="dark"] .bibo-card .bb-panel__title,
-:root[data-theme="dark"] .bibo-card .bb-perm__title {
+:root[data-theme="dark"] .actilens-card .bb-panel__title,
+:root[data-theme="dark"] .actilens-card .bb-perm__title {
   color: #fff;
 }
 .bb-card-pad {
@@ -1455,7 +1455,7 @@ td {
 }
 
 /* status badge (Granted / Off) */
-.bibo-badge {
+.actilens-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1465,21 +1465,21 @@ td {
   border-radius: 999px;
   white-space: nowrap;
 }
-.bibo-badge svg {
+.actilens-badge svg {
   width: 12px;
   height: 12px;
 }
-.bibo-badge--positive {
+.actilens-badge--positive {
   color: #10b981;
   background: rgba(16, 185, 129, 0.13);
 }
-.bibo-badge--negative {
+.actilens-badge--negative {
   color: var(--danger);
   background: color-mix(in srgb, var(--danger) 14%, transparent);
 }
 
 /* buttons on this screen (ghost = Re-check, secondary/primary = row action) */
-.bibo-btn {
+.actilens-btn {
   font: inherit;
   font-size: 13px;
   font-weight: 700;
@@ -1495,48 +1495,48 @@ td {
   cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
 }
-.bibo-btn svg {
+.actilens-btn svg {
   width: 14px;
   height: 14px;
 }
-.bibo-btn--sm {
+.actilens-btn--sm {
   padding: 6px 12px;
   font-size: 12px;
 }
-.bibo-btn--secondary:hover {
+.actilens-btn--secondary:hover {
   border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
   color: var(--accent);
 }
-.bibo-btn--ghost {
+.actilens-btn--ghost {
   background: transparent;
   border-color: transparent;
   color: var(--text-muted);
 }
-.bibo-btn--ghost:hover {
+.actilens-btn--ghost:hover {
   color: var(--text);
   background: var(--bg-inset);
 }
 /* Re-check uses the ghost button — give its refresh glyph a touch more presence */
-.bibo-btn--ghost svg {
+.actilens-btn--ghost svg {
   width: 16px;
   height: 16px;
 }
-.bibo-btn--primary {
+.actilens-btn--primary {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
 }
-.bibo-btn--primary:hover {
+.actilens-btn--primary:hover {
   filter: brightness(1.07);
   color: #fff;
 }
 /* white button (Export actions): white fill, dark glyph/text; border keeps it
    visible on the white card in light mode */
-.bibo-btn--white {
+.actilens-btn--white {
   background: #fff;
   color: #171a25;
 }
-.bibo-btn--white:hover {
+.actilens-btn--white:hover {
   background: #eef0f4;
   color: #171a25;
 }
@@ -1628,30 +1628,30 @@ td {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
 }
 /* "Capture now": pill shape (fully rounded ends) with a larger camera glyph. */
-.bb-shots-bar .bibo-btn {
+.bb-shots-bar .actilens-btn {
   border-radius: 999px;
   padding-top: 5px;
   padding-bottom: 5px;
 }
 /* Soft brand-tinted drop shadow on the "Capture now" button. */
-.bb-shots-bar .bibo-btn--primary {
+.bb-shots-bar .actilens-btn--primary {
   box-shadow: 0 6px 16px rgba(108, 92, 231, 0.35);
 }
-.bb-shots-bar .bibo-btn--primary:hover {
+.bb-shots-bar .actilens-btn--primary:hover {
   box-shadow: 0 8px 22px rgba(108, 92, 231, 0.45);
 }
-.bb-shots-bar .bibo-btn svg {
+.bb-shots-bar .actilens-btn svg {
   width: 22px;
   height: 22px;
 }
 /* Dark mode: brand-purple "Capture now" button. */
-:root[data-theme="dark"] .bb-shots-bar .bibo-btn--primary {
+:root[data-theme="dark"] .bb-shots-bar .actilens-btn--primary {
   background: #6c5ce7;
   border-color: #6c5ce7;
   color: #fff;
   box-shadow: 0 6px 20px rgba(108, 92, 231, 0.5);
 }
-.bibo-btn:disabled {
+.actilens-btn:disabled {
   opacity: 0.6;
   cursor: default;
 }
@@ -1699,7 +1699,7 @@ td {
   margin-top: 2px;
 }
 
-/* ---------- Settings screen (redesigned: bb-set + bibo-select + bibo-switch) ---------- */
+/* ---------- Settings screen (redesigned: bb-set + actilens-select + actilens-switch) ---------- */
 /* Stack of sections; each is an uppercase label above one bordered card of rows. */
 .bb-set {
   display: flex;
@@ -1739,7 +1739,7 @@ td {
   font-weight: 600;
   color: var(--text);
 }
-:root[data-theme="dark"] .bibo-card .bb-row__title {
+:root[data-theme="dark"] .actilens-card .bb-row__title {
   color: #fff;
 }
 .bb-row__desc {
@@ -1772,7 +1772,7 @@ td {
 }
 /* dark: deep inset well for read-only chips + secondary buttons on this screen */
 :root[data-theme="dark"] .bb-readonly,
-:root[data-theme="dark"] .bb-set .bibo-btn--secondary {
+:root[data-theme="dark"] .bb-set .actilens-btn--secondary {
   background: #11151f;
 }
 /* slightly larger glyphs: Check-for-updates refresh + Export buttons */
@@ -1783,10 +1783,10 @@ td {
 }
 
 /* custom select: a styled trigger button + a popup listbox */
-.bibo-select {
+.actilens-select {
   position: relative;
 }
-.bibo-select__btn {
+.actilens-select__btn {
   font: inherit;
   font-size: 14px;
   font-weight: 600;
@@ -1803,31 +1803,31 @@ td {
   cursor: pointer;
   transition: border-color 0.15s ease;
 }
-.bibo-select__btn:hover:not(:disabled) {
+.actilens-select__btn:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
 }
-.bibo-select__btn:disabled {
+.actilens-select__btn:disabled {
   opacity: 0.5;
   cursor: default;
 }
-:root[data-theme="dark"] .bibo-select__btn {
+:root[data-theme="dark"] .actilens-select__btn {
   background: #1b212d;
 }
-.bibo-select__val {
+.actilens-select__val {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.bibo-select__chev {
+.actilens-select__chev {
   flex: none;
   display: inline-flex;
   color: var(--text-muted);
 }
-.bibo-select__chev svg {
+.actilens-select__chev svg {
   width: 18px;
   height: 18px;
 }
-.bibo-select__menu {
+.actilens-select__menu {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
@@ -1842,11 +1842,11 @@ td {
   flex-direction: column;
   gap: 2px;
 }
-:root[data-theme="dark"] .bibo-select__menu {
+:root[data-theme="dark"] .actilens-select__menu {
   background: #1c1f2b;
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
 }
-.bibo-select__opt {
+.actilens-select__opt {
   font: inherit;
   font-size: 14px;
   text-align: left;
@@ -1857,26 +1857,26 @@ td {
   padding: 9px 11px;
   cursor: pointer;
 }
-.bibo-select__opt:hover {
+.actilens-select__opt:hover {
   background: var(--bg-inset);
 }
-.bibo-select__opt.active {
+.actilens-select__opt.active {
   color: var(--accent);
   font-weight: 700;
 }
 
 /* toggle switch (visually-hidden checkbox drives the track + sliding knob) */
-.bibo-switch {
+.actilens-switch {
   display: inline-flex;
   cursor: pointer;
 }
-.bibo-switch input {
+.actilens-switch input {
   position: absolute;
   opacity: 0;
   width: 0;
   height: 0;
 }
-.bibo-switch__track {
+.actilens-switch__track {
   width: 40px;
   height: 24px;
   border-radius: 999px;
@@ -1884,7 +1884,7 @@ td {
   position: relative;
   transition: background-color 0.18s ease;
 }
-.bibo-switch__knob {
+.actilens-switch__knob {
   position: absolute;
   top: 2.5px;
   left: 2.5px;
@@ -1895,13 +1895,13 @@ td {
   box-shadow: 0 1px 1px rgba(0, 0, 0, 0.12);
   transition: transform 0.18s ease;
 }
-.bibo-switch--on .bibo-switch__track {
+.actilens-switch--on .actilens-switch__track {
   background: var(--accent);
 }
-.bibo-switch--on .bibo-switch__knob {
+.actilens-switch--on .actilens-switch__knob {
   transform: translateX(16px);
 }
-.bibo-switch input:disabled + .bibo-switch__track {
+.actilens-switch input:disabled + .actilens-switch__track {
   opacity: 0.5;
 }
 
@@ -2945,7 +2945,7 @@ td {
   color: var(--text);
 }
 
-/* ---- consent ("What BiBoTracking captures"): 2×2 capture cards + focal note ---- */
+/* ---- consent ("What ActiLens captures"): 2×2 capture cards + focal note ---- */
 .welcome .capture-grid {
   width: 100%;
   max-width: 560px;
@@ -3182,7 +3182,7 @@ td {
   font-weight: 600;
   color: var(--text);
   background-color: var(--surface-strong, var(--bg));
-  /* chevron-down (matches the mockup's bibo-select chevron) */
+  /* chevron-down (matches the mockup's actilens-select chevron) */
   background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='%238a90a0'%20stroke-width='2.2'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='m6%209%206%206%206-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;

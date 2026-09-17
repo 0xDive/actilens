@@ -2,15 +2,15 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: ctracking
-      POSTGRES_PASSWORD: ctracking
-      POSTGRES_DB: ctracking
+      POSTGRES_USER: actilens
+      POSTGRES_PASSWORD: actilens
+      POSTGRES_DB: actilens
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ctracking"]
+      test: ["CMD-SHELL", "pg_isready -U actilens"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -22,7 +22,7 @@ services:
         condition: service_healthy
     environment:
       PORT: "8080"
-      DATABASE_URL: postgres://ctracking:ctracking@db:5432/ctracking?sslmode=disable
+      DATABASE_URL: postgres://actilens:actilens@db:5432/actilens?sslmode=disable
       JWT_SECRET: dev-only-change-me
       STORAGE_DIR: /app/storage
       WEB_ADMIN_ORIGIN: http://localhost:5174

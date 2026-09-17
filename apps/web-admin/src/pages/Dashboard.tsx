@@ -112,21 +112,21 @@ function StatCard(props: {
 }) {
   const { icon, label, value, focal, delta, sub, spark } = props;
   return (
-    <div className={`bibo-card ${focal ? "bibo-card--focal" : "bibo-card--default"} ad-cardpad`}>
-      <div className={`bibo-stat${focal ? " bibo-stat--focal" : ""}`}>
-        <div className="bibo-stat__top">
-          <div className="bibo-stat__icon">{icon}</div>
-          <div className="bibo-stat__label">{label}</div>
+    <div className={`actilens-card ${focal ? "actilens-card--focal" : "actilens-card--default"} ad-cardpad`}>
+      <div className={`actilens-stat${focal ? " actilens-stat--focal" : ""}`}>
+        <div className="actilens-stat__top">
+          <div className="actilens-stat__icon">{icon}</div>
+          <div className="actilens-stat__label">{label}</div>
         </div>
-        <div className="bibo-stat__value">{value}</div>
-        <div className="bibo-stat__foot">
+        <div className="actilens-stat__value">{value}</div>
+        <div className="actilens-stat__foot">
           {delta && (
-            <span className={`bibo-stat__delta bibo-stat__delta--${delta.up ? "up" : "down"}`}>
+            <span className={`actilens-stat__delta actilens-stat__delta--${delta.up ? "up" : "down"}`}>
               {delta.up ? TrendUp : TrendDown}
               {delta.text}
             </span>
           )}
-          {sub && <span className="bibo-stat__sub">{sub}</span>}
+          {sub && <span className="actilens-stat__sub">{sub}</span>}
           <span style={{ marginLeft: "auto" }}>
             <Sparkline data={spark.data} color={spark.color} />
           </span>
@@ -229,7 +229,7 @@ export function Dashboard() {
             <StatCard
               icon={IconTarget}
               label={t("dashboard.statFocus")}
-              value={avgFocus == null ? "—" : <>{avgFocus}<span className="bibo-stat__unit">%</span></>}
+              value={avgFocus == null ? "—" : <>{avgFocus}<span className="actilens-stat__unit">%</span></>}
               sub={t("dashboard.todayLabel")}
               spark={{ data: seededSeries("focus"), color: "var(--positive)" }}
             />
@@ -243,7 +243,7 @@ export function Dashboard() {
             />
           </div>
 
-          <div className="bibo-card bibo-card--default ad-tablecard">
+          <div className="actilens-card actilens-card--default ad-tablecard">
             <table className="ad-table">
               <thead>
                 <tr>
@@ -266,11 +266,11 @@ export function Dashboard() {
                     <tr key={e.id}>
                       <td>
                         <div className="ad-name">
-                          <span className="bibo-avatar" style={{ ["--_s" as string]: "34px" }}>
-                            <span className="bibo-avatar__img" aria-label={e.display_name} style={{ background: pal.bg, color: pal.fg }}>
+                          <span className="actilens-avatar" style={{ ["--_s" as string]: "34px" }}>
+                            <span className="actilens-avatar__img" aria-label={e.display_name} style={{ background: pal.bg, color: pal.fg }}>
                               {initials(e.display_name)}
                             </span>
-                            <span className={`bibo-avatar__dot bibo-avatar__dot--${status}`} />
+                            <span className={`actilens-avatar__dot actilens-avatar__dot--${status}`} />
                           </span>
                           <span className="ad-name__txt">
                             {e.display_name}

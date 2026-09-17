@@ -293,7 +293,7 @@ export function Dashboard() {
           value={data.top_app ?? "—"}
           delta={
             topSecs > 0 ? (
-              <span className="bibo-stat__delta-stack">
+              <span className="actilens-stat__delta-stack">
                 {topH > 0 ? (
                   <>
                     {topH}h

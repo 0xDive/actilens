@@ -303,7 +303,7 @@ export function Settings() {
                 </div>
                 <div className="toolbar" style={{ gap: 10 }}>
                   <span className="muted">{t("skipApps.count", { count: skipApps.length })}</span>
-                  <button className="bibo-btn bibo-btn--secondary bibo-btn--sm" disabled={saving} onClick={() => setSkipOpen(true)}>
+                  <button className="actilens-btn actilens-btn--secondary actilens-btn--sm" disabled={saving} onClick={() => setSkipOpen(true)}>
                     {t("skipApps.manage")}
                   </button>
                 </div>
@@ -371,7 +371,7 @@ export function Settings() {
                 <div className="set-title">{t("cleanup.title")}</div>
                 <div className="set-desc">{t("cleanup.desc", { name: selected.name })}</div>
               </div>
-              <button className="bibo-btn bibo-btn--secondary bibo-btn--sm" disabled={cleaning} onClick={() => setConfirmOpen(true)}>
+              <button className="actilens-btn actilens-btn--secondary actilens-btn--sm" disabled={cleaning} onClick={() => setConfirmOpen(true)}>
                 <span style={{ display: "inline-flex", lineHeight: 0 }}>{IconTrash}</span>
                 <span>{t("cleanup.button")}</span>
               </button>
@@ -401,7 +401,7 @@ export function Settings() {
                 }
               }}
             />
-            <button className="bibo-btn bibo-btn--secondary bibo-btn--sm" disabled={saving || !skipAppInput.trim()} onClick={() => addSkipApp()}>
+            <button className="actilens-btn actilens-btn--secondary actilens-btn--sm" disabled={saving || !skipAppInput.trim()} onClick={() => addSkipApp()}>
               {t("skipApps.add")}
             </button>
           </div>
@@ -447,7 +447,7 @@ export function Settings() {
                     </span>
                     {added.length < cat.apps.length && (
                       <button
-                        className="bibo-btn bibo-btn--ghost"
+                        className="actilens-btn actilens-btn--ghost"
                         style={{ padding: "1px 8px", fontSize: 11 }}
                         disabled={saving}
                         onClick={() => addSkipApps(cat.apps)}
@@ -457,7 +457,7 @@ export function Settings() {
                     )}
                     {added.length > 0 && (
                       <button
-                        className="bibo-btn bibo-btn--ghost"
+                        className="actilens-btn actilens-btn--ghost"
                         style={{ padding: "1px 8px", fontSize: 11 }}
                         disabled={saving}
                         onClick={() => removeSkipApps(cat.apps)}
@@ -500,7 +500,7 @@ export function Settings() {
           </div>
 
           <div className="toolbar" style={{ justifyContent: "flex-end", marginTop: 12 }}>
-            <button className="bibo-btn bibo-btn--primary" onClick={() => setSkipOpen(false)}>
+            <button className="actilens-btn actilens-btn--primary" onClick={() => setSkipOpen(false)}>
               {t("skipApps.done")}
             </button>
           </div>
@@ -530,10 +530,10 @@ export function Settings() {
           </div>
           <p className="muted">{t("cleanup.warning", { days: cleanupDays })}</p>
           <div className="toolbar" style={{ justifyContent: "flex-end", gap: 8 }}>
-            <button className="bibo-btn bibo-btn--secondary" disabled={cleaning} onClick={() => setConfirmOpen(false)}>
+            <button className="actilens-btn actilens-btn--secondary" disabled={cleaning} onClick={() => setConfirmOpen(false)}>
               {t("cleanup.cancel")}
             </button>
-            <button className="bibo-btn bibo-btn--primary" disabled={cleaning} onClick={runCleanup}>
+            <button className="actilens-btn actilens-btn--primary" disabled={cleaning} onClick={runCleanup}>
               {cleaning ? t("cleanup.deleting") : t("cleanup.delete", { days: cleanupDays })}
             </button>
           </div>

@@ -81,7 +81,7 @@ export function Screenshots() {
           <div className="bb-panel__sub">{t("screenshots.intro")}</div>
         </div>
         <button
-          className="bibo-btn bibo-btn--primary"
+          className="actilens-btn actilens-btn--primary"
           style={{ marginLeft: "auto" }}
           onClick={captureNow}
           disabled={busy}
