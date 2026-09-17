@@ -1,0 +1,128 @@
+name: Employee archive lifecycle patch
+
+on:
+  push:
+    branches: [feature/employee-archive-ui]
+    paths:
+      - ".github/workflows/archive-ui-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/employee-archive-ui
+          fetch-depth: 0
+      - name: Apply archive lifecycle changes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          def replace(path, old, new, count=1):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f"anchor missing in {path}: {old[:140]!r}")
+              p.write_text(text.replace(old, new, count))
+
+          # Archiving an account also disables its organization monitoring flag.
+          path = 'apps/backend/internal/store/employee_admin.go'
+          replace(path,
+          '''\te.Role = access.TargetRole\n\n\tif err := insertAuditTx(ctx, tx, access.BusinessID, actorID, "employee.updated", "member", employeeID, map[string]any{''',
+          '''\te.Role = access.TargetRole\n\n\tif !e.Active {\n\t\tif _, err := tx.Exec(ctx,\n\t\t\t`UPDATE memberships SET monitoring_enabled = false WHERE user_id = $1 AND business_id = $2`,\n\t\t\temployeeID, access.BusinessID,\n\t\t); err != nil {\n\t\t\treturn Employee{}, err\n\t\t}\n\t}\n\n\tif err := insertAuditTx(ctx, tx, access.BusinessID, actorID, "employee.updated", "member", employeeID, map[string]any{''')
+          replace(path,
+          '''\tif ct.RowsAffected() == 0 {\n\t\treturn ErrNotFound\n\t}\n\taction := "employee.restored"''',
+          '''\tif ct.RowsAffected() == 0 {\n\t\treturn ErrNotFound\n\t}\n\tif !active {\n\t\tif _, err := tx.Exec(ctx,\n\t\t\t`UPDATE memberships SET monitoring_enabled = false WHERE user_id = $1 AND business_id = $2`,\n\t\t\temployeeID, access.BusinessID,\n\t\t); err != nil {\n\t\t\treturn err\n\t\t}\n\t}\n\taction := "employee.restored"''')
+
+          # If refresh fails because an administrator archived/revoked the account,
+          # AuthState clears itself. Immediately fail closed locally too.
+          path = 'apps/desktop/src-tauri/src/sync/worker.rs'
+          replace(path,
+          '''            Err(e) => {\n                ctx.status.record_error(e, pending_total(ctx));\n                failed = true;\n                break;\n            }''',
+          '''            Err(e) => {\n                if !ctx.auth.is_logged_in() {\n                    disable_org_collection(ctx);\n                }\n                ctx.status.record_error(e, pending_total(ctx));\n                failed = true;\n                break;\n            }''')
+          old = '''                        Err(e) if e.starts_with("network error") => {\n                            ctx.status.record_error(e, pending_total(ctx));\n                            failed = true;\n                            break;\n                        }\n                        Err(e) => {\n                            crate::log_warn!(\n                                "sync",\n                                "screenshot {} skipped: {e}",\n                                shot.client_uuid\n                            );\n                            continue;\n                        }'''
+          new = '''                        Err(e) => {\n                            if !ctx.auth.is_logged_in() {\n                                disable_org_collection(ctx);\n                                ctx.status.record_error(e, pending_total(ctx));\n                                failed = true;\n                                break;\n                            }\n                            if e.starts_with("network error") {\n                                ctx.status.record_error(e, pending_total(ctx));\n                                failed = true;\n                                break;\n                            }\n                            crate::log_warn!(\n                                "sync",\n                                "screenshot {} skipped: {e}",\n                                shot.client_uuid\n                            );\n                            continue;\n                        }'''
+          replace(path, old, new)
+          replace(path,
+          '''fn pending_total(ctx: &SyncContext) -> i64 {\n    ctx.db.pending_count().unwrap_or(0)\n}\n''',
+          '''fn disable_org_collection(ctx: &SyncContext) {\n    ctx.control\n        .org_monitoring_enabled\n        .store(false, Ordering::Relaxed);\n    {\n        let mut current = ctx.settings.current.lock().unwrap();\n        if current.org_monitoring_enabled {\n            current.org_monitoring_enabled = false;\n            let _ = crate::settings::save(&ctx.settings.path, &current);\n        }\n    }\n    ctx.settings.managed.lock().unwrap().monitoring_enabled = false;\n}\n\nfn pending_total(ctx: &SyncContext) -> i64 {\n    ctx.db.pending_count().unwrap_or(0)\n}\n''')
+
+          # Employees page: active members by default, archived members in a separate tab.
+          path = 'apps/web-admin/src/pages/Employees.tsx'
+          replace(path,
+          '''  const [showBiz, setShowBiz] = useState(false);\n  const [showEmp, setShowEmp] = useState(false);\n  const [autoCreatedNote, setAutoCreatedNote] = useState<string | null>(null);\n''',
+          '''  const [showBiz, setShowBiz] = useState(false);\n  const [showEmp, setShowEmp] = useState(false);\n  const [autoCreatedNote, setAutoCreatedNote] = useState<string | null>(null);\n  const [listMode, setListMode] = useState<"active" | "archived">("active");\n''')
+          replace(path,
+          '''  const mayManageMembers = canManageMembers(selected?.role);\n  const mayManageRoles = canManageRoles(selected?.role);\n''',
+          '''  const mayManageMembers = canManageMembers(selected?.role);\n  const mayManageRoles = canManageRoles(selected?.role);\n  const activeEmployees = employees.filter((e) => e.active);\n  const archivedEmployees = employees.filter((e) => !e.active);\n  const visibleEmployees = listMode === "active" ? activeEmployees : archivedEmployees;\n''')
+          replace(path,
+          '''  useEffect(() => {\n    if (selectedId) loadEmployees(selectedId);\n    else setEmployees([]);\n  }, [selectedId]);\n''',
+          '''  useEffect(() => {\n    setListMode("active");\n    if (selectedId) loadEmployees(selectedId);\n    else setEmployees([]);\n  }, [selectedId]);\n''')
+          replace(path,
+          '''              {selected.name} · {employees.length} {terms.many}\n''',
+          '''              {selected.name} · {activeEmployees.length} {terms.many}\n''')
+          pagehead_end = '''      </div>\n\n      {!hasBusiness && !bizLoading && ('''
+          tabs = '''      </div>\n\n      {selectedId && !loading && employees.length > 0 && (\n        <div style={{ marginBottom: 16 }}>\n          <div className="actilens-seg actilens-seg--sm" role="tablist" aria-label={t("employees.filters.aria")}>\n            <button\n              role="tab"\n              aria-selected={listMode === "active"}\n              className={`actilens-seg__opt${listMode === "active" ? " actilens-seg__opt--on" : ""}`}\n              onClick={() => setListMode("active")}\n            >\n              {t("employees.filters.active")} ({activeEmployees.length})\n            </button>\n            <button\n              role="tab"\n              aria-selected={listMode === "archived"}\n              className={`actilens-seg__opt${listMode === "archived" ? " actilens-seg__opt--on" : ""}`}\n              onClick={() => setListMode("archived")}\n            >\n              {t("employees.filters.archived")} ({archivedEmployees.length})\n            </button>\n          </div>\n        </div>\n      )}\n\n      {!hasBusiness && !bizLoading && ('''
+          replace(path, pagehead_end, tabs)
+          replace(path,
+          '''      {!loading && selectedId && employees.length === 0 && !listError && (\n        <Empty>{t("employees.noMembersYet", { members: terms.lowerMany })}</Empty>\n      )}\n\n      {employees.length > 0 && (''',
+          '''      {!loading && selectedId && visibleEmployees.length === 0 && !listError && (\n        <Empty>\n          {t(listMode === "active" ? "employees.noActiveMembers" : "employees.noArchivedMembers", { members: terms.lowerMany })}\n        </Empty>\n      )}\n\n      {visibleEmployees.length > 0 && (''')
+          replace(path, '              {employees.map((e, i) => {', '              {visibleEmployees.map((e, i) => {')
+          replace(path,
+          '''                        canChange={mayManageRoles}\n''',
+          '''                        canChange={mayManageRoles && e.active}\n''')
+          replace(path,
+          '''                        canChange={mayManageThis}\n''',
+          '''                        canChange={mayManageThis && e.active}\n''')
+          old_actions = '''                        {mayManageThis && (\n                          <>\n                            <button className="actilens-btn actilens-btn--ghost" onClick={() => editEmployeeAccount(e)}>{t("employees.actions.edit")}</button>\n                            <button className="actilens-btn actilens-btn--ghost" onClick={() => changeEmployeePassword(e)}>{t("employees.actions.password")}</button>\n                            <button className="actilens-btn actilens-btn--ghost" onClick={() => toggleEmployeeActive(e)}>\n                              {t(e.active ? "employees.actions.archive" : "employees.actions.restore")}\n                            </button>\n                          </>\n                        )}'''
+          new_actions = '''                        {mayManageThis && e.active && (\n                          <>\n                            <button className="actilens-btn actilens-btn--ghost" onClick={() => editEmployeeAccount(e)}>{t("employees.actions.edit")}</button>\n                            <button className="actilens-btn actilens-btn--ghost" onClick={() => changeEmployeePassword(e)}>{t("employees.actions.password")}</button>\n                            <button className="actilens-btn actilens-btn--ghost" onClick={() => toggleEmployeeActive(e)}>\n                              {t("employees.actions.archive")}\n                            </button>\n                          </>\n                        )}\n                        {mayManageThis && !e.active && (\n                          <button className="actilens-btn actilens-btn--ghost" onClick={() => toggleEmployeeActive(e)}>\n                            {t("employees.actions.restore")}\n                          </button>\n                        )}'''
+          replace(path, old_actions, new_actions)
+
+          # EN/RU labels. JSON edit keeps locale files valid and avoids brittle string formatting.
+          labels = {
+              'en': {
+                  'active': 'Active', 'archived': 'Archived', 'aria': 'Member list',
+                  'noActive': 'No active {{members}} in this organization.',
+                  'noArchived': 'No archived {{members}}.',
+                  'blocked': 'Archived', 'archive': 'Archive', 'restore': 'Restore',
+                  'confirmArchive': 'Archive this employee? They will no longer be able to sign in. History and screenshots are preserved.',
+                  'confirmRestore': 'Restore this employee? Monitoring stays off until you enable it explicitly.'
+              },
+              'ru': {
+                  'active': 'Активные', 'archived': 'Архив', 'aria': 'Список сотрудников',
+                  'noActive': 'В этой организации нет активных сотрудников.',
+                  'noArchived': 'В архиве нет сотрудников.',
+                  'blocked': 'В архиве', 'archive': 'В архив', 'restore': 'Восстановить',
+                  'confirmArchive': 'Переместить сотрудника в архив? Он больше не сможет войти. История и скриншоты сохранятся.',
+                  'confirmRestore': 'Восстановить сотрудника? Мониторинг останется выключенным, пока вы не включите его отдельно.'
+              },
+          }
+          for locale, l in labels.items():
+              p = Path(f'apps/web-admin/src/i18n/locales/{locale}/dashboard.json')
+              data = json.loads(p.read_text())
+              emp = data['employees']
+              emp['filters'] = {'active': l['active'], 'archived': l['archived'], 'aria': l['aria']}
+              emp['noActiveMembers'] = l['noActive']
+              emp['noArchivedMembers'] = l['noArchived']
+              emp['blocked'] = l['blocked']
+              emp['actions']['archive'] = l['archive']
+              emp['actions']['restore'] = l['restore']
+              emp['prompts']['confirmArchive'] = l['confirmArchive']
+              emp['prompts']['confirmRestore'] = l['confirmRestore']
+              p.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n')
+          PY
+          gofmt -w apps/backend/internal/store/employee_admin.go
+          cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml --all
+          git diff --check
+      - name: Commit archive lifecycle
+        run: |
+          git config user.name "0xDive Automation"
+          git config user.email "72026841+0xDive@users.noreply.github.com"
+          git add apps/backend/internal/store/employee_admin.go apps/desktop/src-tauri/src/sync/worker.rs apps/web-admin/src/pages/Employees.tsx apps/web-admin/src/i18n/locales/en/dashboard.json apps/web-admin/src/i18n/locales/ru/dashboard.json
+          git commit -m "feat: separate active and archived employees"
+          git push origin HEAD:feature/employee-archive-ui
