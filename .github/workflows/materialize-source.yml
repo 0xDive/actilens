@@ -1,5 +1,6 @@
 name: Materialize Corporate Source
 
+# One-shot migration from the old corporate patch overlay to real source files.
 on:
   push:
     branches:
