@@ -106,6 +106,27 @@
       "screenshots": "Screenshots"
     },
     "singleDay": "Single day",
-    "dateRange": "Date range"
+    "dateRange": "Date range",
+    "devices": {
+      "title": "Devices",
+      "subtitle": "ActiLens installations assigned to this employee",
+      "loading": "Loading devices…",
+      "loadFailed": "Could not load devices.",
+      "empty": "No device has synced yet.",
+      "unnamed": "Unnamed device",
+      "lastSeen": "Last seen: {{value}}",
+      "never": "never",
+      "firstSeen": "First seen: {{value}}",
+      "version": "Agent {{version}}",
+      "active": "Active",
+      "revoked": "Revoked",
+      "rename": "Rename",
+      "revoke": "Revoke",
+      "restore": "Restore",
+      "renamePrompt": "Device name",
+      "confirmRevoke": "Revoke this device? It will no longer be able to sync activity or screenshots until restored.",
+      "confirmRestore": "Restore this device?",
+      "actionFailed": "Could not update the device."
+    }
   }
 }
