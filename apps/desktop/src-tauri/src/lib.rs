@@ -147,8 +147,11 @@ pub fn run() {
             app.manage(analytics_session.clone());
             let settings_state = Arc::new(settings::SettingsState {
                 path: settings_path,
-                current: std::sync::Mutex::new(loaded),
-                managed: std::sync::Mutex::new(settings::CaptureManaged::default()),
+                current: std::sync::Mutex::new(loaded.clone()),
+                managed: std::sync::Mutex::new(settings::CaptureManaged {
+                    monitoring_enabled: loaded.org_monitoring_enabled,
+                    ..settings::CaptureManaged::default()
+                }),
             });
             app.manage(settings_state.clone());
             // Manage control early so the tray can read pause state.

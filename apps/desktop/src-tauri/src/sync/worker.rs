@@ -131,6 +131,13 @@ pub async fn run_once(ctx: &SyncContext) -> PassOutcome {
         ctx.control
             .org_monitoring_enabled
             .store(enabled, Ordering::Relaxed);
+        let mut current = ctx.settings.current.lock().unwrap();
+        if current.org_monitoring_enabled != enabled {
+            current.org_monitoring_enabled = enabled;
+            let _ = crate::settings::save(&ctx.settings.path, &current);
+        }
+        let mut managed = ctx.settings.managed.lock().unwrap();
+        managed.monitoring_enabled = enabled;
     }
     // Preserve the last known state when offline. Once the server disabled this
     // membership, collection and upload remain stopped until a later successful

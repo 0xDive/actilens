@@ -153,9 +153,11 @@ pub fn set_settings(
     state: State<Arc<crate::settings::SettingsState>>,
     control: State<Arc<TrackerControl>>,
 ) -> Result<(), String> {
-    // The UI's settings payload doesn't carry `locale` (it's owned by `set_locale`),
-    // so preserve the persisted value instead of letting serde's default reset it.
-    value.locale = state.current.lock().unwrap().locale.clone();
+    // The UI payload doesn't own locale or the server-controlled monitoring
+    // state, so preserve both instead of letting serde defaults reset them.
+    let current = state.current.lock().unwrap().clone();
+    value.locale = current.locale;
+    value.org_monitoring_enabled = current.org_monitoring_enabled;
     // When the org controls capture settings, ignore changes to those fields —
     // the rest (theme, dock, etc.) still apply.
     if state.managed.lock().unwrap().locked() {
@@ -194,6 +196,13 @@ pub async fn apply_org_policy(
     control
         .org_monitoring_enabled
         .store(monitoring_enabled, Ordering::Relaxed);
+    {
+        let mut current = settings.current.lock().unwrap();
+        if current.org_monitoring_enabled != monitoring_enabled {
+            current.org_monitoring_enabled = monitoring_enabled;
+            let _ = crate::settings::save(&settings.path, &current);
+        }
+    }
 
     let status = crate::settings::CaptureManaged {
         managed: policy.managed,
