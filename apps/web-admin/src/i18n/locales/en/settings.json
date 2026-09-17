@@ -6,6 +6,7 @@
   "sections": {
     "capture": "Capture policy",
     "storage": "Manual cleanup",
+    "audit": "Audit log",
     "account": "Account"
   },
   "capturePolicy": {
@@ -79,6 +80,29 @@
     "removed_one": "Removed {{count}} screenshot ({{size}} freed).",
     "removed_other": "Removed {{count}} screenshots ({{size}} freed).",
     "failed": "Cleanup failed."
+  },
+  "audit": {
+    "title": "Administrative actions",
+    "desc": "Recent account and device changes for this organization. Passwords, tokens and screenshot contents are never stored here.",
+    "loading": "Loading audit log…",
+    "loadFailed": "Could not load the audit log.",
+    "empty": "No administrative actions have been recorded yet.",
+    "refresh": "Refresh",
+    "actions": {
+      "employeeCreated": "Employee created",
+      "employeeUpdated": "Employee account updated",
+      "employeePasswordReset": "Employee password reset",
+      "employeeArchived": "Employee blocked",
+      "employeeRestored": "Employee unblocked",
+      "deviceUpdated": "Device updated",
+      "deviceRevoked": "Device revoked",
+      "deviceRestored": "Device restored",
+      "unknown": "Administrative action"
+    },
+    "targets": {
+      "employee": "employee",
+      "device": "device"
+    }
   },
   "saveError": "Could not save settings.",
   "presets": {
