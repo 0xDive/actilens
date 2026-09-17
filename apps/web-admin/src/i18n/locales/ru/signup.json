@@ -1,0 +1,106 @@
+{
+  "rail": {
+    "personaTitle": "Тип аккаунта",
+    "personaDesc": "Личный, команда или семья",
+    "accountTitle": "Создать аккаунт",
+    "accountDesc": "Имя, логин и пароль",
+    "setupTitle": "Название",
+    "setupDesc": "Как назвать организацию",
+    "membersTitleManager": "Добавить сотрудников",
+    "membersDescParent": "Создайте логины детей",
+    "membersDescManager": "Добавьте сотрудников",
+    "doneTitle": "Готово",
+    "doneDesc": "Начать работу"
+  },
+  "footer": {
+    "haveAccount": "Уже есть аккаунт?",
+    "haveOne": "Уже есть?",
+    "signIn": "Войти →"
+  },
+  "errors": {
+    "server": "Не удалось подключиться к серверу.",
+    "taken": "Такой email или логин уже занят.",
+    "addMember": "Не удалось добавить сотрудника."
+  },
+  "persona": {
+    "heading": "Как вы будете использовать ActiLens?",
+    "sub": "Позже это можно изменить.",
+    "back": "Назад",
+    "justMeTitle": "Только для себя",
+    "justMeDesc": "Локальное отслеживание на этом компьютере.",
+    "justMeTag": "Аккаунт не нужен",
+    "teamTitle": "Моя команда",
+    "teamDesc": "Управление сотрудниками и просмотр активности.",
+    "teamTag": "Бесплатный аккаунт",
+    "familyTitle": "Моя семья",
+    "familyDesc": "Контроль экранного времени семьи.",
+    "familyTag": "Бесплатный аккаунт",
+    "caption": "Личный режим работает локально."
+  },
+  "personal": {
+    "back": "← Назад",
+    "heading": "Личный режим работает локально",
+    "sub": "Регистрация не нужна. Все данные остаются на компьютере.",
+    "downloadMac": "Скачать для macOS",
+    "downloadWindows": "Скачать для Windows",
+    "caption": "Уже установлено? Откройте приложение и выберите «Только для себя»."
+  },
+  "account": {
+    "back": "← Назад",
+    "title": "Создать аккаунт",
+    "sub": "Настройте ActiLens.",
+    "name": "Ваше имя",
+    "identifier": "Email или логин",
+    "identifierPlaceholder": "you@example.com или login",
+    "password": "Пароль",
+    "passwordPlaceholder": "минимум 8 символов",
+    "strength": {
+      "weak": "Слабый",
+      "medium": "Средний",
+      "strong": "Надёжный"
+    },
+    "creating": "Создание…",
+    "continue": "Продолжить",
+    "available": "Доступно"
+  },
+  "setup": {
+    "title": "Название {{noun}}",
+    "sub": "Сотрудников можно добавить следующим шагом.",
+    "nameLabel": "Название {{noun}}",
+    "placeholderFamily": "Семья Ивановых",
+    "placeholderTeam": "Моя компания",
+    "saving": "Сохранение…",
+    "continue": "Продолжить"
+  },
+  "done": {
+    "title": "Всё готово!",
+    "accountCreated": "Аккаунт создан",
+    "orgReady": "Организация готова",
+    "membersAdded": "Добавлено: {{count}}",
+    "membersLater": "Добавить позже",
+    "goToDashboard": "Перейти в панель"
+  },
+  "clipboard": {
+    "text": "ActiLens\nЛогин: {{login}}\nПароль: {{password}}"
+  },
+  "members": {
+    "title": "Добавить сотрудников",
+    "sub": "Можно добавить сейчас или позже.",
+    "name": "Имя",
+    "namePlaceholder": "Иван Иванов",
+    "loginLabel": "Логин или email",
+    "tempPassword": "Временный пароль",
+    "generateTitle": "Сгенерировать новый пароль",
+    "newPassword": "Новый",
+    "suggestion": "Вариант",
+    "adding": "Добавление…",
+    "addCta": "Добавить",
+    "countAdded": "Добавлено: {{count}}",
+    "copied": "Скопировано ✓",
+    "copyLogin": "Скопировать данные",
+    "remove": "удалить",
+    "finish": "Готово",
+    "doneAdding": "Закончить",
+    "skip": "Пропустить"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "screenshots": {
+    "title": "Скриншоты за сегодня",
+    "intro": "Создаются автоматически по заданному интервалу.",
+    "captureNow": "Сделать сейчас",
+    "capturing": "Создание…",
+    "captured": "Создан {{count}} снимок.",
+    "captured_other": "Создано {{count}} снимков.",
+    "capturedZero": "Ничего не снято — проверьте разрешение на запись экрана.",
+    "captureFailed": "Ошибка: {{error}}",
+    "empty": "Сегодня скриншотов пока нет.",
+    "shotTitle": "{{time}} · экран {{display}}",
+    "shotAlt": "скриншот {{time}}"
+  },
+  "browser": {
+    "visitedTitle": "Посещённые сайты сегодня",
+    "visitedSub": "Сгруппировано по доменам.",
+    "live": "Обновление каждые 3 сек",
+    "colDomain": "Домен",
+    "colStart": "Время",
+    "colDuration": "Длительность",
+    "colBrowser": "Браузер",
+    "title": "Отслеживание сайтов",
+    "subtitle": "Установите расширение ActiLens, чтобы видеть посещённые страницы.",
+    "gifPlaceholder": "[ Инструкция по установке расширения ]",
+    "step1": "Откройте Google Chrome или Edge",
+    "step2Prefix": "Откройте страницу расширений — ",
+    "getExtension": "Получить расширение →",
+    "step3": "Установите расширение",
+    "step4": "Вернитесь сюда — соединение произойдёт автоматически",
+    "waiting": "▲ Ожидание расширения…",
+    "waitingPort": " (порт {{port}})",
+    "support": "Поддерживается: Chrome / Edge",
+    "topSites": "Сайты по времени",
+    "pageVisits": "Посещения страниц",
+    "colPage": "Страница",
+    "colSite": "Сайт",
+    "colTime": "Время",
+    "colWhen": "Когда"
+  },
+  "ui": {
+    "brandAlt": "ActiLens",
+    "stepOf": "Шаг {{current}} из {{total}}"
+  }
+}
