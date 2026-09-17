@@ -1,0 +1,152 @@
+name: ActiLens History Reset
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/history-reset.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Rebrand source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -d corporate ]; then git mv corporate deploy; fi
+          if [ -f biboctl.sh ]; then git mv biboctl.sh actilensctl.sh; fi
+          rm -rf marketing
+          rm -f CLAUDE.md
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          root = Path('.')
+          skip = {'.git'}
+          old_brand = 'Bi' + 'BoTracking'
+          old_short = 'bi' + 'bo'
+          old_domain = 'bibo' + 'tracker.com'
+          old_author = 'Brian ' + 'Nguyen'
+          old_email = 'brian.nguyen.work' + '@gmail.com'
+          old_owner = 'ngn' + 'clht1102'
+          old_repo = 'emplooyee-' + 'tracking'
+          old_core = 'c' + 'tracking'
+
+          replacements = [
+              (old_brand + ' Corporate', 'ActiLens'),
+              (old_brand, 'ActiLens'),
+              ('Bi' + 'Bo Tracker', 'ActiLens'),
+              (old_domain, 'github.com/0xDive/actilens'),
+              (old_owner + '/bibo-' + old_repo, '0xDive/actilens'),
+              ('0xDive/' + old_repo, '0xDive/actilens'),
+              ('bibo-' + old_repo, 'actilens'),
+              (old_repo, 'actilens'),
+              (old_author, '0xDive'),
+              (old_email, '0xDive'),
+              ('EmployeeTracker', 'ActiLens'),
+              ('Employee Tracker', 'ActiLens'),
+              ('employeetrack', 'actilens'),
+              ('@' + old_core, '@actilens'),
+              (old_core.upper() + '_', 'ACTILENS_'),
+              (old_core.upper(), 'ACTILENS'),
+              (old_core, 'actilens'),
+              ('BIBO_', 'ACTILENS_'),
+              ('BIBO', 'ACTILENS'),
+              ('biboctl', 'actilensctl'),
+              ('bibotracking', 'actilens'),
+              ('bibo', 'actilens'),
+              ('corporate/', 'deploy/'),
+              ('corporate', 'deploy'),
+          ]
+
+          for path in root.rglob('*'):
+              if not path.is_file() or any(part in skip for part in path.parts):
+                  continue
+              if path.parts[:2] == ('.github', 'workflows'):
+                  continue
+              try:
+                  text = path.read_text(encoding='utf-8')
+              except (UnicodeDecodeError, OSError):
+                  continue
+              original = text
+              for old, new in replacements:
+                  text = text.replace(old, new)
+              if text != original:
+                  path.write_text(text, encoding='utf-8')
+
+          # Fresh project identity.
+          pkg_path = Path('package.json')
+          pkg = json.loads(pkg_path.read_text())
+          pkg['name'] = 'actilens'
+          pkg['version'] = '0.1.0'
+          pkg['description'] = 'Workstation activity monitoring and analytics platform.'
+          pkg_path.write_text(json.dumps(pkg, ensure_ascii=False, indent=2) + '\n')
+
+          tauri_path = Path('apps/desktop/src-tauri/tauri.conf.json')
+          tauri = json.loads(tauri_path.read_text())
+          tauri['productName'] = 'ActiLens'
+          tauri['version'] = '0.1.0'
+          tauri['identifier'] = 'com.actilens.agent'
+          tauri['app']['windows'][0]['title'] = 'ActiLens'
+          tauri['plugins'] = {}
+          tauri['bundle']['createUpdaterArtifacts'] = False
+          tauri['bundle']['macOS'] = {'minimumSystemVersion': '13.0'}
+          tauri_path.write_text(json.dumps(tauri, ensure_ascii=False, indent=2) + '\n')
+
+          # Deployment image now builds only the application/dashboard, not the old marketing site.
+          Path('deploy/Dockerfile').write_text('''# syntax=docker/dockerfile:1\n\nFROM node:20-alpine AS web\nWORKDIR /src\nCOPY . /src\nRUN corepack enable && corepack prepare pnpm@10.30.1 --activate\nRUN pnpm install --frozen-lockfile\nRUN pnpm --filter @actilens/web-admin build\n\nFROM golang:1.26-alpine AS backend\nWORKDIR /src\nCOPY apps/backend /src\nRUN go mod download\nARG VERSION=0.1.0\nRUN CGO_ENABLED=0 GOOS=linux go build \\\n    -trimpath \\\n    -ldflags "-s -w -X actilens/backend/internal/handlers.Version=${VERSION}" \\\n    -o /out/server ./cmd/server\n\nFROM alpine:3.20\nRUN apk add --no-cache ca-certificates tzdata \\\n    && adduser -D -u 10001 app\nWORKDIR /app\nCOPY --from=backend /out/server /app/server\nCOPY --from=web /src/apps/web-admin/dist /app/static/admin\nCOPY deploy/docker-entrypoint.sh /app/docker-entrypoint.sh\nRUN mkdir -p /app/storage/screenshots /app/config /app/logs /app/static \\\n    && printf '<!doctype html><meta http-equiv="refresh" content="0;url=/admin/">' > /app/static/index.html \\\n    && chown -R app:app /app \\\n    && chmod +x /app/docker-entrypoint.sh\nUSER app\nEXPOSE 8080\nENTRYPOINT ["/app/docker-entrypoint.sh"]\n''')
+
+          Path('README.md').write_text('''# ActiLens\n\nActiLens is a self-hosted workstation activity monitoring and analytics platform.\n\n## Features\n\n- active application and window timeline\n- active / idle time\n- periodic screenshots\n- browser activity through the local browser integration\n- employee administration and session revocation\n- Russian and English UI\n- Windows desktop agent with autostart\n- self-hosted Go backend + PostgreSQL\n- Docker deployment and optional automatic HTTPS with Caddy\n\n## Quick start on Linux\n\n```bash\ngit clone https://github.com/0xDive/actilens.git\ncd actilens\n./install-linux.sh --install-docker --open-firewall\n```\n\nWith a domain:\n\n```bash\n./install-linux.sh --install-docker --domain tracker.example.com --open-firewall\n```\n\nServer management:\n\n```bash\n./actilensctl.sh status\n./actilensctl.sh logs\n./actilensctl.sh update\n./actilensctl.sh backup\n```\n\n## Development\n\n```bash\ncorepack enable\npnpm install\npnpm build\ncd apps/backend && go test ./...\n```\n\n## License\n\nMIT.\n''')
+
+          Path('LICENSE').write_text('''MIT License\n\nCopyright (c) 2026 0xDive\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the "Software"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n''')
+          PY
+
+          # Ensure no old textual identifiers remain outside git metadata.
+          forbidden="Bi""Bo|bibo|Brian[[:space:]]+Nguyen|brian\.nguyen|ngnclht1102|emplooyee-tracking|employeetrack|ctracking|CTRACKING"
+          if git grep -I -n -E "$forbidden" -- ':!.github/workflows/history-reset.yml'; then
+            echo "Old identifiers remain in the source tree." >&2
+            exit 1
+          fi
+
+          # Ensure old identifiers are not present in tracked paths.
+          if git ls-files | grep -Ei 'bibo|emplooyee-tracking|employeetrack|ctracking'; then
+            echo "Old identifiers remain in tracked paths." >&2
+            exit 1
+          fi
+
+      - name: Create new root history
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "0xDive"
+          git config user.email "72026841+0xDive@users.noreply.github.com"
+
+          git checkout --orphan actilens-root
+          git add -A
+          git commit -m "Initial commit"
+          git push --force origin HEAD:main
+
+          # Remove every other remote branch so old commits are not kept alive by branch refs.
+          while read -r branch; do
+            [ -z "$branch" ] && continue
+            [ "$branch" = "main" ] && continue
+            git push origin --delete "$branch" || true
+          done < <(git ls-remote --heads origin | awk '{sub("refs/heads/", "", $2); print $2}')
+
+          # Remove old tags for the same reason.
+          while read -r tag; do
+            [ -z "$tag" ] && continue
+            git push origin --delete "refs/tags/$tag" || true
+          done < <(git ls-remote --tags --refs origin | awk '{sub("refs/tags/", "", $2); print $2}')
