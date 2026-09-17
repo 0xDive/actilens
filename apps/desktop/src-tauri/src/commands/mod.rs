@@ -484,12 +484,44 @@ pub async fn login(
     password: String,
     business_id: Option<String>,
     auth: State<'_, Arc<AuthState>>,
+    settings: State<'_, Arc<crate::settings::SettingsState>>,
+    control: State<'_, Arc<TrackerControl>>,
 ) -> Result<Session, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
     let session = client
         .login(&email, &password, business_id.as_deref())
         .await?;
     auth.store(session.clone())?;
+
+    // Fail closed between authentication and membership-policy resolution. This
+    // prevents a completed onboarding session from collecting even a few local
+    // samples before the React policy effect runs.
+    control
+        .org_monitoring_enabled
+        .store(false, Ordering::Relaxed);
+    {
+        let mut current = settings.current.lock().unwrap();
+        current.org_monitoring_enabled = false;
+        let _ = crate::settings::save(&settings.path, &current);
+    }
+    settings.managed.lock().unwrap().monitoring_enabled = false;
+
+    // The login call itself just succeeded, so normally this resolves immediately.
+    // If the membership endpoint has a transient failure we intentionally stay
+    // disabled; the background sync/policy refresh will retry and re-enable only
+    // after the server explicitly says collection is allowed.
+    if let Ok(enabled) = client.monitoring_enabled(session.business_id.as_deref()).await {
+        control
+            .org_monitoring_enabled
+            .store(enabled, Ordering::Relaxed);
+        {
+            let mut current = settings.current.lock().unwrap();
+            current.org_monitoring_enabled = enabled;
+            let _ = crate::settings::save(&settings.path, &current);
+        }
+        settings.managed.lock().unwrap().monitoring_enabled = enabled;
+    }
+
     Ok(session)
 }
 
