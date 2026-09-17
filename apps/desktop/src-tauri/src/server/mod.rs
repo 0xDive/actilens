@@ -132,13 +132,20 @@ async fn whoami(State(s): State<AppState>) -> Json<Value> {
     }))
 }
 
-async fn ingest(State(s): State<AppState>, headers: HeaderMap, Json(v): Json<VisitIn>) -> StatusCode {
+async fn ingest(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    Json(v): Json<VisitIn>,
+) -> StatusCode {
     if let Err(code) = check_request(&headers, s.token.as_str()) {
         return code;
     }
     // On/off marker events are recorded unconditionally so an "off" transition still
     // lands. Regular page views respect pause + domain-only privacy.
     let marker = is_marker(&v.url);
+    if !s.control.org_monitoring_enabled.load(Ordering::Relaxed) {
+        return StatusCode::OK;
+    }
     if !marker && s.control.paused.load(Ordering::Relaxed) {
         // Tracking stopped: accept the request so the extension doesn't retry, but
         // don't record anything (consistent with the keyboard/window trackers).
@@ -167,7 +174,11 @@ async fn ingest(State(s): State<AppState>, headers: HeaderMap, Json(v): Json<Vis
 
 /// Receive an error report from the browser extension and forward it to Sentry tagged
 /// `source = "extension"`. Rate-limited so a looping extension error can't flood Sentry.
-async fn report_error(State(s): State<AppState>, headers: HeaderMap, Json(e): Json<ErrorIn>) -> StatusCode {
+async fn report_error(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    Json(e): Json<ErrorIn>,
+) -> StatusCode {
     if let Err(code) = check_request(&headers, s.token.as_str()) {
         return code;
     }
@@ -266,7 +277,10 @@ mod tests {
 
     #[test]
     fn origin_only_strips_path_and_query() {
-        assert_eq!(origin_only("https://github.com/a/b?c=1"), "https://github.com");
+        assert_eq!(
+            origin_only("https://github.com/a/b?c=1"),
+            "https://github.com"
+        );
         assert_eq!(origin_only("http://example.com"), "http://example.com");
         assert_eq!(origin_only("https://sub.host.io/x"), "https://sub.host.io");
         assert_eq!(origin_only("notaurl"), "notaurl");

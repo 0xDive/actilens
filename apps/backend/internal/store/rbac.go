@@ -73,6 +73,18 @@ func (s *Store) MembershipRole(ctx context.Context, userID, businessID string) (
 	return role, err
 }
 
+func (s *Store) MembershipMonitoringEnabled(ctx context.Context, userID, businessID string) (bool, error) {
+	var enabled bool
+	err := s.pool.QueryRow(ctx,
+		`SELECT monitoring_enabled FROM memberships WHERE user_id = $1 AND business_id = $2`,
+		userID, businessID,
+	).Scan(&enabled)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, ErrNotFound
+	}
+	return enabled, err
+}
+
 func membershipRoleTx(ctx context.Context, tx pgx.Tx, userID, businessID string) (BusinessRole, error) {
 	var role BusinessRole
 	err := tx.QueryRow(ctx,
@@ -202,6 +214,55 @@ func (s *Store) UpdateMembershipRole(ctx context.Context, actorID, businessID, t
 	if err := insertAuditTx(ctx, tx, businessID, actorID, "member.role_changed", "member", targetUserID, map[string]any{
 		"from": string(current),
 		"to":   string(role),
+	}); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+// UpdateMembershipMonitoring toggles collection for a member without changing
+// their account role. Owners may change any non-owner member. Admins may change
+// managers/employees but never the owner or a peer admin.
+func (s *Store) UpdateMembershipMonitoring(ctx context.Context, actorID, businessID, targetUserID string, enabled bool) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	actorRole, err := requireBusinessPermissionTx(ctx, tx, actorID, businessID, PermissionManageEmployees)
+	if err != nil {
+		return err
+	}
+
+	var targetRole BusinessRole
+	var current bool
+	err = tx.QueryRow(ctx,
+		`SELECT role, monitoring_enabled FROM memberships WHERE user_id = $1 AND business_id = $2 FOR UPDATE`,
+		targetUserID, businessID,
+	).Scan(&targetRole, &current)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if targetRole == RoleOwner || (actorRole == RoleAdmin && targetRole == RoleAdmin) {
+		return ErrForbidden
+	}
+	if current == enabled {
+		return tx.Commit(ctx)
+	}
+
+	if _, err := tx.Exec(ctx,
+		`UPDATE memberships SET monitoring_enabled = $1 WHERE user_id = $2 AND business_id = $3`,
+		enabled, targetUserID, businessID,
+	); err != nil {
+		return err
+	}
+	if err := insertAuditTx(ctx, tx, businessID, actorID, "member.monitoring_changed", "member", targetUserID, map[string]any{
+		"enabled": enabled,
+		"role":    string(targetRole),
 	}); err != nil {
 		return err
 	}

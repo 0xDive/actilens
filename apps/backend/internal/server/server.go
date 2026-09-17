@@ -67,11 +67,11 @@ func New(cfg *config.Config, st *store.Store, files *filestore.Store, ret *reten
 	authed := v1.Group("", tok.Required(), accountGuard(st))
 	authed.GET("/me", authH.Me)
 
-	// Membership / RBAC discovery. These routes do not replace the existing owner
-	// handlers yet; they are the stable foundation for the role-aware console.
+	// Membership / RBAC discovery and membership controls.
 	authed.GET("/memberships/mine", ownerH.ListMyMemberships)
 	authed.GET("/businesses/console", ownerH.ListConsoleBusinesses)
 	authed.PATCH("/businesses/:id/members/:user_id/role", ownerH.UpdateMemberRole)
+	authed.PATCH("/businesses/:id/members/:user_id/monitoring", ownerH.UpdateMemberMonitoring)
 
 	// Business, employee, device and audit management.
 	authed.POST("/businesses", ownerH.CreateBusiness)

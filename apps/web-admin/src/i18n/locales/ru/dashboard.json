@@ -40,7 +40,8 @@
       "name": "Имя",
       "login": "Логин",
       "currentApp": "Текущее приложение",
-      "role": "Роль"
+      "role": "Роль",
+      "monitoring": "Мониторинг"
     },
     "actions": {
       "edit": "Изменить",
@@ -63,6 +64,12 @@
       "employee": "Сотрудник",
       "manager": "Менеджер",
       "admin": "Администратор"
+    },
+    "monitoring": {
+      "on": "Включён",
+      "off": "Выключен",
+      "saving": "Сохранение…",
+      "aria": "Мониторинг для {{name}}"
     }
   },
   "newBusinessModal": {

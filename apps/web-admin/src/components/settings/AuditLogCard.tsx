@@ -14,6 +14,7 @@ const ACTION_KEYS: Record<string, string> = {
   "device.revoked": "deviceRevoked",
   "device.restored": "deviceRestored",
   "member.role_changed": "memberRoleChanged",
+  "member.monitoring_changed": "memberMonitoringChanged",
 };
 
 function formatTime(ts: number): string {

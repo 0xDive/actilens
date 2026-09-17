@@ -32,6 +32,8 @@ const MAX_CHUNK_S: i64 = 60;
 /// idle threshold) and the loop reads them each tick.
 pub struct TrackerControl {
     pub paused: AtomicBool,
+    /// Server-controlled collection switch. Independent from the user's Pause.
+    pub org_monitoring_enabled: AtomicBool,
     pub idle_threshold_s: AtomicU64,
     pub screenshot_interval_s: AtomicU64,
     pub screenshot_retention_days: AtomicU64,
@@ -53,6 +55,7 @@ impl TrackerControl {
     pub fn new() -> Self {
         TrackerControl {
             paused: AtomicBool::new(false),
+            org_monitoring_enabled: AtomicBool::new(true),
             idle_threshold_s: AtomicU64::new(DEFAULT_IDLE_THRESHOLD_S),
             screenshot_interval_s: AtomicU64::new(DEFAULT_SCREENSHOT_INTERVAL_S),
             screenshot_retention_days: AtomicU64::new(DEFAULT_RETENTION_DAYS),
@@ -62,6 +65,10 @@ impl TrackerControl {
             screenshot_skip_apps: RwLock::new(default_privacy_apps_flat()),
             count_keystrokes: AtomicBool::new(true),
         }
+    }
+
+    pub fn collection_allowed(&self) -> bool {
+        self.org_monitoring_enabled.load(Ordering::Relaxed) && !self.paused.load(Ordering::Relaxed)
     }
 }
 
@@ -86,25 +93,86 @@ pub fn shot_mode_from_str(s: &str) -> u8 {
 /// (single source of truth: `handlers/privacyapps.go` — keep in sync). In
 /// privacy mode a capture tick is skipped while any of these is frontmost.
 pub const DEFAULT_PRIVACY_APPS: &[(&str, &[&str])] = &[
-    ("Chat", &[
-        "Zalo", "WhatsApp", "Telegram", "Signal", "Viber", "WeChat", "Weixin",
-        "QQ", "LINE", "KakaoTalk", "Discord", "Messages", "FaceTime", "Element",
-        "Threema", "Wire", "Beeper", "Ferdium", "Rambox", "Caprine",
-    ]),
-    ("Security", &[
-        "1Password", "Bitwarden", "LastPass", "KeePass", "KeePassXC", "Keeper",
-        "NordPass", "Proton Pass", "Enpass", "RoboForm", "Keychain Access",
-        "Passwords", "Ledger Live", "Trezor Suite", "Exodus", "Electrum",
-        "Sparrow", "Proton VPN", "NordVPN", "TeamViewer", "AnyDesk",
-    ]),
-    ("Work", &[
-        "Slack", "Microsoft Teams", "Zoom", "zoom.us", "Webex", "DingTalk",
-        "Lark", "Feishu", "Mattermost", "Rocket.Chat",
-    ]),
-    ("Mail", &[
-        "Mail", "Outlook", "Thunderbird", "Spark", "Proton Mail", "eM Client",
-        "Mailbird", "Superhuman", "Airmail",
-    ]),
+    (
+        "Chat",
+        &[
+            "Zalo",
+            "WhatsApp",
+            "Telegram",
+            "Signal",
+            "Viber",
+            "WeChat",
+            "Weixin",
+            "QQ",
+            "LINE",
+            "KakaoTalk",
+            "Discord",
+            "Messages",
+            "FaceTime",
+            "Element",
+            "Threema",
+            "Wire",
+            "Beeper",
+            "Ferdium",
+            "Rambox",
+            "Caprine",
+        ],
+    ),
+    (
+        "Security",
+        &[
+            "1Password",
+            "Bitwarden",
+            "LastPass",
+            "KeePass",
+            "KeePassXC",
+            "Keeper",
+            "NordPass",
+            "Proton Pass",
+            "Enpass",
+            "RoboForm",
+            "Keychain Access",
+            "Passwords",
+            "Ledger Live",
+            "Trezor Suite",
+            "Exodus",
+            "Electrum",
+            "Sparrow",
+            "Proton VPN",
+            "NordVPN",
+            "TeamViewer",
+            "AnyDesk",
+        ],
+    ),
+    (
+        "Work",
+        &[
+            "Slack",
+            "Microsoft Teams",
+            "Zoom",
+            "zoom.us",
+            "Webex",
+            "DingTalk",
+            "Lark",
+            "Feishu",
+            "Mattermost",
+            "Rocket.Chat",
+        ],
+    ),
+    (
+        "Mail",
+        &[
+            "Mail",
+            "Outlook",
+            "Thunderbird",
+            "Spark",
+            "Proton Mail",
+            "eM Client",
+            "Mailbird",
+            "Superhuman",
+            "Airmail",
+        ],
+    ),
 ];
 
 /// The baked-in list flattened for the matcher.
@@ -257,7 +325,7 @@ pub fn start_keyboard(db: Arc<Db>, control: Arc<TrackerControl>) {
             // Drop counts accumulated while paused or with keystroke counting opted
             // out / not yet consented (don't persist them).
             if n > 0
-                && !control.paused.load(Ordering::Relaxed)
+                && control.collection_allowed()
                 && control.count_keystrokes.load(Ordering::Relaxed)
             {
                 let now = now_ts();
@@ -323,7 +391,10 @@ fn compress_to_webp(img: &xcap::image::RgbaImage) -> (Vec<u8>, u32, u32) {
             if bytes.len() <= SCREENSHOT_MAX_BYTES {
                 return (bytes, w, h);
             }
-            if smallest.as_ref().map_or(true, |(b, ..)| bytes.len() < b.len()) {
+            if smallest
+                .as_ref()
+                .map_or(true, |(b, ..)| bytes.len() < b.len())
+            {
                 smallest = Some((bytes, w, h));
             }
         }
@@ -353,7 +424,8 @@ fn contains_word(name: &str, pat: &str) -> bool {
         let e = b + pat.len();
         let before = name[..b].chars().next_back();
         let after = name[e..].chars().next();
-        if before.is_none_or(|c| !c.is_alphanumeric()) && after.is_none_or(|c| !c.is_alphanumeric()) {
+        if before.is_none_or(|c| !c.is_alphanumeric()) && after.is_none_or(|c| !c.is_alphanumeric())
+        {
             return true;
         }
         from = b + name[b..].chars().next().map_or(1, |c| c.len_utf8());
@@ -367,7 +439,12 @@ fn contains_word(name: &str, pat: &str) -> bool {
 /// can have several windows (e.g. two Chrome windows) and size says nothing
 /// about which is in front. Returns `None` on any lookup/capture miss so the
 /// caller falls back to a full-screen shot.
-fn capture_active_window(db: &Db, dir: &Path, active: &ActiveWindowInfo, now: i64) -> Option<usize> {
+fn capture_active_window(
+    db: &Db,
+    dir: &Path,
+    active: &ActiveWindowInfo,
+    now: i64,
+) -> Option<usize> {
     let windows = xcap::Window::all().ok()?;
     let title = active.title.as_deref().unwrap_or("");
     let win = windows
@@ -407,6 +484,9 @@ fn capture_active_window(db: &Db, dir: &Path, active: &ActiveWindowInfo, now: i6
 /// and record each shot in the DB. Returns how many shots were saved.
 /// Requires Screen Recording.
 pub fn capture_once(db: &Db, dir: &Path, control: &TrackerControl) -> usize {
+    if !control.collection_allowed() {
+        return 0;
+    }
     if let Err(e) = std::fs::create_dir_all(dir) {
         crate::log_warn!("screenshot", "create dir failed: {e}");
         return 0;
@@ -419,7 +499,11 @@ pub fn capture_once(db: &Db, dir: &Path, control: &TrackerControl) -> usize {
         if let Some(ref win) = active {
             let skip = control.screenshot_skip_apps.read().unwrap();
             if should_skip(&win.app_name, &skip) {
-                crate::log_info!("screenshot", "skipped tick: {} is on the skip-list", win.app_name);
+                crate::log_info!(
+                    "screenshot",
+                    "skipped tick: {} is on the skip-list",
+                    win.app_name
+                );
                 return 0;
             }
         }
@@ -435,7 +519,10 @@ pub fn capture_once(db: &Db, dir: &Path, control: &TrackerControl) -> usize {
         }
         // Frontmost window not capturable (desktop focus, transient surface,
         // window gone) — never silently drop the tick: full-screen fallback.
-        crate::log_info!("screenshot", "active-window capture missed; falling back to full screen");
+        crate::log_info!(
+            "screenshot",
+            "active-window capture missed; falling back to full screen"
+        );
     }
 
     let monitors = match xcap::Monitor::all() {
@@ -483,7 +570,10 @@ pub fn capture_once(db: &Db, dir: &Path, control: &TrackerControl) -> usize {
 /// older than the configured age cap, removing both files and DB rows.
 pub fn start_cleanup(db: Arc<Db>, control: Arc<TrackerControl>) {
     thread::spawn(move || loop {
-        let days = control.screenshot_retention_days.load(Ordering::Relaxed).max(1);
+        let days = control
+            .screenshot_retention_days
+            .load(Ordering::Relaxed)
+            .max(1);
         let cutoff = now_ts() - (days as i64) * 86_400;
         match db.delete_screenshots_before(cutoff) {
             Ok(paths) => {
@@ -504,7 +594,7 @@ pub fn start_screenshots(db: Arc<Db>, control: Arc<TrackerControl>, dir: std::pa
     thread::spawn(move || loop {
         let interval = control.screenshot_interval_s.load(Ordering::Relaxed).max(5);
         thread::sleep(Duration::from_secs(interval));
-        if control.paused.load(Ordering::Relaxed) {
+        if !control.collection_allowed() {
             continue;
         }
         // Opt-out (and, on Windows, consent) gate.
@@ -525,10 +615,9 @@ fn run(db: Arc<Db>, control: Arc<TrackerControl>) {
         thread::sleep(POLL);
 
         let threshold = control.idle_threshold_s.load(Ordering::Relaxed) as i64;
-        let paused = control.paused.load(Ordering::Relaxed);
         // Idle covers screen-locked / display-asleep too: no input → idle grows.
         let idle = crate::platform::idle_seconds();
-        let active = !paused && idle < threshold as f64;
+        let active = control.collection_allowed() && idle < threshold as f64;
 
         let win = if active {
             crate::platform::active_window()
@@ -567,7 +656,9 @@ mod tests {
         xcap::image::RgbaImage::from_fn(w, h, |x, y| {
             let noisy = y < h / 4; // top quarter is high-frequency noise
             let n = if noisy {
-                ((x.wrapping_mul(2654435761).wrapping_add(y.wrapping_mul(40503))) & 0xFF) as u8
+                ((x.wrapping_mul(2654435761)
+                    .wrapping_add(y.wrapping_mul(40503)))
+                    & 0xFF) as u8
             } else {
                 0
             };
@@ -601,7 +692,8 @@ mod tests {
     #[test]
     fn small_screen_not_upscaled() {
         // A source already under the smallest candidate keeps its dimensions.
-        let img = xcap::image::RgbaImage::from_pixel(800, 600, xcap::image::Rgba([20, 60, 90, 255]));
+        let img =
+            xcap::image::RgbaImage::from_pixel(800, 600, xcap::image::Rgba([20, 60, 90, 255]));
         let (bytes, w, h) = compress_to_webp(&img);
         assert!(bytes.len() <= SCREENSHOT_MAX_BYTES);
         assert_eq!((w, h), (800, 600));
@@ -609,7 +701,11 @@ mod tests {
 
     #[test]
     fn skip_list_matches_whole_words_case_insensitively() {
-        let list = vec!["Zalo".to_string(), "keychain access".to_string(), "LINE".to_string()];
+        let list = vec![
+            "Zalo".to_string(),
+            "keychain access".to_string(),
+            "LINE".to_string(),
+        ];
         assert!(should_skip("Zalo", &list));
         assert!(should_skip("zalo", &list));
         assert!(should_skip("ZALO", &list));
@@ -673,7 +769,9 @@ mod tests {
         let threshold = 5;
         // 8 active ticks on one window.
         for i in 0..8 {
-            assert!(t.tick(true, Some(win("Code", "a")), threshold, 100 + i).is_none());
+            assert!(t
+                .tick(true, Some(win("Code", "a")), threshold, 100 + i)
+                .is_none());
         }
         // Go idle → trim `threshold` seconds of grace from the 8 counted.
         let flushed = t.tick(false, None, threshold, 108).unwrap();

@@ -12,6 +12,7 @@ import {
 import { ApiError, type BusinessKind, type Employee } from "../api/types";
 import { Empty, Modal, Notice, Spinner } from "../components/ui";
 import { MemberRoleControl } from "../components/employee/MemberRoleControl";
+import { MemberMonitoringControl } from "../components/employee/MemberMonitoringControl";
 import { useBusinesses } from "../useBusinesses";
 import { memberTerms, type MemberTerms } from "../terms";
 import { useAuth } from "../auth/AuthContext";
@@ -201,6 +202,7 @@ export function Employees() {
                 <th>{t("employees.table.name")}</th>
                 <th>{t("employees.table.login")}</th>
                 <th>{t("employees.table.role")}</th>
+                <th>{t("employees.table.monitoring")}</th>
                 <th>{t("employees.table.currentApp")}</th>
                 <th></th>
               </tr>
@@ -234,6 +236,14 @@ export function Employees() {
                         employee={e}
                         businessId={selectedId!}
                         canChange={mayManageRoles}
+                        onChanged={() => selectedId && loadEmployees(selectedId)}
+                      />
+                    </td>
+                    <td>
+                      <MemberMonitoringControl
+                        employee={e}
+                        businessId={selectedId!}
+                        canChange={mayManageThis}
                         onChanged={() => selectedId && loadEmployees(selectedId)}
                       />
                     </td>

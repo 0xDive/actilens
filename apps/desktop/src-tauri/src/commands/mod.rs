@@ -51,7 +51,13 @@ pub fn track_event(
     let Ok(data_dir) = app.path().app_data_dir() else {
         return;
     };
-    crate::analytics::track_event(name, locale, session.0.clone(), data_dir.join("analytics-queue"), props);
+    crate::analytics::track_event(
+        name,
+        locale,
+        session.0.clone(),
+        data_dir.join("analytics-queue"),
+        props,
+    );
 }
 
 #[tauri::command]
@@ -147,9 +153,15 @@ pub fn set_settings(
     state: State<Arc<crate::settings::SettingsState>>,
     control: State<Arc<TrackerControl>>,
 ) -> Result<(), String> {
-    // The UI's settings payload doesn't carry `locale` (it's owned by `set_locale`),
-    // so preserve the persisted value instead of letting serde's default reset it.
-    value.locale = state.current.lock().unwrap().locale.clone();
+    // The UI payload doesn't own locale or the server-controlled monitoring
+    // state, so preserve both instead of letting serde defaults reset them.
+    let current = state.current.lock().unwrap().clone();
+    value.locale = current.locale;
+    value.org_monitoring_enabled = if value.local_only {
+        true
+    } else {
+        current.org_monitoring_enabled
+    };
     // When the org controls capture settings, ignore changes to those fields —
     // the rest (theme, dock, etc.) still apply.
     if state.managed.lock().unwrap().locked() {
@@ -178,11 +190,29 @@ pub async fn apply_org_policy(
 ) -> Result<crate::settings::CaptureManaged, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
     let policy = client.fetch_policy().await?;
+    let business_id = auth.session().and_then(|s| s.business_id);
+    let previous_monitoring = settings.managed.lock().unwrap().monitoring_enabled;
+    let monitoring_enabled = client
+        .monitoring_enabled(business_id.as_deref())
+        .await
+        .unwrap_or(previous_monitoring);
+
+    control
+        .org_monitoring_enabled
+        .store(monitoring_enabled, Ordering::Relaxed);
+    {
+        let mut current = settings.current.lock().unwrap();
+        if current.org_monitoring_enabled != monitoring_enabled {
+            current.org_monitoring_enabled = monitoring_enabled;
+            let _ = crate::settings::save(&settings.path, &current);
+        }
+    }
 
     let status = crate::settings::CaptureManaged {
         managed: policy.managed,
         allow_employee_override: policy.allow_employee_override,
         family: policy.kind.as_deref() == Some("family"),
+        monitoring_enabled,
     };
     *settings.managed.lock().unwrap() = status;
 
@@ -250,11 +280,7 @@ pub fn capture_now(
     control: State<Arc<TrackerControl>>,
 ) -> Result<usize, String> {
     use tauri::Manager;
-    let dir = app
-        .path()
-        .app_data_dir()
-        .map_err(err)?
-        .join("screenshots");
+    let dir = app.path().app_data_dir().map_err(err)?.join("screenshots");
     Ok(crate::trackers::capture_once(&db, &dir, &control))
 }
 
@@ -458,19 +484,66 @@ pub async fn login(
     password: String,
     business_id: Option<String>,
     auth: State<'_, Arc<AuthState>>,
+    settings: State<'_, Arc<crate::settings::SettingsState>>,
+    control: State<'_, Arc<TrackerControl>>,
 ) -> Result<Session, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
     let session = client
         .login(&email, &password, business_id.as_deref())
         .await?;
     auth.store(session.clone())?;
+
+    // Fail closed between authentication and membership-policy resolution. This
+    // prevents a completed onboarding session from collecting even a few local
+    // samples before the React policy effect runs.
+    control
+        .org_monitoring_enabled
+        .store(false, Ordering::Relaxed);
+    {
+        let mut current = settings.current.lock().unwrap();
+        current.org_monitoring_enabled = false;
+        let _ = crate::settings::save(&settings.path, &current);
+    }
+    settings.managed.lock().unwrap().monitoring_enabled = false;
+
+    // The login call itself just succeeded, so normally this resolves immediately.
+    // If the membership endpoint has a transient failure we intentionally stay
+    // disabled; the background sync/policy refresh will retry and re-enable only
+    // after the server explicitly says collection is allowed.
+    if let Ok(enabled) = client.monitoring_enabled(session.business_id.as_deref()).await {
+        control
+            .org_monitoring_enabled
+            .store(enabled, Ordering::Relaxed);
+        {
+            let mut current = settings.current.lock().unwrap();
+            current.org_monitoring_enabled = enabled;
+            let _ = crate::settings::save(&settings.path, &current);
+        }
+        settings.managed.lock().unwrap().monitoring_enabled = enabled;
+    }
+
     Ok(session)
 }
 
-/// Clear the stored session (Keychain + memory).
+/// Clear the stored session and release any organization-controlled
+/// collection gate. A future organization login will fetch its own policy again.
 #[tauri::command]
-pub fn logout(auth: State<Arc<AuthState>>) -> Result<(), String> {
-    auth.clear()
+pub fn logout(
+    auth: State<Arc<AuthState>>,
+    settings: State<Arc<crate::settings::SettingsState>>,
+    control: State<Arc<TrackerControl>>,
+) -> Result<(), String> {
+    auth.clear()?;
+    control
+        .org_monitoring_enabled
+        .store(true, Ordering::Relaxed);
+    {
+        let mut current = settings.current.lock().unwrap();
+        current.org_monitoring_enabled = true;
+        crate::settings::save(&settings.path, &current).map_err(err)?;
+    }
+    *settings.managed.lock().unwrap() = crate::settings::CaptureManaged::default();
+    Ok(())
 }
 
 /// The current session, or `None` when logged out. Drives the login UI.
@@ -678,8 +751,7 @@ mod tests {
         .unwrap();
         db.add_keystrokes(60, 9).unwrap();
 
-        let dir =
-            std::env::temp_dir().join(format!("actilens_json_test_{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("actilens_json_test_{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         export_json_to_dir(&db, dir.to_str().unwrap(), 0, i64::MAX).unwrap();
 
