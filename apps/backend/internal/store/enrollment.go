@@ -16,7 +16,9 @@ type EnrollmentGrant struct {
 }
 
 // CreateEnrollmentToken records only the token hash. Creating a new token revokes
-// any older unused token for the same member in the resolved organization.
+// any older unused token for the same member in the resolved organization. The
+// token is bound to the user's current auth_version, so password resets and account
+// disable/restore operations invalidate it automatically.
 func (s *Store) CreateEnrollmentToken(ctx context.Context, actorID, targetUserID, tokenHash string, expiresAt time.Time) (string, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -30,7 +32,8 @@ func (s *Store) CreateEnrollmentToken(ctx context.Context, actorID, targetUserID
 	}
 
 	var active bool
-	if err := tx.QueryRow(ctx, `SELECT active FROM users WHERE id = $1 FOR UPDATE`, targetUserID).Scan(&active); err != nil {
+	var authVersion int
+	if err := tx.QueryRow(ctx, `SELECT active, auth_version FROM users WHERE id = $1 FOR UPDATE`, targetUserID).Scan(&active, &authVersion); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return "", ErrNotFound
 		}
@@ -51,8 +54,8 @@ func (s *Store) CreateEnrollmentToken(ctx context.Context, actorID, targetUserID
 	}
 
 	if _, err := tx.Exec(ctx, `
-		INSERT INTO enrollment_tokens (token_hash, user_id, business_id, created_by, expires_at)
-		VALUES ($1, $2, $3, $4, $5)`, tokenHash, targetUserID, access.BusinessID, actorID, expiresAt); err != nil {
+		INSERT INTO enrollment_tokens (token_hash, user_id, business_id, created_by, auth_version, expires_at)
+		VALUES ($1, $2, $3, $4, $5, $6)`, tokenHash, targetUserID, access.BusinessID, actorID, authVersion, expiresAt); err != nil {
 		if isUniqueViolation(err) {
 			return "", ErrConflict
 		}
@@ -73,8 +76,8 @@ func (s *Store) CreateEnrollmentToken(ctx context.Context, actorID, targetUserID
 }
 
 // RedeemEnrollmentToken atomically consumes a one-time token and returns the
-// member identity it represents. Expired/revoked/used tokens are indistinguishable
-// from unknown tokens to callers.
+// member identity it represents. Expired/revoked/used/stale-version tokens are
+// indistinguishable from unknown tokens to callers.
 func (s *Store) RedeemEnrollmentToken(ctx context.Context, tokenHash string) (EnrollmentGrant, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -94,6 +97,7 @@ func (s *Store) RedeemEnrollmentToken(ctx context.Context, tokenHash string) (En
 		   AND et.used_at IS NULL
 		   AND et.revoked_at IS NULL
 		   AND et.expires_at > now()
+		   AND et.auth_version = u.auth_version
 		   AND u.active = true
 		 FOR UPDATE OF et`, tokenHash).Scan(
 		&tokenID, &grant.BusinessID,
@@ -125,15 +129,4 @@ func (s *Store) RedeemEnrollmentToken(ctx context.Context, tokenHash string) (En
 		return EnrollmentGrant{}, err
 	}
 	return grant, nil
-}
-
-// RevokeEnrollmentTokensForMemberTx invalidates every still-live enrollment token
-// for a member. Callers use this when the account is archived/disabled.
-func RevokeEnrollmentTokensForMemberTx(ctx context.Context, tx pgx.Tx, businessID, userID string) error {
-	_, err := tx.Exec(ctx, `
-		UPDATE enrollment_tokens
-		   SET revoked_at = now()
-		 WHERE business_id = $1 AND user_id = $2
-		   AND used_at IS NULL AND revoked_at IS NULL`, businessID, userID)
-	return err
 }
