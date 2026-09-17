@@ -5,12 +5,14 @@
 //! source of truth, so sync is best-effort — offline just means rows stay pending.
 //!
 //! Layout:
-//! - `auth`   — login/logout/session, tokens in the macOS Keychain.
-//! - `client` — HTTP client over `reqwest` with auto-refresh on 401.
-//! - `worker` — background task that batches pending rows to the backend.
+//! - `auth`       — login/logout/session, tokens in the local session file.
+//! - `client`     — HTTP client over `reqwest` with auto-refresh on 401.
+//! - `enrollment` — one-time deployment-token exchange used on first launch.
+//! - `worker`     — background task that batches pending rows to the backend.
 
 pub mod auth;
 pub mod client;
+pub mod enrollment;
 pub mod worker;
 
 pub use auth::AuthState;
