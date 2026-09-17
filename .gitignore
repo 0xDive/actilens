@@ -17,6 +17,8 @@ deploy/.env.deploy
 .env
 .env.staging
 .env.prod
+corporate/.env
+corporate/backups/
 
 # per-env screenshot blob dirs (created at runtime by start-env.sh)
 apps/backend/storage-staging/
