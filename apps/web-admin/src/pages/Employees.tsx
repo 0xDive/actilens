@@ -76,10 +76,14 @@ export function Employees() {
   const [showBiz, setShowBiz] = useState(false);
   const [showEmp, setShowEmp] = useState(false);
   const [autoCreatedNote, setAutoCreatedNote] = useState<string | null>(null);
+  const [listMode, setListMode] = useState<"active" | "archived">("active");
 
   const terms = memberTerms(selected?.kind);
   const mayManageMembers = canManageMembers(selected?.role);
   const mayManageRoles = canManageRoles(selected?.role);
+  const activeEmployees = employees.filter((e) => e.active);
+  const archivedEmployees = employees.filter((e) => !e.active);
+  const visibleEmployees = listMode === "active" ? activeEmployees : archivedEmployees;
 
   function loadEmployees(id: string) {
     setLoading(true);
@@ -91,6 +95,7 @@ export function Employees() {
   }
 
   useEffect(() => {
+    setListMode("active");
     if (selectedId) loadEmployees(selectedId);
     else setEmployees([]);
   }, [selectedId]);
@@ -148,7 +153,7 @@ export function Employees() {
           <h1 className="ad-h1">{terms.many}</h1>
           {selected && (
             <p className="ad-sub">
-              {selected.name} · {employees.length} {terms.many}
+              {selected.name} · {activeEmployees.length} {terms.many}
             </p>
           )}
         </div>
@@ -165,6 +170,29 @@ export function Employees() {
           )}
         </div>
       </div>
+
+      {selectedId && !loading && employees.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div className="actilens-seg actilens-seg--sm" role="tablist" aria-label={t("employees.filters.aria")}>
+            <button
+              role="tab"
+              aria-selected={listMode === "active"}
+              className={`actilens-seg__opt${listMode === "active" ? " actilens-seg__opt--on" : ""}`}
+              onClick={() => setListMode("active")}
+            >
+              {t("employees.filters.active")} ({activeEmployees.length})
+            </button>
+            <button
+              role="tab"
+              aria-selected={listMode === "archived"}
+              className={`actilens-seg__opt${listMode === "archived" ? " actilens-seg__opt--on" : ""}`}
+              onClick={() => setListMode("archived")}
+            >
+              {t("employees.filters.archived")} ({archivedEmployees.length})
+            </button>
+          </div>
+        </div>
+      )}
 
       {!hasBusiness && !bizLoading && (
         <div style={{ marginBottom: 16 }}>
@@ -190,11 +218,13 @@ export function Employees() {
       {listError && <Notice kind="danger">{listError}</Notice>}
       {loading && <Spinner label={t("employees.loadingMembers", { members: terms.lowerMany })} />}
 
-      {!loading && selectedId && employees.length === 0 && !listError && (
-        <Empty>{t("employees.noMembersYet", { members: terms.lowerMany })}</Empty>
+      {!loading && selectedId && visibleEmployees.length === 0 && !listError && (
+        <Empty>
+          {t(listMode === "active" ? "employees.noActiveMembers" : "employees.noArchivedMembers", { members: terms.lowerMany })}
+        </Empty>
       )}
 
-      {employees.length > 0 && (
+      {visibleEmployees.length > 0 && (
         <div className="actilens-card actilens-card--default ad-tablecard">
           <table className="ad-table ad-table--roster">
             <thead>
@@ -208,7 +238,7 @@ export function Employees() {
               </tr>
             </thead>
             <tbody>
-              {employees.map((e, i) => {
+              {visibleEmployees.map((e, i) => {
                 const pal = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
                 const isSelf = e.id === user?.id;
                 const status = employeeStatus(e);
@@ -235,7 +265,7 @@ export function Employees() {
                       <MemberRoleControl
                         employee={e}
                         businessId={selectedId!}
-                        canChange={mayManageRoles}
+                        canChange={mayManageRoles && e.active}
                         onChanged={() => selectedId && loadEmployees(selectedId)}
                       />
                     </td>
@@ -243,7 +273,7 @@ export function Employees() {
                       <MemberMonitoringControl
                         employee={e}
                         businessId={selectedId!}
-                        canChange={mayManageThis}
+                        canChange={mayManageThis && e.active}
                         onChanged={() => selectedId && loadEmployees(selectedId)}
                       />
                     </td>
@@ -253,14 +283,19 @@ export function Employees() {
                         <Link className="ad-viewlink" to={`/employees/${e.id}?business=${selectedId}`}>
                           {t("employees.viewReports")}{IconArrowRight}
                         </Link>
-                        {mayManageThis && (
+                        {mayManageThis && e.active && (
                           <>
                             <button className="actilens-btn actilens-btn--ghost" onClick={() => editEmployeeAccount(e)}>{t("employees.actions.edit")}</button>
                             <button className="actilens-btn actilens-btn--ghost" onClick={() => changeEmployeePassword(e)}>{t("employees.actions.password")}</button>
                             <button className="actilens-btn actilens-btn--ghost" onClick={() => toggleEmployeeActive(e)}>
-                              {t(e.active ? "employees.actions.archive" : "employees.actions.restore")}
+                              {t("employees.actions.archive")}
                             </button>
                           </>
+                        )}
+                        {mayManageThis && !e.active && (
+                          <button className="actilens-btn actilens-btn--ghost" onClick={() => toggleEmployeeActive(e)}>
+                            {t("employees.actions.restore")}
+                          </button>
                         )}
                       </div>
                     </td>

@@ -42,19 +42,19 @@
       "role": "Role",
       "monitoring": "Monitoring"
     },
-    "blocked": "Blocked",
+    "blocked": "Archived",
     "actions": {
       "edit": "Edit",
       "password": "Change password",
-      "archive": "Block",
-      "restore": "Unblock"
+      "archive": "Archive",
+      "restore": "Restore"
     },
     "prompts": {
       "displayName": "New display name",
       "login": "New email or username",
       "password": "New password (minimum 8 characters)",
-      "confirmArchive": "Block this employee? History and screenshots will be preserved.",
-      "confirmRestore": "Unblock this employee?",
+      "confirmArchive": "Archive this employee? They will no longer be able to sign in. History and screenshots are preserved.",
+      "confirmRestore": "Restore this employee? Monitoring stays off until you enable it explicitly.",
       "saved": "Changes saved.",
       "passwordSaved": "Password changed.",
       "failed": "Operation failed."
@@ -70,7 +70,14 @@
       "off": "Off",
       "saving": "Saving…",
       "aria": "Monitoring for {{name}}"
-    }
+    },
+    "filters": {
+      "active": "Active",
+      "archived": "Archived",
+      "aria": "Member list"
+    },
+    "noActiveMembers": "No active {{members}} in this organization.",
+    "noArchivedMembers": "No archived {{members}}."
   },
   "newBusinessModal": {
     "title": "New business",

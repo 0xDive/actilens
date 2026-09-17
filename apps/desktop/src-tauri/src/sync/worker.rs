@@ -199,6 +199,9 @@ pub async fn run_once(ctx: &SyncContext) -> PassOutcome {
                 }
             }
             Err(e) => {
+                if !ctx.auth.is_logged_in() {
+                    disable_org_collection(ctx);
+                }
                 ctx.status.record_error(e, pending_total(ctx));
                 failed = true;
                 break;
@@ -221,12 +224,18 @@ pub async fn run_once(ctx: &SyncContext) -> PassOutcome {
                         // Only a genuine network failure (offline) should abort the
                         // pass and trigger backoff. A per-shot rejection or an
                         // unreadable file shouldn't block the other screenshots.
-                        Err(e) if e.starts_with("network error") => {
-                            ctx.status.record_error(e, pending_total(ctx));
-                            failed = true;
-                            break;
-                        }
                         Err(e) => {
+                            if !ctx.auth.is_logged_in() {
+                                disable_org_collection(ctx);
+                                ctx.status.record_error(e, pending_total(ctx));
+                                failed = true;
+                                break;
+                            }
+                            if e.starts_with("network error") {
+                                ctx.status.record_error(e, pending_total(ctx));
+                                failed = true;
+                                break;
+                            }
                             crate::log_warn!(
                                 "sync",
                                 "screenshot {} skipped: {e}",
@@ -252,6 +261,20 @@ pub async fn run_once(ctx: &SyncContext) -> PassOutcome {
         ctx.status.record_success(pending);
         PassOutcome::Ok
     }
+}
+
+fn disable_org_collection(ctx: &SyncContext) {
+    ctx.control
+        .org_monitoring_enabled
+        .store(false, Ordering::Relaxed);
+    {
+        let mut current = ctx.settings.current.lock().unwrap();
+        if current.org_monitoring_enabled {
+            current.org_monitoring_enabled = false;
+            let _ = crate::settings::save(&ctx.settings.path, &current);
+        }
+    }
+    ctx.settings.managed.lock().unwrap().monitoring_enabled = false;
 }
 
 fn pending_total(ctx: &SyncContext) -> i64 {

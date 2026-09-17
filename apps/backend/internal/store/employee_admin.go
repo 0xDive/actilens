@@ -94,6 +94,15 @@ func (s *Store) UpdateEmployee(ctx context.Context, actorID, employeeID string,
 	}
 	e.Role = access.TargetRole
 
+	if !e.Active {
+		if _, err := tx.Exec(ctx,
+			`UPDATE memberships SET monitoring_enabled = false WHERE user_id = $1 AND business_id = $2`,
+			employeeID, access.BusinessID,
+		); err != nil {
+			return Employee{}, err
+		}
+	}
+
 	if err := insertAuditTx(ctx, tx, access.BusinessID, actorID, "employee.updated", "member", employeeID, map[string]any{
 		"display_name": e.DisplayName,
 		"role":         string(e.Role),
@@ -160,6 +169,14 @@ func (s *Store) SetEmployeeActive(ctx context.Context, actorID, employeeID strin
 	}
 	if ct.RowsAffected() == 0 {
 		return ErrNotFound
+	}
+	if !active {
+		if _, err := tx.Exec(ctx,
+			`UPDATE memberships SET monitoring_enabled = false WHERE user_id = $1 AND business_id = $2`,
+			employeeID, access.BusinessID,
+		); err != nil {
+			return err
+		}
 	}
 	action := "employee.restored"
 	if !active {
