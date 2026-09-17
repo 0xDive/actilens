@@ -40,7 +40,7 @@ export function MemberMonitoringControl({ employee, businessId, canChange, onCha
       >
         {busy ? t("employees.monitoring.saving") : t(enabled ? "employees.monitoring.on" : "employees.monitoring.off")}
       </button>
-      <EnrollmentTokenControl employee={employee} canChange={canChange} />
+      <EnrollmentTokenControl employee={employee} businessId={businessId} canChange={canChange} />
     </div>
   );
 }
