@@ -5,6 +5,7 @@ export interface PublicBusiness {
 }
 
 export type AccountType = "manager" | "parent";
+export type BusinessRole = "owner" | "admin" | "manager" | "employee";
 
 export interface User {
   id: string;
@@ -46,6 +47,18 @@ export interface Business {
   screenshot_skip_apps: string[];
 }
 
+export interface BusinessAccess {
+  business: Business;
+  role: BusinessRole;
+}
+
+export interface Membership {
+  business_id: string;
+  business_name: string;
+  role: BusinessRole;
+  monitoring_enabled: boolean;
+}
+
 export interface BusinessSettingsPatch {
   screenshot_retention_days?: number | null;
   screenshot_interval_s?: number;
@@ -61,6 +74,7 @@ export interface Employee {
   username?: string;
   display_name: string;
   active: boolean;
+  role?: BusinessRole;
   last_seen?: number | null;
   current_app?: string | null;
   current_window?: string | null;
@@ -100,7 +114,7 @@ export interface ReportEmployee {
   email: string;
   username?: string;
   display_name: string;
-  role?: "owner" | "employee";
+  role?: BusinessRole;
   last_seen: number | null;
   active_today_s: number;
   active_yesterday_s: number;
