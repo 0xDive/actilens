@@ -4,6 +4,8 @@ import { createEnrollmentToken, type EnrollmentTokenResponse } from "../../api/e
 import type { Employee } from "../../api/types";
 import { Modal, Notice } from "../ui";
 
+const INSTALLER_SCRIPT_URL = "https://github.com/0xDive/actilens/releases/latest/download/install-windows-agent.ps1";
+
 function psQuote(value: string) {
   return value.replace(/'/g, "''");
 }
@@ -46,11 +48,12 @@ export function EnrollmentTokenControl({ employee, businessId, canChange }: {
   const backendUrl = typeof window === "undefined" ? "" : window.location.origin;
   const powershell = useMemo(() => {
     if (!grant) return "";
+    const path = "$env:TEMP\\install-actilens.ps1";
     return [
-      `$env:ACTILENS_BACKEND_URL='${psQuote(backendUrl)}'`,
-      `$env:ACTILENS_ENROLL_TOKEN='${psQuote(grant.token)}'`,
-      `[Environment]::SetEnvironmentVariable('ACTILENS_BACKEND_URL',$env:ACTILENS_BACKEND_URL,'User')`,
-      `[Environment]::SetEnvironmentVariable('ACTILENS_ENROLL_TOKEN',$env:ACTILENS_ENROLL_TOKEN,'User')`,
+      `$p=${path}`,
+      `Invoke-WebRequest -UseBasicParsing -Uri '${psQuote(INSTALLER_SCRIPT_URL)}' -OutFile $p`,
+      `& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $p -ServerUrl '${psQuote(backendUrl)}' -EnrollmentToken '${psQuote(grant.token)}'`,
+      `Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue`,
     ].join("; ");
   }, [grant, backendUrl]);
 
