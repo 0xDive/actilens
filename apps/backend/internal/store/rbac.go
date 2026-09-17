@@ -1,0 +1,203 @@
+package store
+
+import (
+	"context"
+	"errors"
+
+	"github.com/jackc/pgx/v5"
+)
+
+type BusinessRole string
+
+const (
+	RoleOwner    BusinessRole = "owner"
+	RoleAdmin    BusinessRole = "admin"
+	RoleManager  BusinessRole = "manager"
+	RoleEmployee BusinessRole = "employee"
+)
+
+type BusinessPermission string
+
+const (
+	PermissionReports         BusinessPermission = "reports"
+	PermissionManageEmployees BusinessPermission = "manage_employees"
+	PermissionManageDevices   BusinessPermission = "manage_devices"
+	PermissionSettings        BusinessPermission = "settings"
+	PermissionAudit           BusinessPermission = "audit"
+	PermissionManageRoles     BusinessPermission = "manage_roles"
+)
+
+type Membership struct {
+	BusinessID        string       `json:"business_id"`
+	BusinessName      string       `json:"business_name"`
+	Role              BusinessRole `json:"role"`
+	MonitoringEnabled bool         `json:"monitoring_enabled"`
+}
+
+func ValidBusinessRole(role BusinessRole) bool {
+	switch role {
+	case RoleOwner, RoleAdmin, RoleManager, RoleEmployee:
+		return true
+	default:
+		return false
+	}
+}
+
+func roleAllows(role BusinessRole, permission BusinessPermission) bool {
+	switch permission {
+	case PermissionReports:
+		return role == RoleOwner || role == RoleAdmin || role == RoleManager
+	case PermissionManageEmployees, PermissionManageDevices, PermissionSettings, PermissionAudit:
+		return role == RoleOwner || role == RoleAdmin
+	case PermissionManageRoles:
+		return role == RoleOwner
+	default:
+		return false
+	}
+}
+
+func (s *Store) MembershipRole(ctx context.Context, userID, businessID string) (BusinessRole, error) {
+	var role BusinessRole
+	err := s.pool.QueryRow(ctx,
+		`SELECT role FROM memberships WHERE user_id = $1 AND business_id = $2`,
+		userID, businessID,
+	).Scan(&role)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	return role, err
+}
+
+func membershipRoleTx(ctx context.Context, tx pgx.Tx, userID, businessID string) (BusinessRole, error) {
+	var role BusinessRole
+	err := tx.QueryRow(ctx,
+		`SELECT role FROM memberships WHERE user_id = $1 AND business_id = $2`,
+		userID, businessID,
+	).Scan(&role)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	return role, err
+}
+
+func (s *Store) HasBusinessPermission(ctx context.Context, userID, businessID string, permission BusinessPermission) (bool, error) {
+	role, err := s.MembershipRole(ctx, userID, businessID)
+	if errors.Is(err, ErrNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return roleAllows(role, permission), nil
+}
+
+func requireBusinessPermissionTx(ctx context.Context, tx pgx.Tx, userID, businessID string, permission BusinessPermission) (BusinessRole, error) {
+	role, err := membershipRoleTx(ctx, tx, userID, businessID)
+	if errors.Is(err, ErrNotFound) {
+		return "", ErrForbidden
+	}
+	if err != nil {
+		return "", err
+	}
+	if !roleAllows(role, permission) {
+		return role, ErrForbidden
+	}
+	return role, nil
+}
+
+func (s *Store) MembershipsForUser(ctx context.Context, userID string) ([]Membership, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT m.business_id, b.name, m.role, m.monitoring_enabled
+		  FROM memberships m
+		  JOIN businesses b ON b.id = m.business_id
+		 WHERE m.user_id = $1
+		 ORDER BY b.created_at, b.name`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []Membership{}
+	for rows.Next() {
+		var m Membership
+		if err := rows.Scan(&m.BusinessID, &m.BusinessName, &m.Role, &m.MonitoringEnabled); err != nil {
+			return nil, err
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
+// ListBusinessesForConsole returns businesses visible in the administrative web
+// console. Employees intentionally do not get a console business list.
+func (s *Store) ListBusinessesForConsole(ctx context.Context, userID string) ([]Business, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT `+businessCols+`, m.role
+		  FROM memberships m
+		  JOIN businesses b ON b.id = m.business_id
+		 WHERE m.user_id = $1 AND m.role IN ('owner','admin','manager')
+		 ORDER BY b.created_at, b.name`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []Business{}
+	for rows.Next() {
+		var b Business
+		if err := rows.Scan(
+			&b.ID, &b.Name, &b.Kind, &b.OwnerUserID, &b.ScreenshotRetentionDays,
+			&b.ScreenshotIntervalS, &b.IdleThresholdS, &b.AllowEmployeeOverride,
+			&b.ScreenshotMode, &b.ScreenshotSkipApps, &b.Role,
+		); err != nil {
+			return nil, err
+		}
+		out = append(out, b)
+	}
+	return out, rows.Err()
+}
+
+// UpdateMembershipRole is owner-only. The business owner cannot demote themselves.
+func (s *Store) UpdateMembershipRole(ctx context.Context, actorID, businessID, targetUserID string, role BusinessRole) error {
+	if role != RoleAdmin && role != RoleManager && role != RoleEmployee {
+		return ErrConflict
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := requireBusinessPermissionTx(ctx, tx, actorID, businessID, PermissionManageRoles); err != nil {
+		return err
+	}
+
+	var current BusinessRole
+	err = tx.QueryRow(ctx,
+		`SELECT role FROM memberships WHERE user_id = $1 AND business_id = $2 FOR UPDATE`,
+		targetUserID, businessID,
+	).Scan(&current)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if current == RoleOwner {
+		return ErrForbidden
+	}
+
+	if _, err := tx.Exec(ctx,
+		`UPDATE memberships SET role = $1 WHERE user_id = $2 AND business_id = $3`,
+		role, targetUserID, businessID,
+	); err != nil {
+		return err
+	}
+	if err := insertAuditTx(ctx, tx, businessID, actorID, "member.role_changed", "employee", targetUserID, map[string]any{
+		"from": string(current),
+		"to":   string(role),
+	}); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
