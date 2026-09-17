@@ -1,0 +1,134 @@
+name: ActiLens Rebrand Export
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/rebrand-export.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build cleaned ActiLens tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d corporate ]; then git mv corporate deploy; fi
+          if [ -f biboctl.sh ]; then git mv biboctl.sh actilensctl.sh; fi
+          rm -rf marketing docs
+          rm -f CLAUDE.md
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          old_brand = 'Bi' + 'BoTracking'
+          old_prefix = 'Bi' + 'Bo'
+          old_domain = 'bibo' + 'tracker.com'
+          old_author = 'Brian ' + 'Nguyen'
+          old_email = 'brian.nguyen.work' + '@gmail.com'
+          old_owner = 'ngn' + 'clht1102'
+          old_repo = 'emplooyee-' + 'tracking'
+
+          replacements = [
+              (old_brand + ' Corporate', 'ActiLens'),
+              (old_brand, 'ActiLens'),
+              (old_prefix + ' Tracker', 'ActiLens'),
+              (old_prefix, 'ActiLens'),
+              (old_domain, 'github.com/0xDive/actilens'),
+              (old_owner + '/bibo-' + old_repo, '0xDive/actilens'),
+              ('0xDive/' + old_repo, '0xDive/actilens'),
+              ('bibo-' + old_repo, 'actilens'),
+              (old_repo, 'actilens'),
+              (old_author, '0xDive'),
+              (old_email, '0xDive'),
+              ('EmployeeTracker', 'ActiLens'),
+              ('Employee Tracker', 'ActiLens'),
+              ('employeetrack', 'actilens'),
+              ('BIBO_', 'ACTILENS_'),
+              ('BIBO', 'ACTILENS'),
+              ('biboctl', 'actilensctl'),
+              ('bibotracking', 'actilens'),
+              ('bibo', 'actilens'),
+              ('corporate/', 'deploy/'),
+              ('corporate', 'deploy'),
+          ]
+
+          for path in Path('.').rglob('*'):
+              if not path.is_file() or '.git' in path.parts or path.parts[:2] == ('.github', 'workflows'):
+                  continue
+              try:
+                  text = path.read_text(encoding='utf-8')
+              except (UnicodeDecodeError, OSError):
+                  continue
+              for old, new in replacements:
+                  text = text.replace(old, new)
+              path.write_text(text, encoding='utf-8')
+
+          tauri_path = Path('apps/desktop/src-tauri/tauri.conf.json')
+          tauri = json.loads(tauri_path.read_text())
+          tauri['productName'] = 'ActiLens'
+          tauri['version'] = '0.1.0'
+          tauri['identifier'] = 'com.actilens.agent'
+          tauri['app']['windows'][0]['title'] = 'ActiLens'
+          tauri['plugins'] = {}
+          tauri['bundle']['createUpdaterArtifacts'] = False
+          tauri['bundle']['macOS'] = {'minimumSystemVersion': '13.0'}
+          tauri_path.write_text(json.dumps(tauri, ensure_ascii=False, indent=2) + '\n')
+
+          Path('README.md').write_text('''# ActiLens\n\nActiLens is a self-hosted workstation activity monitoring and analytics platform.\n\n## Features\n- active application and window timeline\n- active / idle time\n- periodic screenshots\n- browser activity\n- employee administration and session revocation\n- Russian and English UI\n- Windows agent with autostart\n- Go backend + PostgreSQL\n- Docker deployment and optional HTTPS with Caddy\n\n## License\nMIT.\n''')
+
+          Path('LICENSE').write_text('''MIT License\n\nCopyright (c) 2026 0xDive\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the "Software"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n''')
+          PY
+
+          forbidden="Bi""Bo|bibo|Brian[[:space:]]+Nguyen|brian\.nguyen|ngnclht1102|emplooyee-tracking|employeetrack"
+          if git grep -I -n -E "$forbidden" -- ':!.github/workflows/history-reset.yml' ':!.github/workflows/rebrand-export.yml'; then
+            echo "Old identifiers remain." >&2
+            exit 1
+          fi
+
+      - name: Export changed files
+        run: |
+          python3 - <<'PY'
+          import base64, json, subprocess
+          from pathlib import Path
+
+          raw = subprocess.check_output(['git','status','--porcelain=v1','-z'])
+          parts = raw.split(b'\0')
+          out = []
+          i = 0
+          while i < len(parts):
+              rec = parts[i]
+              if not rec:
+                  break
+              status = rec[:2].decode()
+              path = rec[3:].decode()
+              if status[0] in 'RC' or status[1] in 'RC':
+                  i += 1
+                  new_path = parts[i].decode()
+                  path = new_path
+              p = Path(path)
+              item = {'status': status, 'path': path}
+              if p.is_file():
+                  item['content_b64'] = base64.b64encode(p.read_bytes()).decode()
+                  item['mode'] = '100755' if (p.stat().st_mode & 0o111) else '100644'
+              out.append(item)
+              i += 1
+          Path('changes.json').write_text(json.dumps(out))
+          PY
+          git diff --stat
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: actilens-rebrand-changes
+          path: changes.json
+          retention-days: 1
