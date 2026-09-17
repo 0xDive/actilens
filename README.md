@@ -8,8 +8,10 @@ ActiLens is a self-hosted workstation activity monitoring and analytics platform
 - periodic screenshots
 - browser activity
 - employee administration, roles, devices and session revocation
+- organization-controlled monitoring policies
+- one-time employee enrollment without sharing employee passwords
 - Russian and English UI
-- Windows agent with autostart
+- Windows agent with visible tray + autostart
 - Go backend + PostgreSQL
 - Docker deployment and optional HTTPS with Caddy
 
@@ -58,7 +60,8 @@ URL, for example:
 http://192.168.0.249:8081
 ```
 
-The workflow uploads the MSI/EXE as a GitHub Actions artifact.
+The workflow uploads normalized `ActiLens-x64.msi` / `ActiLens-x64-setup.exe`
+artifacts.
 
 ### Production releases
 
@@ -68,11 +71,61 @@ Repository variable `ACTILENS_SERVER_URL` is required for tagged releases. Examp
 ACTILENS_SERVER_URL=http://192.168.0.249:8081
 ```
 
+Tagged releases publish stable assets:
+
+```text
+ActiLens-x64.msi
+ActiLens-x64-setup.exe
+```
+
 For Internet/WAN deployments, use an HTTPS URL such as
 `https://tracker.example.com` instead of exposing plain HTTP publicly.
 
 CI validation builds intentionally use `http://127.0.0.1:8081` and never inherit the
 production server address.
+
+## Employee enrollment
+
+In **Admin → Employees**, choose **Install code / Код установки** for an active
+member. The server creates a short-lived one-time enrollment code and stores only its
+SHA-256 hash.
+
+On a Windows workstation, the normal deployment path is:
+
+```powershell
+.\install-windows-agent.ps1 `
+  -ServerUrl "http://192.168.0.249:8081" `
+  -EnrollmentToken "atl_enroll_..."
+```
+
+The script:
+- validates the server URL and enrollment code;
+- downloads `ActiLens-x64.msi` from the latest GitHub Release (or accepts `-InstallerPath`);
+- stores the server URL and one-time code for the current Windows user;
+- installs the ordinary visible ActiLens application;
+- launches ActiLens to redeem the one-time code.
+
+After successful enrollment the agent deletes the consumed enrollment code from the
+Windows user environment. The normal first-run monitoring/permission flow still
+applies.
+
+To install a specific release:
+
+```powershell
+.\install-windows-agent.ps1 `
+  -ServerUrl "http://192.168.0.249:8081" `
+  -EnrollmentToken "atl_enroll_..." `
+  -ReleaseTag "v0.2.0"
+```
+
+To use an MSI already downloaded from GitHub Actions:
+
+```powershell
+.\install-windows-agent.ps1 `
+  -ServerUrl "http://192.168.0.249:8081" `
+  -EnrollmentToken "atl_enroll_..." `
+  -InstallerPath ".\ActiLens-x64.msi"
+```
 
 ## Operations
 
