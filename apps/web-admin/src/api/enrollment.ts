@@ -6,9 +6,12 @@ export interface EnrollmentTokenResponse {
   expires_at: string;
 }
 
-export function createEnrollmentToken(employeeId: string, expiresInHours = 24) {
-  return request<EnrollmentTokenResponse>(`/v1/employees/${employeeId}/enrollment-token`, {
-    method: "POST",
-    body: { expires_in_hours: expiresInHours },
-  });
+export function createEnrollmentToken(businessId: string, employeeId: string, expiresInHours = 24) {
+  return request<EnrollmentTokenResponse>(
+    `/v1/businesses/${businessId}/members/${employeeId}/enrollment-token`,
+    {
+      method: "POST",
+      body: { expires_in_hours: expiresInHours },
+    },
+  );
 }
