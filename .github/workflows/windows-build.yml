@@ -1,0 +1,66 @@
+name: Build Custom Windows Client
+
+on:
+  workflow_dispatch:
+    inputs:
+      server_url:
+        description: "ActiLens backend URL baked into the client"
+        required: true
+        default: "http://192.168.0.249:8081"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Windows client
+    runs-on: windows-latest
+    env:
+      ACTILENS_BUILD_SERVER_URL: ${{ inputs.server_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate backend URL
+        shell: pwsh
+        run: |
+          $uri = $null
+          if (-not [Uri]::TryCreate($env:ACTILENS_BUILD_SERVER_URL, [UriKind]::Absolute, [ref]$uri)) {
+            throw "server_url must be an absolute URL"
+          }
+          if ($uri.Scheme -notin @('http','https')) {
+            throw "server_url must use http or https"
+          }
+          Write-Host "Backend baked into client: $($uri.AbsoluteUri.TrimEnd('/'))"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri -> target
+          cache-on-failure: true
+      - name: Enable pnpm
+        shell: pwsh
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.1 --activate
+      - name: Install dependencies
+        shell: pwsh
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck desktop UI
+        shell: pwsh
+        run: pnpm --filter @actilens/desktop typecheck
+      - name: Build MSI and EXE
+        shell: pwsh
+        run: pnpm --filter @actilens/desktop tauri build --target x86_64-pc-windows-msvc
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: ActiLens-Windows-${{ github.run_number }}
+          retention-days: 30
+          if-no-files-found: error
+          path: |
+            apps/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+            apps/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
