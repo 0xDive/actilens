@@ -109,7 +109,11 @@ pub fn backend_base_url() -> String {
     std::env::var("ACTILENS_BACKEND_URL")
         .ok()
         .filter(|s| !s.is_empty())
-        .or_else(|| option_env!("ACTILENS_BUILD_SERVER_URL").map(str::to_string).filter(|s| !s.is_empty()))
+        .or_else(|| {
+            option_env!("ACTILENS_BUILD_SERVER_URL")
+                .map(str::to_string)
+                .filter(|s| !s.is_empty())
+        })
         .unwrap_or_else(|| DEFAULT_BACKEND_URL.to_string())
 }
 
@@ -165,14 +169,17 @@ pub fn save(path: &Path, settings: &Settings) -> std::io::Result<()> {
 pub fn apply(s: &Settings, control: &crate::trackers::TrackerControl) {
     use std::sync::atomic::Ordering::Relaxed;
     control.idle_threshold_s.store(s.idle_threshold_s, Relaxed);
-    control.screenshot_interval_s.store(s.screenshot_interval_s, Relaxed);
+    control
+        .screenshot_interval_s
+        .store(s.screenshot_interval_s, Relaxed);
     control
         .screenshot_retention_days
         .store(s.screenshot_retention_days, Relaxed);
     control.domain_only.store(s.domain_only, Relaxed);
-    control
-        .screenshot_mode
-        .store(crate::trackers::shot_mode_from_str(&s.screenshot_mode), Relaxed);
+    control.screenshot_mode.store(
+        crate::trackers::shot_mode_from_str(&s.screenshot_mode),
+        Relaxed,
+    );
     *control.screenshot_skip_apps.write().unwrap() = s.screenshot_skip_apps.clone();
 
     // Capture opt-outs. On Windows nothing captures until the user has consented
@@ -189,7 +196,7 @@ pub fn apply(s: &Settings, control: &crate::trackers::TrackerControl) {
 /// Whether the org controls capture settings for the signed-in employee. Default
 /// (unmanaged) lets the user edit freely — used for standalone users and before a
 /// policy is fetched.
-#[derive(Debug, Clone, Copy, Default, Serialize)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub struct CaptureManaged {
     /// The user's org defines a capture policy.
     pub managed: bool,
@@ -197,6 +204,19 @@ pub struct CaptureManaged {
     pub allow_employee_override: bool,
     /// The org is a family (kind = 'family') — the onboarding shows "kid" copy.
     pub family: bool,
+    /// Server-controlled membership collection switch.
+    pub monitoring_enabled: bool,
+}
+
+impl Default for CaptureManaged {
+    fn default() -> Self {
+        Self {
+            managed: false,
+            allow_employee_override: false,
+            family: false,
+            monitoring_enabled: true,
+        }
+    }
 }
 
 impl CaptureManaged {
@@ -261,7 +281,11 @@ mod tests {
         std::env::remove_var("ACTILENS_BACKEND_URL");
         assert_eq!(backend_base_url(), DEFAULT_BACKEND_URL);
         // Sanity: the default build targets production.
-        if cfg!(all(feature = "production", not(feature = "local"), not(feature = "staging"))) {
+        if cfg!(all(
+            feature = "production",
+            not(feature = "local"),
+            not(feature = "staging")
+        )) {
             assert_eq!(backend_base_url(), "https://github.com/0xDive/actilens");
         }
     }

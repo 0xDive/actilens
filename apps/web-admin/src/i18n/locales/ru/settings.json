@@ -98,7 +98,8 @@
       "deviceRevoked": "Устройство отозвано",
       "deviceRestored": "Устройство восстановлено",
       "unknown": "Действие администратора",
-      "memberRoleChanged": "Роль участника изменена"
+      "memberRoleChanged": "Роль участника изменена",
+      "memberMonitoringChanged": "Мониторинг участника изменён"
     },
     "targets": {
       "employee": "сотрудник",

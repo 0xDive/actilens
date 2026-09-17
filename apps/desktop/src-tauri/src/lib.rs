@@ -9,8 +9,8 @@ mod server;
 mod settings;
 mod storage;
 mod sync;
-mod tray;
 mod trackers;
+mod tray;
 
 use std::sync::Arc;
 use tauri::Manager;
@@ -47,9 +47,13 @@ fn apply_dock_policy(_app: &tauri::AppHandle, _hide: bool) {}
 fn ensure_windows_autostart() {
     use winreg::enums::HKEY_CURRENT_USER;
     use winreg::RegKey;
-    let Ok(exe) = std::env::current_exe() else { return; };
+    let Ok(exe) = std::env::current_exe() else {
+        return;
+    };
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    let Ok((run, _)) = hkcu.create_subkey(r"Software\Microsoft\Windows\CurrentVersion\Run") else { return; };
+    let Ok((run, _)) = hkcu.create_subkey(r"Software\Microsoft\Windows\CurrentVersion\Run") else {
+        return;
+    };
     let command = format!("\"{}\" --autostart", exe.display());
     let _ = run.set_value("ActiLens", &command);
 }
@@ -88,7 +92,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::ping,
             commands::track_event,
-
             commands::set_paused,
             commands::set_in_setup,
             commands::is_paused,
@@ -155,7 +158,9 @@ pub fn run() {
             tray::build(&app.handle(), control.clone())?;
             apply_dock_policy(&app.handle(), hide_dock);
             if launched_from_autostart {
-                if let Some(win) = app.get_webview_window("main") { let _ = win.hide(); }
+                if let Some(win) = app.get_webview_window("main") {
+                    let _ = win.hide();
+                }
             }
 
             // Keep running when the window is closed — hide to the menu bar instead.
@@ -219,6 +224,7 @@ pub fn run() {
                 db: db.clone(),
                 auth,
                 status,
+                control: control.clone(),
                 settings: settings_state,
             });
 
@@ -228,7 +234,11 @@ pub fn run() {
             // Product analytics: one fire-and-forget event per launch (crash-free,
             // direct Aptabase API — see analytics.rs). Tagged with the per-launch
             // analytics_session; offline launches queue under data_dir for later flush.
-            analytics::track_app_started(loaded_locale, analytics_session.0.clone(), data_dir.join("analytics-queue"));
+            analytics::track_app_started(
+                loaded_locale,
+                analytics_session.0.clone(),
+                data_dir.join("analytics-queue"),
+            );
             Ok(())
         })
         .run(tauri::generate_context!())

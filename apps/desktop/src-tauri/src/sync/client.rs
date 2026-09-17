@@ -37,6 +37,22 @@ struct PublicBusinessesResp {
     businesses: Vec<PublicBusiness>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+struct MembershipState {
+    business_id: String,
+    #[serde(default = "default_true")]
+    monitoring_enabled: bool,
+}
+
+#[derive(Deserialize)]
+struct MembershipsResp {
+    memberships: Vec<MembershipState>,
+}
+
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Serialize)]
 struct LoginReq<'a> {
     email: &'a str,
@@ -259,6 +275,43 @@ impl BackendClient {
         self.auth
             .update_tokens(t.access_token.clone(), t.refresh_token)?;
         Ok(t.access_token)
+    }
+
+    /// Return the server-controlled collection state for the current membership.
+    /// Old/partial records default to enabled for backward compatibility.
+    pub async fn monitoring_enabled(&self, business_id: Option<&str>) -> Result<bool, String> {
+        let mut token = self.access_token()?;
+        for attempt in 0..2 {
+            let resp = self
+                .http
+                .get(self.url("/v1/memberships/mine"))
+                .bearer_auth(&token)
+                .send()
+                .await
+                .map_err(net_err)?;
+            if resp.status() == reqwest::StatusCode::UNAUTHORIZED && attempt == 0 {
+                token = self.refresh().await?;
+                continue;
+            }
+            if !resp.status().is_success() {
+                return Err(status_err(resp).await);
+            }
+            let parsed: MembershipsResp = resp.json().await.map_err(|e| e.to_string())?;
+            if let Some(id) = business_id {
+                return parsed
+                    .memberships
+                    .into_iter()
+                    .find(|m| m.business_id == id)
+                    .map(|m| m.monitoring_enabled)
+                    .ok_or_else(|| "membership not found for selected business".to_string());
+            }
+            return match parsed.memberships.as_slice() {
+                [only] => Ok(only.monitoring_enabled),
+                [] => Ok(true),
+                _ => Err("multiple memberships: business id required".to_string()),
+            };
+        }
+        Err("monitoring_enabled: unreachable retry exhaustion".into())
     }
 
     /// `GET /v1/policy` with auto-refresh on 401.

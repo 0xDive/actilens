@@ -51,7 +51,13 @@ pub fn track_event(
     let Ok(data_dir) = app.path().app_data_dir() else {
         return;
     };
-    crate::analytics::track_event(name, locale, session.0.clone(), data_dir.join("analytics-queue"), props);
+    crate::analytics::track_event(
+        name,
+        locale,
+        session.0.clone(),
+        data_dir.join("analytics-queue"),
+        props,
+    );
 }
 
 #[tauri::command]
@@ -178,11 +184,22 @@ pub async fn apply_org_policy(
 ) -> Result<crate::settings::CaptureManaged, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
     let policy = client.fetch_policy().await?;
+    let business_id = auth.session().and_then(|s| s.business_id);
+    let previous_monitoring = settings.managed.lock().unwrap().monitoring_enabled;
+    let monitoring_enabled = client
+        .monitoring_enabled(business_id.as_deref())
+        .await
+        .unwrap_or(previous_monitoring);
+
+    control
+        .org_monitoring_enabled
+        .store(monitoring_enabled, Ordering::Relaxed);
 
     let status = crate::settings::CaptureManaged {
         managed: policy.managed,
         allow_employee_override: policy.allow_employee_override,
         family: policy.kind.as_deref() == Some("family"),
+        monitoring_enabled,
     };
     *settings.managed.lock().unwrap() = status;
 
@@ -250,11 +267,7 @@ pub fn capture_now(
     control: State<Arc<TrackerControl>>,
 ) -> Result<usize, String> {
     use tauri::Manager;
-    let dir = app
-        .path()
-        .app_data_dir()
-        .map_err(err)?
-        .join("screenshots");
+    let dir = app.path().app_data_dir().map_err(err)?.join("screenshots");
     Ok(crate::trackers::capture_once(&db, &dir, &control))
 }
 
@@ -678,8 +691,7 @@ mod tests {
         .unwrap();
         db.add_keystrokes(60, 9).unwrap();
 
-        let dir =
-            std::env::temp_dir().join(format!("actilens_json_test_{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("actilens_json_test_{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         export_json_to_dir(&db, dir.to_str().unwrap(), 0, i64::MAX).unwrap();
 

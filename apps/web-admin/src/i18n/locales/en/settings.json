@@ -98,7 +98,8 @@
       "deviceRevoked": "Device revoked",
       "deviceRestored": "Device restored",
       "unknown": "Administrative action",
-      "memberRoleChanged": "Member role changed"
+      "memberRoleChanged": "Member role changed",
+      "memberMonitoringChanged": "Member monitoring changed"
     },
     "targets": {
       "employee": "employee",

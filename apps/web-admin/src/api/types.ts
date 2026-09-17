@@ -75,6 +75,7 @@ export interface Employee {
   display_name: string;
   active: boolean;
   role?: BusinessRole;
+  monitoring_enabled?: boolean;
   last_seen?: number | null;
   current_app?: string | null;
   current_window?: string | null;

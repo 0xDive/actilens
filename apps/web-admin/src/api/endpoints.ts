@@ -115,6 +115,13 @@ export function updateMemberRole(businessId: string, userId: string, role: Exclu
   );
 }
 
+export function updateMemberMonitoring(businessId: string, userId: string, enabled: boolean) {
+  return request<{ status: string; monitoring_enabled: boolean }>(
+    `/v1/businesses/${businessId}/members/${userId}/monitoring`,
+    { method: "PATCH", body: { enabled } },
+  );
+}
+
 export function updateBusinessSettings(id: string, patch: BusinessSettingsPatch) {
   return request<{ status: string }>(`/v1/businesses/${id}/settings`, {
     method: "PATCH",

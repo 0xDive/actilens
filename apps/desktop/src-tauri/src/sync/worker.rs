@@ -57,6 +57,7 @@ pub struct SyncContext {
     pub db: Arc<Db>,
     pub auth: Arc<AuthState>,
     pub status: Arc<SyncStatus>,
+    pub control: Arc<crate::trackers::TrackerControl>,
     /// Backend base URL + device_id are read fresh each pass so settings changes
     /// (and the first-run device_id) take effect without a restart.
     pub settings: Arc<crate::settings::SettingsState>,
@@ -125,6 +126,19 @@ pub async fn run_once(ctx: &SyncContext) -> PassOutcome {
     }
 
     let client = BackendClient::new(base_url, ctx.auth.clone());
+
+    if let Ok(enabled) = client.monitoring_enabled(business_id.as_deref()).await {
+        ctx.control
+            .org_monitoring_enabled
+            .store(enabled, Ordering::Relaxed);
+    }
+    // Preserve the last known state when offline. Once the server disabled this
+    // membership, collection and upload remain stopped until a later successful
+    // policy refresh explicitly re-enables them.
+    if !ctx.control.org_monitoring_enabled.load(Ordering::Relaxed) {
+        return PassOutcome::Skipped;
+    }
+
     let mut failed = false;
 
     // --- JSON batch: activity + keystrokes + browser ---
@@ -206,7 +220,11 @@ pub async fn run_once(ctx: &SyncContext) -> PassOutcome {
                             break;
                         }
                         Err(e) => {
-                            crate::log_warn!("sync", "screenshot {} skipped: {e}", shot.client_uuid);
+                            crate::log_warn!(
+                                "sync",
+                                "screenshot {} skipped: {e}",
+                                shot.client_uuid
+                            );
                             continue;
                         }
                     }
