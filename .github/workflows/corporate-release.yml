@@ -26,10 +26,6 @@ jobs:
         with:
           targets: x86_64-pc-windows-msvc
 
-      - name: Apply corporate patch
-        shell: pwsh
-        run: python corporate/apply_patch.py .
-
       - name: Install dependencies
         shell: pwsh
         run: |
