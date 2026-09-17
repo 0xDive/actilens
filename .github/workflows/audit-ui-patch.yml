@@ -1,0 +1,45 @@
+name: Audit UI patch
+
+on:
+  push:
+    branches: [feature/audit-log-ui]
+    paths:
+      - ".github/workflows/audit-ui-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/audit-log-ui
+          fetch-depth: 0
+      - name: Patch settings page
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('apps/web-admin/src/pages/Settings.tsx')
+          text = p.read_text()
+          old = 'import { Empty, Modal, Notice, Spinner } from "../components/ui";\n'
+          new = old + 'import { AuditLogCard } from "../components/settings/AuditLogCard";\n'
+          if old not in text:
+              raise SystemExit('import anchor missing')
+          text = text.replace(old, new, 1)
+          old = '          {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}\n'
+          new = '''          {selectedId && (\n            <>\n              <div className="ad-set-sec">{t("sections.audit")}</div>\n              <AuditLogCard businessId={selectedId} />\n            </>\n          )}\n\n''' + old
+          if old not in text:
+              raise SystemExit('render anchor missing')
+          text = text.replace(old, new, 1)
+          p.write_text(text)
+          PY
+          git diff --check
+      - name: Commit patch
+        run: |
+          git config user.name "0xDive Automation"
+          git config user.email "72026841+0xDive@users.noreply.github.com"
+          git add apps/web-admin/src/pages/Settings.tsx
+          git commit -m "feat: show audit log in organization settings"
+          git push origin HEAD:feature/audit-log-ui
