@@ -1,0 +1,151 @@
+name: Role backend patch
+
+on:
+  push:
+    branches: [feature/role-enforcement-ui]
+    paths:
+      - ".github/workflows/role-backend-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/role-enforcement-ui
+          fetch-depth: 0
+      - name: Apply backend RBAC patch
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace(path, old, new, count=1):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f"anchor missing in {path}: {old[:100]!r}")
+              text = text.replace(old, new, count)
+              p.write_text(text)
+
+          # store/owner.go: expose roles in the member list and allow admins to
+          # provision into a business they administer.
+          path = 'apps/backend/internal/store/owner.go'
+          replace(path,
+          '''\tActive        bool    `json:"active"`\n\tLastSeen      *int64  `json:"last_seen"`''',
+          '''\tActive        bool         `json:"active"`\n\tRole          BusinessRole `json:"role"`\n\tLastSeen      *int64       `json:"last_seen"`''')
+          replace(path,
+          '''\t\tif biz.OwnerUserID != ownerID {\n\t\t\treturn Employee{}, Business{}, ErrForbidden\n\t\t}\n''',
+          '''\t\tif _, err := requireBusinessPermissionTx(ctx, tx, ownerID, biz.ID, PermissionManageEmployees); err != nil {\n\t\t\treturn Employee{}, Business{}, err\n\t\t}\n''')
+          replace(path,
+          '''\tif err != nil {\n\t\treturn Employee{}, Business{}, err\n\t}\n\n\tif _, err := tx.Exec(ctx,\n\t\t`INSERT INTO memberships (user_id, business_id, role) VALUES ($1, $2, 'employee')`,''',
+          '''\tif err != nil {\n\t\treturn Employee{}, Business{}, err\n\t}\n\temp.Role = RoleEmployee\n\n\tif _, err := tx.Exec(ctx,\n\t\t`INSERT INTO memberships (user_id, business_id, role) VALUES ($1, $2, 'employee')`,''')
+          replace(path,
+          '''\t\tSELECT u.id, COALESCE(u.email, ''), COALESCE(u.username, ''), u.display_name, u.active,\n\t\t       (SELECT extract(epoch FROM max(d.last_seen_at))::bigint FROM devices d WHERE d.user_id = u.id),''',
+          '''\t\tSELECT u.id, COALESCE(u.email, ''), COALESCE(u.username, ''), u.display_name, u.active, m.role,\n\t\t       (SELECT extract(epoch FROM max(d.last_seen_at))::bigint FROM devices d WHERE d.user_id = u.id),''')
+          replace(path,
+          '''\t\t WHERE m.business_id = $1 AND m.role = 'employee'\n\t\t ORDER BY u.active DESC, u.display_name''',
+          '''\t\t WHERE m.business_id = $1 AND m.role IN ('admin','manager','employee')\n\t\t ORDER BY CASE m.role WHEN 'admin' THEN 0 WHEN 'manager' THEN 1 ELSE 2 END, u.active DESC, u.display_name''')
+          replace(path,
+          '''\t\tif err := rows.Scan(&e.ID, &e.Email, &e.Username, &e.DisplayName, &e.Active,\n\t\t\t&e.LastSeen, &e.CurrentApp, &e.CurrentWindow); err != nil { return nil, err }''',
+          '''\t\tif err := rows.Scan(&e.ID, &e.Email, &e.Username, &e.DisplayName, &e.Active, &e.Role,\n\t\t\t&e.LastSeen, &e.CurrentApp, &e.CurrentWindow); err != nil { return nil, err }''')
+
+          # store/devices_audit.go: device and audit access follows RBAC.
+          p = Path('apps/backend/internal/store/devices_audit.go')
+          text = p.read_text()
+          text = re.sub(
+              r'// ListEmployeeDevices returns every installation ever seen for one owned employee\.\nfunc \(s \*Store\) ListEmployeeDevices.*?\n}\n\n// UpdateDevice',
+              '''// ListEmployeeDevices returns every installation seen for a member the actor may manage.\nfunc (s *Store) ListEmployeeDevices(ctx context.Context, actorID, employeeID string) ([]Device, error) {\n\tif _, err := s.MemberAccessWithPermission(ctx, actorID, employeeID, PermissionManageDevices); err != nil {\n\t\treturn nil, err\n\t}\n\n\trows, err := s.pool.Query(ctx, `SELECT `+deviceColumns+`\n\t\tFROM devices d\n\t\tWHERE d.user_id = $1\n\t\tORDER BY d.revoked_at NULLS FIRST, d.last_seen_at DESC NULLS LAST, d.first_seen_at DESC`, employeeID)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\tdefer rows.Close()\n\n\tout := []Device{}\n\tfor rows.Next() {\n\t\td, err := scanDevice(rows)\n\t\tif err != nil {\n\t\t\treturn nil, err\n\t\t}\n\t\tout = append(out, d)\n\t}\n\treturn out, rows.Err()\n}\n\n// UpdateDevice''',
+              text, flags=re.S)
+          text = re.sub(
+              r'func \(s \*Store\) UpdateDevice\(ctx context\.Context, ownerID, deviceID string, label \*string, revoked \*bool\) \(Device, error\) \{.*?\n}\n\nfunc insertAuditTx',
+              '''func (s *Store) UpdateDevice(ctx context.Context, actorID, deviceID string, label *string, revoked *bool) (Device, error) {\n\ttx, err := s.pool.Begin(ctx)\n\tif err != nil {\n\t\treturn Device{}, err\n\t}\n\tdefer tx.Rollback(ctx)\n\n\tvar employeeID, currentLabel string\n\tvar currentRevoked bool\n\terr = tx.QueryRow(ctx, `\n\t\tSELECT user_id, COALESCE(label, ''), revoked_at IS NOT NULL\n\t\t  FROM devices WHERE id = $1`, deviceID).\n\t\tScan(&employeeID, &currentLabel, &currentRevoked)\n\tif errors.Is(err, pgx.ErrNoRows) {\n\t\treturn Device{}, ErrNotFound\n\t}\n\tif err != nil {\n\t\treturn Device{}, err\n\t}\n\n\taccess, err := memberAccessTx(ctx, tx, actorID, employeeID, PermissionManageDevices)\n\tif err != nil {\n\t\treturn Device{}, err\n\t}\n\n\tnextLabel := currentLabel\n\tif label != nil {\n\t\tnextLabel = strings.TrimSpace(*label)\n\t}\n\tnextRevoked := currentRevoked\n\tif revoked != nil {\n\t\tnextRevoked = *revoked\n\t}\n\n\trow := tx.QueryRow(ctx, `UPDATE devices d\n\t\tSET label = NULLIF($1, ''),\n\t\t    revoked_at = CASE WHEN $2 THEN COALESCE(d.revoked_at, now()) ELSE NULL END\n\t\tWHERE d.id = $3\n\t\tRETURNING `+deviceColumns, nextLabel, nextRevoked, deviceID)\n\td, err := scanDevice(row)\n\tif err != nil {\n\t\treturn Device{}, err\n\t}\n\n\taction := "device.updated"\n\tif revoked != nil && *revoked != currentRevoked {\n\t\tif *revoked {\n\t\t\taction = "device.revoked"\n\t\t} else {\n\t\t\taction = "device.restored"\n\t\t}\n\t}\n\tif err := insertAuditTx(ctx, tx, access.BusinessID, actorID, action, "device", deviceID, map[string]any{\n\t\t"employee_id": employeeID,\n\t\t"label":       nextLabel,\n\t}); err != nil {\n\t\treturn Device{}, err\n\t}\n\n\tif err := tx.Commit(ctx); err != nil {\n\t\treturn Device{}, err\n\t}\n\treturn d, nil\n}\n\nfunc insertAuditTx''',
+              text, flags=re.S)
+          text = re.sub(
+              r'// ListAuditEvents returns recent owner actions for one business\.\nfunc \(s \*Store\) ListAuditEvents\(ctx context\.Context, ownerID, businessID string, limit int\) \(\[\]AuditEvent, error\) \{\n\tif limit <= 0 \|\| limit > 200 \{\n\t\tlimit = 100\n\t}\n\tvar allowed bool\n\tif err := s\.pool\.QueryRow\(ctx,\n\t\t`SELECT EXISTS\(SELECT 1 FROM businesses WHERE id = \$1 AND owner_user_id = \$2\)`,\n\t\tbusinessID, ownerID,\n\t\)\.Scan\(&allowed\); err != nil \{\n\t\treturn nil, err\n\t}\n\tif !allowed \{\n\t\treturn nil, ErrForbidden\n\t}\n',
+              '''// ListAuditEvents returns recent administrative actions for a business.\nfunc (s *Store) ListAuditEvents(ctx context.Context, actorID, businessID string, limit int) ([]AuditEvent, error) {\n\tif limit <= 0 || limit > 200 {\n\t\tlimit = 100\n\t}\n\tif err := s.BusinessPermissionOrForbidden(ctx, actorID, businessID, PermissionAudit); err != nil {\n\t\treturn nil, err\n\t}\n''', text, flags=re.S)
+          p.write_text(text)
+
+          # store/reports.go: owner/admin/manager can read reports; report rows are
+          # scoped to businesses where the viewer has a report-capable membership.
+          path = 'apps/backend/internal/store/reports.go'
+          replace(path,
+          '''// OwnsEmployee reports whether ownerID owns a business the employee belongs to.\nfunc (s *Store) OwnsEmployee(ctx context.Context, ownerID, employeeID string) (bool, error) {''',
+          '''// OwnsEmployee is retained for compatibility with older callers.\nfunc (s *Store) OwnsEmployee(ctx context.Context, ownerID, employeeID string) (bool, error) {''')
+          p = Path(path)
+          text = p.read_text()
+          anchor = '''\treturn ok, err\n}\n\n// RosterEntry is one employee row with rollups for the dashboard roster.\n'''
+          if anchor not in text:
+              raise SystemExit('reports access anchor missing')
+          addition = '''\treturn ok, err\n}\n\n// CanViewEmployeeReports reports whether viewerID and targetID share at least one\n// business where the viewer has report permission.\nfunc (s *Store) CanViewEmployeeReports(ctx context.Context, viewerID, targetID string) (bool, error) {\n\tvar ok bool\n\terr := s.pool.QueryRow(ctx, `\n\t\tSELECT EXISTS(\n\t\t\tSELECT 1\n\t\t\t  FROM memberships viewer\n\t\t\t  JOIN memberships target ON target.business_id = viewer.business_id\n\t\t\t WHERE viewer.user_id = $1 AND target.user_id = $2\n\t\t\t   AND viewer.role IN ('owner','admin','manager')\n\t\t)`, viewerID, targetID).Scan(&ok)\n\treturn ok, err\n}\n\n// RosterEntry is one employee row with rollups for the dashboard roster.\n'''
+          text = text.replace(anchor, addition, 1)
+          text = text.replace("WHERE m.business_id = $1 AND m.role IN ('owner','employee') AND u.active = true", "WHERE m.business_id = $1 AND m.role IN ('owner','admin','manager','employee') AND u.active = true", 1)
+          text = text.replace("ORDER BY (m.role = 'owner') DESC, u.display_name", "ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 WHEN 'manager' THEN 2 ELSE 3 END, u.display_name", 1)
+          text = text.replace("const ownedFilter = `business_id IN (SELECT id FROM businesses WHERE owner_user_id = $2)`", "const ownedFilter = `business_id IN (SELECT business_id FROM memberships WHERE user_id = $2 AND role IN ('owner','admin','manager'))`", 1)
+          old = '''\terr := s.pool.QueryRow(ctx,\n\t\t`SELECT s.file_path FROM screenshots s\n\t\t   JOIN businesses b ON b.id = s.business_id\n\t\t  WHERE s.client_uuid = $1 AND b.owner_user_id = $2`,\n\t\tclientUUID, ownerID).Scan(&path)'''
+          new = '''\terr := s.pool.QueryRow(ctx,\n\t\t`SELECT s.file_path FROM screenshots s\n\t\t   JOIN memberships viewer ON viewer.business_id = s.business_id\n\t\t  WHERE s.client_uuid = $1 AND viewer.user_id = $2\n\t\t    AND viewer.role IN ('owner','admin','manager')`,\n\t\tclientUUID, ownerID).Scan(&path)'''
+          if old not in text:
+              raise SystemExit('screenshot viewer anchor missing')
+          text = text.replace(old, new, 1)
+          p.write_text(text)
+
+          # handlers/owner.go: list is report-readable; settings are owner/admin.
+          path = 'apps/backend/internal/handlers/owner.go'
+          replace(path,
+          '''func (h *OwnerHandler) ListEmployees(c *gin.Context) {\n\tif !h.requireOwner(c) {\n\t\treturn\n\t}\n''',
+          '''func (h *OwnerHandler) ListEmployees(c *gin.Context) {\n\tif !h.requireBusinessPermission(c, c.Param("id"), store.PermissionReports) {\n\t\treturn\n\t}\n''')
+          replace(path,
+          '''func (h *OwnerHandler) UpdateSettings(c *gin.Context) {\n\tif !h.requireOwner(c) {\n\t\treturn\n\t}\n''',
+          '''func (h *OwnerHandler) UpdateSettings(c *gin.Context) {\n\tif !h.requireBusinessPermission(c, c.Param("id"), store.PermissionSettings) {\n\t\treturn\n\t}\n''')
+          p = Path(path)
+          text = p.read_text()
+          text = re.sub(
+              r'// requireOwner verifies.*?\nfunc \(h \*OwnerHandler\) requireOwner\(c \*gin\.Context\) bool \{.*?\n}\n$',
+              '''// requireBusinessPermission enforces the server-side RBAC matrix for a business.\nfunc (h *OwnerHandler) requireBusinessPermission(c *gin.Context, businessID string, permission store.BusinessPermission) bool {\n\tuserID, _ := auth.UserID(c)\n\tok, err := h.store.HasBusinessPermission(c.Request.Context(), userID, businessID, permission)\n\tif err != nil {\n\t\tserverError(c, err)\n\t\treturn false\n\t}\n\tif !ok {\n\t\tc.JSON(http.StatusForbidden, gin.H{"error": "insufficient permission"})\n\t\treturn false\n\t}\n\treturn true\n}\n''',
+              text, flags=re.S)
+          p.write_text(text)
+
+          # handlers/devices_audit.go: surface permission errors accurately.
+          p = Path('apps/backend/internal/handlers/devices_audit.go')
+          text = p.read_text().replace('ownerID, _ := auth.UserID(c)', 'actorID, _ := auth.UserID(c)')
+          text = text.replace('ownerID, c.Param("id")', 'actorID, c.Param("id")')
+          text = text.replace('owned by the current user.', 'the current user may manage.')
+          text = text.replace('case errors.Is(err, store.ErrNotFound):\n\t\tc.JSON(http.StatusNotFound, gin.H{"error": "employee not found"})', 'case errors.Is(err, store.ErrNotFound):\n\t\tc.JSON(http.StatusNotFound, gin.H{"error": "member not found"})\n\tcase errors.Is(err, store.ErrForbidden):\n\t\tc.JSON(http.StatusForbidden, gin.H{"error": "insufficient permission"})', 1)
+          text = text.replace('gin.H{"error": "not your device"}', 'gin.H{"error": "insufficient permission"}')
+          text = text.replace('gin.H{"error": "not your business"}', 'gin.H{"error": "insufficient permission"}')
+          p.write_text(text)
+
+          # handlers/reports.go: report permission for owner/admin/manager.
+          p = Path('apps/backend/internal/handlers/reports.go')
+          text = p.read_text()
+          old = '''\towns, err := h.store.IsBusinessOwner(c.Request.Context(), ownerID, businessID)\n\tif err != nil {\n\t\tserverError(c, err)\n\t\treturn\n\t}\n\tif !owns {\n\t\tc.JSON(http.StatusForbidden, gin.H{"error": "not your business"})\n\t\treturn\n\t}\n'''
+          new = '''\tallowed, err := h.store.HasBusinessPermission(c.Request.Context(), ownerID, businessID, store.PermissionReports)\n\tif err != nil {\n\t\tserverError(c, err)\n\t\treturn\n\t}\n\tif !allowed {\n\t\tc.JSON(http.StatusForbidden, gin.H{"error": "insufficient permission"})\n\t\treturn\n\t}\n'''
+          if old not in text:
+              raise SystemExit('roster permission anchor missing')
+          text = text.replace(old, new, 1)
+          text = text.replace('h.store.OwnsEmployee(c.Request.Context(), ownerID, empID)', 'h.store.CanViewEmployeeReports(c.Request.Context(), ownerID, empID)', 1)
+          text = text.replace('gin.H{"error": "not your employee"}', 'gin.H{"error": "insufficient permission"}', 1)
+          p.write_text(text)
+
+          # handlers/retention.go: cleanup is a settings/admin action.
+          p = Path('apps/backend/internal/handlers/retention.go')
+          text = p.read_text()
+          old = '''\towns, err := h.store.IsBusinessOwner(c.Request.Context(), ownerID, businessID)\n\tif err != nil {\n\t\tserverError(c, err)\n\t\treturn\n\t}\n\tif !owns {\n\t\tc.JSON(http.StatusForbidden, gin.H{"error": "not your business"})\n\t\treturn\n\t}\n'''
+          new = '''\tallowed, err := h.store.HasBusinessPermission(c.Request.Context(), ownerID, businessID, store.PermissionSettings)\n\tif err != nil {\n\t\tserverError(c, err)\n\t\treturn\n\t}\n\tif !allowed {\n\t\tc.JSON(http.StatusForbidden, gin.H{"error": "insufficient permission"})\n\t\treturn\n\t}\n'''
+          if old not in text:
+              raise SystemExit('retention permission anchor missing')
+          p.write_text(text.replace(old, new, 1))
+          PY
+
+          gofmt -w apps/backend/internal/store apps/backend/internal/handlers
+          git diff --check
+      - name: Commit backend enforcement
+        run: |
+          git config user.name "0xDive Automation"
+          git config user.email "72026841+0xDive@users.noreply.github.com"
+          git add apps/backend/internal/store apps/backend/internal/handlers
+          git commit -m "feat: enforce organization roles in backend"
+          git push origin HEAD:feature/role-enforcement-ui
