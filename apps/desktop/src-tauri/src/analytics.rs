@@ -113,10 +113,7 @@ fn enqueue(dir: &Path, event: &Value) {
     while queued.len() >= QUEUE_CAP {
         let oldest = queued.remove(0);
         let _ = std::fs::remove_file(&oldest);
-        crate::log_warn!(
-            "analytics",
-            "queue full ({QUEUE_CAP}); dropped oldest event"
-        );
+        crate::log_warn!("analytics", "queue full ({QUEUE_CAP}); dropped oldest event");
     }
     let name = format!("{}.json", uuid::Uuid::new_v4());
     match serde_json::to_vec(event) {
