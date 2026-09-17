@@ -50,4 +50,10 @@ else
 fi
 
 cd "$INSTALL_DIR"
-exec ./install-linux.sh "$@"
+
+EXTRA_ARGS=()
+if ! command -v docker >/dev/null 2>&1; then
+  EXTRA_ARGS+=(--install-docker)
+fi
+
+exec ./install-linux.sh "${EXTRA_ARGS[@]}" "$@"
