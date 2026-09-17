@@ -1,0 +1,40 @@
+name: Materialize Corporate Source
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/materialize-source.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Materialize corporate source changes
+        run: python3 corporate/materialize.py .
+
+      - name: Verify generated diff
+        run: |
+          git diff --check
+          test -f apps/backend/internal/db/migrations/00010_employee_admin.sql
+          test -f apps/backend/internal/store/employee_admin.go
+          test -f apps/web-admin/src/i18n/locales/ru/common.json
+          test -f apps/desktop/src/i18n/locales/ru/common.json
+          test ! -e corporate/apply_patch.py
+          test ! -e corporate/patch.part1.b64
+
+      - name: Commit direct source changes
+        run: |
+          git config user.name "0xDive Automation"
+          git config user.email "72026841+0xDive@users.noreply.github.com"
+          git add -A
+          git commit -m "corp: materialize corporate changes into application source"
+          git push origin HEAD:main
