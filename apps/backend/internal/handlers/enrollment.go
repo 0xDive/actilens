@@ -27,11 +27,11 @@ type createEnrollmentReq struct {
 }
 
 // CreateEnrollmentToken creates a short-lived, one-time deployment credential for
-// a manageable organization member. Only the SHA-256 hash is persisted.
+// a member in the organization identified by the route. Only SHA-256 is persisted.
 func (h *OwnerHandler) CreateEnrollmentToken(c *gin.Context) {
 	actorID, _ := auth.UserID(c)
 	var req createEnrollmentReq
-	if c.Request.ContentLength > 0 {
+	if c.Request.ContentLength != 0 {
 		if err := c.ShouldBindJSON(&req); err != nil {
 			badRequest(c, "invalid body")
 			return
@@ -51,7 +51,9 @@ func (h *OwnerHandler) CreateEnrollmentToken(c *gin.Context) {
 		return
 	}
 	expiresAt := time.Now().UTC().Add(time.Duration(req.ExpiresInHours) * time.Hour)
-	businessID, err := h.store.CreateEnrollmentToken(c.Request.Context(), actorID, c.Param("id"), hash, expiresAt)
+	businessID, err := h.store.CreateEnrollmentToken(
+		c.Request.Context(), actorID, c.Param("id"), c.Param("user_id"), hash, expiresAt,
+	)
 	switch {
 	case err == nil:
 		c.JSON(http.StatusCreated, gin.H{
