@@ -4,6 +4,7 @@ import { cleanupScreenshots, getPrivacyApps, updateBusinessSettings } from "../a
 import { ApiError, type BusinessSettingsPatch, type PrivacyAppCategory, type ScreenshotMode } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { Empty, Modal, Notice, Spinner } from "../components/ui";
+import { AuditLogCard } from "../components/settings/AuditLogCard";
 import { useBusinesses } from "../useBusinesses";
 import { memberTerms } from "../terms";
 
@@ -377,6 +378,13 @@ export function Settings() {
               </button>
             </div>
           </div>
+
+          {selectedId && (
+            <>
+              <div className="ad-set-sec">{t("sections.audit")}</div>
+              <AuditLogCard businessId={selectedId} />
+            </>
+          )}
 
           {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
         </>
