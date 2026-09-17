@@ -111,6 +111,7 @@ jobs:
     needs: [windows, docker]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: windows-installers
@@ -122,8 +123,10 @@ jobs:
           files: |
             release-assets/ActiLens-x64.msi
             release-assets/ActiLens-x64-setup.exe
+            install-windows-agent.ps1
           body: |
             ActiLens release.
 
             Docker image: `ghcr.io/0xdive/actilens:${{ github.ref_name }}`
             Windows client server: `${{ vars.ACTILENS_SERVER_URL }}`
+            Enrollment helper: `install-windows-agent.ps1`
