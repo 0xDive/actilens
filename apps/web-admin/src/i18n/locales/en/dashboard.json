@@ -38,7 +38,8 @@
     "table": {
       "name": "Name",
       "login": "Login",
-      "currentApp": "Current app"
+      "currentApp": "Current app",
+      "role": "Role"
     },
     "blocked": "Blocked",
     "actions": {
@@ -56,6 +57,12 @@
       "saved": "Changes saved.",
       "passwordSaved": "Password changed.",
       "failed": "Operation failed."
+    },
+    "roleAria": "Role for {{name}}",
+    "roles": {
+      "employee": "Employee",
+      "manager": "Manager",
+      "admin": "Admin"
     }
   },
   "newBusinessModal": {

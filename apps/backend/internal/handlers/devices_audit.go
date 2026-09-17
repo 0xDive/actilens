@@ -18,15 +18,17 @@ type updateDeviceReq struct {
 }
 
 // ListEmployeeDevices returns every ActiLens installation seen for an employee
-// owned by the current user.
+// the current user may manage.
 func (h *OwnerHandler) ListEmployeeDevices(c *gin.Context) {
-	ownerID, _ := auth.UserID(c)
-	devices, err := h.store.ListEmployeeDevices(c.Request.Context(), ownerID, c.Param("id"))
+	actorID, _ := auth.UserID(c)
+	devices, err := h.store.ListEmployeeDevices(c.Request.Context(), actorID, c.Param("id"))
 	switch {
 	case err == nil:
 		c.JSON(http.StatusOK, gin.H{"devices": devices})
 	case errors.Is(err, store.ErrNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"error": "employee not found"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "member not found"})
+	case errors.Is(err, store.ErrForbidden):
+		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permission"})
 	default:
 		serverError(c, err)
 	}
@@ -34,7 +36,7 @@ func (h *OwnerHandler) ListEmployeeDevices(c *gin.Context) {
 
 // UpdateDevice renames, revokes or restores an employee device.
 func (h *OwnerHandler) UpdateDevice(c *gin.Context) {
-	ownerID, _ := auth.UserID(c)
+	actorID, _ := auth.UserID(c)
 	var req updateDeviceReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		badRequest(c, "invalid body")
@@ -53,14 +55,14 @@ func (h *OwnerHandler) UpdateDevice(c *gin.Context) {
 		req.Label = &v
 	}
 
-	device, err := h.store.UpdateDevice(c.Request.Context(), ownerID, c.Param("id"), req.Label, req.Revoked)
+	device, err := h.store.UpdateDevice(c.Request.Context(), actorID, c.Param("id"), req.Label, req.Revoked)
 	switch {
 	case err == nil:
 		c.JSON(http.StatusOK, gin.H{"device": device})
 	case errors.Is(err, store.ErrNotFound):
 		c.JSON(http.StatusNotFound, gin.H{"error": "device not found"})
 	case errors.Is(err, store.ErrForbidden):
-		c.JSON(http.StatusForbidden, gin.H{"error": "not your device"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permission"})
 	default:
 		serverError(c, err)
 	}
@@ -68,7 +70,7 @@ func (h *OwnerHandler) UpdateDevice(c *gin.Context) {
 
 // ListAuditEvents returns the recent administrative history for an owned business.
 func (h *OwnerHandler) ListAuditEvents(c *gin.Context) {
-	ownerID, _ := auth.UserID(c)
+	actorID, _ := auth.UserID(c)
 	limit := 100
 	if raw := c.Query("limit"); raw != "" {
 		v, err := strconv.Atoi(raw)
@@ -79,12 +81,12 @@ func (h *OwnerHandler) ListAuditEvents(c *gin.Context) {
 		limit = v
 	}
 
-	events, err := h.store.ListAuditEvents(c.Request.Context(), ownerID, c.Param("id"), limit)
+	events, err := h.store.ListAuditEvents(c.Request.Context(), actorID, c.Param("id"), limit)
 	switch {
 	case err == nil:
 		c.JSON(http.StatusOK, gin.H{"events": events})
 	case errors.Is(err, store.ErrForbidden):
-		c.JSON(http.StatusForbidden, gin.H{"error": "not your business"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permission"})
 	default:
 		serverError(c, err)
 	}

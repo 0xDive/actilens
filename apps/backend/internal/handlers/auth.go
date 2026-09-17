@@ -196,8 +196,14 @@ func (h *AuthHandler) Me(c *gin.Context) {
 
 func (h *AuthHandler) issue(c *gin.Context, status int, u store.User) {
 	active, version, err := h.store.UserSecurity(c.Request.Context(), u.ID)
-	if err != nil { serverError(c, err); return }
-	if !active { unauthorized(c, "invalid credentials"); return }
+	if err != nil {
+		serverError(c, err)
+		return
+	}
+	if !active {
+		unauthorized(c, "invalid credentials")
+		return
+	}
 	pair, err := h.tok.IssueVersioned(u.ID, version)
 	if err != nil {
 		serverError(c, err)

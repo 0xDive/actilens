@@ -6,6 +6,7 @@ import { useTheme, type ThemeMode } from "../theme/ThemeProvider";
 import { useBusinesses } from "../useBusinesses";
 import { memberTerms } from "../terms";
 import { DetailHeaderContext } from "../detailHeader";
+import { canManageSettings } from "../rbac";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 
 /** Brand mark — violet gradient tile with the pulse glyph (matches the auth logo). */
@@ -272,7 +273,9 @@ export function AppShell() {
   const NAV = [
     { to: "/", label: t("nav.dashboard"), end: true, icon: <DashboardIcon /> },
     { to: "/employees", label: terms.many, end: false, icon: <MembersIcon /> },
-    { to: "/settings", label: t("nav.settings"), end: false, icon: <SettingsIcon /> },
+    ...(canManageSettings(selected?.role)
+      ? [{ to: "/settings", label: t("nav.settings"), end: false, icon: <SettingsIcon /> }]
+      : []),
   ];
 
   const activeNav = NAV.find((n) =>

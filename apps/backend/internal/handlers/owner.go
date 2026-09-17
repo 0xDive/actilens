@@ -129,7 +129,7 @@ func (h *OwnerHandler) CreateEmployee(c *gin.Context) {
 
 // ListEmployees returns the roster of a business the caller owns.
 func (h *OwnerHandler) ListEmployees(c *gin.Context) {
-	if !h.requireOwner(c) {
+	if !h.requireBusinessPermission(c, c.Param("id"), store.PermissionReports) {
 		return
 	}
 	list, err := h.store.ListEmployees(c.Request.Context(), c.Param("id"))
@@ -143,7 +143,7 @@ func (h *OwnerHandler) ListEmployees(c *gin.Context) {
 // UpdateSettings updates a business's capture policy. Only the keys present in the
 // body are changed; screenshot_retention_days accepts null ("keep forever").
 func (h *OwnerHandler) UpdateSettings(c *gin.Context) {
-	if !h.requireOwner(c) {
+	if !h.requireBusinessPermission(c, c.Param("id"), store.PermissionSettings) {
 		return
 	}
 	var body map[string]json.RawMessage
@@ -247,21 +247,16 @@ func (h *OwnerHandler) Policy(c *gin.Context) {
 	})
 }
 
-// requireOwner verifies the authenticated caller owns the :id business. It writes
-// the appropriate error response and returns false when not allowed.
-func (h *OwnerHandler) requireOwner(c *gin.Context) bool {
+// requireBusinessPermission enforces the server-side RBAC matrix for a business.
+func (h *OwnerHandler) requireBusinessPermission(c *gin.Context, businessID string, permission store.BusinessPermission) bool {
 	userID, _ := auth.UserID(c)
-	biz, err := h.store.GetBusiness(c.Request.Context(), c.Param("id"))
-	if errors.Is(err, store.ErrNotFound) {
-		c.JSON(http.StatusNotFound, gin.H{"error": "business not found"})
-		return false
-	}
+	ok, err := h.store.HasBusinessPermission(c.Request.Context(), userID, businessID, permission)
 	if err != nil {
 		serverError(c, err)
 		return false
 	}
-	if biz.OwnerUserID != userID {
-		c.JSON(http.StatusForbidden, gin.H{"error": "not your business"})
+	if !ok {
+		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permission"})
 		return false
 	}
 	return true

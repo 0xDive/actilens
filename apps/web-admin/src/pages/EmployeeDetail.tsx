@@ -26,6 +26,7 @@ import { useBusinesses } from "../useBusinesses";
 import { memberTerms } from "../terms";
 import { useAuth } from "../auth/AuthContext";
 import { useDetailHeader } from "../detailHeader";
+import { canManageDevices } from "../rbac";
 
 type Tab = "activity" | "keystrokes" | "browser" | "screenshots";
 const TABS: Tab[] = ["activity", "keystrokes", "browser", "screenshots"];
@@ -100,7 +101,8 @@ export function EmployeeDetail() {
   const { businesses } = useBusinesses();
   const { user } = useAuth();
   const { setTitle } = useDetailHeader();
-  const terms = memberTerms(businesses.find((b) => b.id === businessId)?.kind);
+  const business = businesses.find((b) => b.id === businessId);
+  const terms = memberTerms(business?.kind);
 
   // Single-day view by default; switch to "range" for a custom span.
   const [mode, setMode] = useState<"day" | "range">("day");
@@ -293,7 +295,7 @@ export function EmployeeDetail() {
         />
       </div>
 
-      <DevicesCard employeeId={id} />
+      {canManageDevices(business?.role) && <DevicesCard employeeId={id} />}
 
       {/* tabs + panel */}
       <div className="ad-tabwrap">

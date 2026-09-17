@@ -17,11 +17,14 @@ import type {
   AuthResponse,
   BrowserVisit,
   Business,
+  BusinessAccess,
+  BusinessRole,
   BusinessSettingsPatch,
   CreateEmployeeResponse,
   Device,
   Employee,
   KeystrokeBucket,
+  Membership,
   PrivacyAppCategory,
   PublicBusiness,
   ReportEmployee,
@@ -82,6 +85,10 @@ export function getMe() {
   return request<User>("/v1/me");
 }
 
+export function listMyMemberships() {
+  return request<{ memberships: Membership[] }>("/v1/memberships/mine");
+}
+
 // ---------- businesses ----------
 export function createBusiness(name: string) {
   return request<Business>("/v1/businesses", { method: "POST", body: { name } });
@@ -90,6 +97,22 @@ export function createBusiness(name: string) {
 export function listMyBusinesses() {
   if (isDemo()) return Promise.resolve({ businesses: demoBusinesses });
   return request<{ businesses: Business[] }>("/v1/businesses/mine");
+}
+
+export function listConsoleBusinesses() {
+  if (isDemo()) {
+    return Promise.resolve({
+      businesses: demoBusinesses.map((business) => ({ business, role: "owner" as BusinessRole })),
+    });
+  }
+  return request<{ businesses: BusinessAccess[] }>("/v1/businesses/console");
+}
+
+export function updateMemberRole(businessId: string, userId: string, role: Exclude<BusinessRole, "owner">) {
+  return request<{ status: string; role: BusinessRole }>(
+    `/v1/businesses/${businessId}/members/${userId}/role`,
+    { method: "PATCH", body: { role } },
+  );
 }
 
 export function updateBusinessSettings(id: string, patch: BusinessSettingsPatch) {

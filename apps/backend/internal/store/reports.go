@@ -16,7 +16,7 @@ func (s *Store) IsBusinessOwner(ctx context.Context, ownerID, businessID string)
 	return ok, err
 }
 
-// OwnsEmployee reports whether ownerID owns a business the employee belongs to.
+// OwnsEmployee is retained for compatibility with older callers.
 func (s *Store) OwnsEmployee(ctx context.Context, ownerID, employeeID string) (bool, error) {
 	var ok bool
 	// role IN ('owner','employee') so an owner can also view their own activity.
@@ -29,13 +29,28 @@ func (s *Store) OwnsEmployee(ctx context.Context, ownerID, employeeID string) (b
 	return ok, err
 }
 
+// CanViewEmployeeReports reports whether viewerID and targetID share at least one
+// business where the viewer has report permission.
+func (s *Store) CanViewEmployeeReports(ctx context.Context, viewerID, targetID string) (bool, error) {
+	var ok bool
+	err := s.pool.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1
+			  FROM memberships viewer
+			  JOIN memberships target ON target.business_id = viewer.business_id
+			 WHERE viewer.user_id = $1 AND target.user_id = $2
+			   AND viewer.role IN ('owner','admin','manager')
+		)`, viewerID, targetID).Scan(&ok)
+	return ok, err
+}
+
 // RosterEntry is one employee row with rollups for the dashboard roster.
 type RosterEntry struct {
 	ID               string `json:"id"`
 	Email            string `json:"email"`
 	Username         string `json:"username"`
 	DisplayName      string `json:"display_name"`
-	Role             string `json:"role"` // 'owner' (self) | 'employee'
+	Role             string `json:"role"`      // 'owner' (self) | 'employee'
 	LastSeen         *int64 `json:"last_seen"` // unix seconds (the web UI expects a number)
 	ActiveTodayS     int64  `json:"active_today_s"`
 	ActiveYesterdayS int64  `json:"active_yesterday_s"`
@@ -73,8 +88,8 @@ func (s *Store) Roster(ctx context.Context, businessID string, dayStart, dayEnd 
 		           AND k.ts_bucket >= $2 AND k.ts_bucket < $3 AND k.count > 0) AS key_minutes
 		  FROM memberships m
 		  JOIN users u ON u.id = m.user_id
-		 WHERE m.business_id = $1 AND m.role IN ('owner','employee') AND u.active = true
-		 ORDER BY (m.role = 'owner') DESC, u.display_name`, businessID, dayStart, dayEnd, ydayStart)
+		 WHERE m.business_id = $1 AND m.role IN ('owner','admin','manager','employee') AND u.active = true
+		 ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 WHEN 'manager' THEN 2 ELSE 3 END, u.display_name`, businessID, dayStart, dayEnd, ydayStart)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +117,7 @@ func (s *Store) Roster(ctx context.Context, businessID string, dayStart, dayEnd 
 
 // All per-employee reads are scoped to businesses the caller owns via this filter,
 // so an owner can never read another business's data.
-const ownedFilter = `business_id IN (SELECT id FROM businesses WHERE owner_user_id = $2)`
+const ownedFilter = `business_id IN (SELECT business_id FROM memberships WHERE user_id = $2 AND role IN ('owner','admin','manager'))`
 
 // ActivitySample is one app-usage interval in a report.
 type ActivitySample struct {
@@ -261,8 +276,9 @@ func (s *Store) ScreenshotPathForOwner(ctx context.Context, ownerID, clientUUID 
 	var path string
 	err := s.pool.QueryRow(ctx,
 		`SELECT s.file_path FROM screenshots s
-		   JOIN businesses b ON b.id = s.business_id
-		  WHERE s.client_uuid = $1 AND b.owner_user_id = $2`,
+		   JOIN memberships viewer ON viewer.business_id = s.business_id
+		  WHERE s.client_uuid = $1 AND viewer.user_id = $2
+		    AND viewer.role IN ('owner','admin','manager')`,
 		clientUUID, ownerID).Scan(&path)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", ErrNotFound

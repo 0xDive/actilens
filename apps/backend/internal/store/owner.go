@@ -33,14 +33,15 @@ const businessCols = "id, name, kind, owner_user_id, screenshot_retention_days, 
 
 // Employee is a member with the employee role within a business.
 type Employee struct {
-	ID            string  `json:"id"`
-	Email         string  `json:"email"`
-	Username      string  `json:"username"`
-	DisplayName   string  `json:"display_name"`
-	Active        bool    `json:"active"`
-	LastSeen      *int64  `json:"last_seen"`
-	CurrentApp    *string `json:"current_app"`
-	CurrentWindow *string `json:"current_window"`
+	ID            string       `json:"id"`
+	Email         string       `json:"email"`
+	Username      string       `json:"username"`
+	DisplayName   string       `json:"display_name"`
+	Active        bool         `json:"active"`
+	Role          BusinessRole `json:"role"`
+	LastSeen      *int64       `json:"last_seen"`
+	CurrentApp    *string      `json:"current_app"`
+	CurrentWindow *string      `json:"current_window"`
 }
 
 // CreateBusiness creates a business and the owner membership in one transaction.
@@ -117,8 +118,8 @@ func (s *Store) CreateEmployee(ctx context.Context, ownerID string, businessID *
 		if err != nil {
 			return Employee{}, Business{}, err
 		}
-		if biz.OwnerUserID != ownerID {
-			return Employee{}, Business{}, ErrForbidden
+		if _, err := requireBusinessPermissionTx(ctx, tx, ownerID, biz.ID, PermissionManageEmployees); err != nil {
+			return Employee{}, Business{}, err
 		}
 	} else {
 		biz, err = firstOwnedBusinessTx(ctx, tx, ownerID)
@@ -157,6 +158,7 @@ func (s *Store) CreateEmployee(ctx context.Context, ownerID string, businessID *
 	if err != nil {
 		return Employee{}, Business{}, err
 	}
+	emp.Role = RoleEmployee
 
 	if _, err := tx.Exec(ctx,
 		`INSERT INTO memberships (user_id, business_id, role) VALUES ($1, $2, 'employee')`,
@@ -180,22 +182,26 @@ func (s *Store) CreateEmployee(ctx context.Context, ownerID string, businessID *
 // ListEmployees returns employee members with real presence/current-app data.
 func (s *Store) ListEmployees(ctx context.Context, businessID string) ([]Employee, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT u.id, COALESCE(u.email, ''), COALESCE(u.username, ''), u.display_name, u.active,
+		SELECT u.id, COALESCE(u.email, ''), COALESCE(u.username, ''), u.display_name, u.active, m.role,
 		       (SELECT extract(epoch FROM max(d.last_seen_at))::bigint FROM devices d WHERE d.user_id = u.id),
 		       (SELECT a.app_name FROM activity_samples a WHERE a.user_id = u.id AND a.business_id = $1 ORDER BY a.ts DESC LIMIT 1),
 		       (SELECT a.window_title FROM activity_samples a WHERE a.user_id = u.id AND a.business_id = $1 ORDER BY a.ts DESC LIMIT 1)
 		  FROM memberships m
 		  JOIN users u ON u.id = m.user_id
-		 WHERE m.business_id = $1 AND m.role = 'employee'
-		 ORDER BY u.active DESC, u.display_name`, businessID)
-	if err != nil { return nil, err }
+		 WHERE m.business_id = $1 AND m.role IN ('admin','manager','employee')
+		 ORDER BY CASE m.role WHEN 'admin' THEN 0 WHEN 'manager' THEN 1 ELSE 2 END, u.active DESC, u.display_name`, businessID)
+	if err != nil {
+		return nil, err
+	}
 	defer rows.Close()
 
 	out := []Employee{}
 	for rows.Next() {
 		var e Employee
-		if err := rows.Scan(&e.ID, &e.Email, &e.Username, &e.DisplayName, &e.Active,
-			&e.LastSeen, &e.CurrentApp, &e.CurrentWindow); err != nil { return nil, err }
+		if err := rows.Scan(&e.ID, &e.Email, &e.Username, &e.DisplayName, &e.Active, &e.Role,
+			&e.LastSeen, &e.CurrentApp, &e.CurrentWindow); err != nil {
+			return nil, err
+		}
 		out = append(out, e)
 	}
 	return out, rows.Err()

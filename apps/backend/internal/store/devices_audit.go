@@ -158,20 +158,10 @@ func employeeBusinessOwnedByTx(ctx context.Context, tx pgx.Tx, ownerID, employee
 	return businessID, err
 }
 
-// ListEmployeeDevices returns every installation ever seen for one owned employee.
-func (s *Store) ListEmployeeDevices(ctx context.Context, ownerID, employeeID string) ([]Device, error) {
-	var allowed bool
-	if err := s.pool.QueryRow(ctx, `
-		SELECT EXISTS (
-			SELECT 1
-			  FROM memberships m
-			  JOIN businesses b ON b.id = m.business_id
-			 WHERE m.user_id = $1 AND m.role = 'employee' AND b.owner_user_id = $2
-		)`, employeeID, ownerID).Scan(&allowed); err != nil {
+// ListEmployeeDevices returns every installation seen for a member the actor may manage.
+func (s *Store) ListEmployeeDevices(ctx context.Context, actorID, employeeID string) ([]Device, error) {
+	if _, err := s.MemberAccessWithPermission(ctx, actorID, employeeID, PermissionManageDevices); err != nil {
 		return nil, err
-	}
-	if !allowed {
-		return nil, ErrNotFound
 	}
 
 	rows, err := s.pool.Query(ctx, `SELECT `+deviceColumns+`
@@ -196,26 +186,27 @@ func (s *Store) ListEmployeeDevices(ctx context.Context, ownerID, employeeID str
 
 // UpdateDevice lets an owner rename, revoke or restore a device belonging to one
 // of their employees. Revocation affects subsequent sync and screenshot uploads.
-func (s *Store) UpdateDevice(ctx context.Context, ownerID, deviceID string, label *string, revoked *bool) (Device, error) {
+func (s *Store) UpdateDevice(ctx context.Context, actorID, deviceID string, label *string, revoked *bool) (Device, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return Device{}, err
 	}
 	defer tx.Rollback(ctx)
 
-	var businessID, employeeID, currentLabel string
+	var employeeID, currentLabel string
 	var currentRevoked bool
 	err = tx.QueryRow(ctx, `
-		SELECT b.id, d.user_id, COALESCE(d.label, ''), d.revoked_at IS NOT NULL
-		  FROM devices d
-		  JOIN memberships m ON m.user_id = d.user_id AND m.role = 'employee'
-		  JOIN businesses b ON b.id = m.business_id
-		 WHERE d.id = $1 AND b.owner_user_id = $2
-		 ORDER BY m.created_at
-		 LIMIT 1`, deviceID, ownerID).Scan(&businessID, &employeeID, &currentLabel, &currentRevoked)
+		SELECT user_id, COALESCE(label, ''), revoked_at IS NOT NULL
+		  FROM devices WHERE id = $1`, deviceID).
+		Scan(&employeeID, &currentLabel, &currentRevoked)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Device{}, ErrNotFound
 	}
+	if err != nil {
+		return Device{}, err
+	}
+
+	access, err := memberAccessTx(ctx, tx, actorID, employeeID, PermissionManageDevices)
 	if err != nil {
 		return Device{}, err
 	}
@@ -247,7 +238,7 @@ func (s *Store) UpdateDevice(ctx context.Context, ownerID, deviceID string, labe
 			action = "device.restored"
 		}
 	}
-	if err := insertAuditTx(ctx, tx, businessID, ownerID, action, "device", deviceID, map[string]any{
+	if err := insertAuditTx(ctx, tx, access.BusinessID, actorID, action, "device", deviceID, map[string]any{
 		"employee_id": employeeID,
 		"label":       nextLabel,
 	}); err != nil {
@@ -275,20 +266,13 @@ func insertAuditTx(ctx context.Context, tx pgx.Tx, businessID, actorUserID, acti
 	return err
 }
 
-// ListAuditEvents returns recent owner actions for one business.
-func (s *Store) ListAuditEvents(ctx context.Context, ownerID, businessID string, limit int) ([]AuditEvent, error) {
+// ListAuditEvents returns recent administrative actions for a business.
+func (s *Store) ListAuditEvents(ctx context.Context, actorID, businessID string, limit int) ([]AuditEvent, error) {
 	if limit <= 0 || limit > 200 {
 		limit = 100
 	}
-	var allowed bool
-	if err := s.pool.QueryRow(ctx,
-		`SELECT EXISTS(SELECT 1 FROM businesses WHERE id = $1 AND owner_user_id = $2)`,
-		businessID, ownerID,
-	).Scan(&allowed); err != nil {
+	if err := s.BusinessPermissionOrForbidden(ctx, actorID, businessID, PermissionAudit); err != nil {
 		return nil, err
-	}
-	if !allowed {
-		return nil, ErrForbidden
 	}
 
 	rows, err := s.pool.Query(ctx, `

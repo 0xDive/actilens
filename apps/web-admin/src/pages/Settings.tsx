@@ -7,6 +7,7 @@ import { Empty, Modal, Notice, Spinner } from "../components/ui";
 import { AuditLogCard } from "../components/settings/AuditLogCard";
 import { useBusinesses } from "../useBusinesses";
 import { memberTerms } from "../terms";
+import { canManageSettings } from "../rbac";
 
 // display-only icon (lucide trash-2), same svg pattern as other pages
 const svg = (children: ReactNode) => (
@@ -111,6 +112,7 @@ export function Settings() {
   const { user } = useAuth();
   const { businesses, selected, selectedId, loading, reload } = useBusinesses();
   const terms = memberTerms(selected?.kind);
+  const mayManageSettings = canManageSettings(selected?.role);
 
   const [retention, setRetention] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
@@ -241,8 +243,9 @@ export function Settings() {
       {loading && <Spinner label={t("loading")} />}
 
       {!loading && businesses.length === 0 && <Empty>{t("noBusinesses")}</Empty>}
+      {selected && !mayManageSettings && <Notice kind="info">{t("roleDenied")}</Notice>}
 
-      {selected && (
+      {selected && mayManageSettings && (
         <>
           <div className="ad-set-sec">{t("sections.capture")}</div>
           <div className="set-group">

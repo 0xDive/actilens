@@ -7,14 +7,16 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { listMyBusinesses } from "./api/endpoints";
-import type { Business } from "./api/types";
+import { listConsoleBusinesses } from "./api/endpoints";
+import type { Business, BusinessRole } from "./api/types";
 
 const SELECTED_KEY = "actilens.admin.selectedBusiness";
 
+export type ConsoleBusiness = Business & { role: BusinessRole };
+
 type BusinessStore = {
-  businesses: Business[];
-  selected: Business | null;
+  businesses: ConsoleBusiness[];
+  selected: ConsoleBusiness | null;
   selectedId: string | null;
   setSelectedId: (id: string) => void;
   loading: boolean;
@@ -22,11 +24,11 @@ type BusinessStore = {
   reload: () => Promise<void>;
 };
 
-// Loads the owner's businesses and tracks a selected one (persisted). Lifted into
-// a context so the topbar picker and every page (Dashboard, Employees, Settings)
-// share ONE instance — switching business anywhere updates all of them.
+// Loads every business where the current user has a console-capable role and keeps
+// the effective role next to the business. UI capability checks are derived from
+// this role, while the backend remains the final authorization authority.
 function useBusinessStore(): BusinessStore {
-  const [businesses, setBusinesses] = useState<Business[]>([]);
+  const [businesses, setBusinesses] = useState<ConsoleBusiness[]>([]);
   const [selectedId, setSelectedIdState] = useState<string | null>(
     () => localStorage.getItem(SELECTED_KEY),
   );
@@ -37,11 +39,15 @@ function useBusinessStore(): BusinessStore {
     setLoading(true);
     setError(null);
     try {
-      const res = await listMyBusinesses();
-      setBusinesses(res.businesses);
+      const res = await listConsoleBusinesses();
+      const visible: ConsoleBusiness[] = res.businesses.map(({ business, role }) => ({
+        ...business,
+        role,
+      }));
+      setBusinesses(visible);
       setSelectedIdState((cur) => {
-        if (cur && res.businesses.some((b) => b.id === cur)) return cur;
-        return res.businesses[0]?.id ?? null;
+        if (cur && visible.some((b) => b.id === cur)) return cur;
+        return visible[0]?.id ?? null;
       });
     } catch {
       setError("Could not load businesses.");
@@ -79,8 +85,6 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   return createElement(BusinessContext.Provider, { value: store }, children);
 }
 
-// Consumer — same shape as before, so pages need no changes beyond living under
-// <BusinessProvider>.
 export function useBusinesses(): BusinessStore {
   const ctx = useContext(BusinessContext);
   if (!ctx) throw new Error("useBusinesses must be used within a BusinessProvider");

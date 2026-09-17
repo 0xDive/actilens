@@ -25,9 +25,10 @@ func (s *Store) UserSecurity(ctx context.Context, userID string) (bool, int, err
 	return active, version, err
 }
 
-// UpdateEmployee changes account metadata for an employee owned by ownerID.
-// Nil fields are left unchanged. At least one login identifier must remain.
-func (s *Store) UpdateEmployee(ctx context.Context, ownerID, employeeID string,
+// UpdateEmployee changes account metadata for a non-owner organization member.
+// Owners and admins may manage members according to the RBAC hierarchy. Nil fields
+// are left unchanged. At least one login identifier must remain.
+func (s *Store) UpdateEmployee(ctx context.Context, actorID, employeeID string,
 	email, username, displayName *string, active *bool) (Employee, error) {
 
 	tx, err := s.pool.Begin(ctx)
@@ -36,7 +37,7 @@ func (s *Store) UpdateEmployee(ctx context.Context, ownerID, employeeID string,
 	}
 	defer tx.Rollback(ctx)
 
-	businessID, err := employeeBusinessOwnedByTx(ctx, tx, ownerID, employeeID)
+	access, err := memberAccessTx(ctx, tx, actorID, employeeID, PermissionManageEmployees)
 	if err != nil {
 		return Employee{}, err
 	}
@@ -45,8 +46,8 @@ func (s *Store) UpdateEmployee(ctx context.Context, ownerID, employeeID string,
 	var curActive bool
 	err = tx.QueryRow(ctx, `
 		SELECT COALESCE(email,''), COALESCE(username,''), display_name, active
-		  FROM users WHERE id = $1`, employeeID).
-		Scan(&curEmail, &curUsername, &curName, &curActive)
+		  FROM users WHERE id = $1`, employeeID,
+	).Scan(&curEmail, &curUsername, &curName, &curActive)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Employee{}, ErrNotFound
 	}
@@ -55,22 +56,17 @@ func (s *Store) UpdateEmployee(ctx context.Context, ownerID, employeeID string,
 	}
 
 	nextEmail, nextUsername, nextName, nextActive := curEmail, curUsername, curName, curActive
-	changed := make([]string, 0, 4)
 	if email != nil {
 		nextEmail = strings.TrimSpace(*email)
-		changed = append(changed, "email")
 	}
 	if username != nil {
 		nextUsername = strings.ToLower(strings.TrimSpace(*username))
-		changed = append(changed, "username")
 	}
 	if displayName != nil {
 		nextName = strings.TrimSpace(*displayName)
-		changed = append(changed, "display_name")
 	}
 	if active != nil {
 		nextActive = *active
-		changed = append(changed, "active")
 	}
 	if nextEmail == "" && nextUsername == "" {
 		return Employee{}, ErrConflict
@@ -96,9 +92,12 @@ func (s *Store) UpdateEmployee(ctx context.Context, ownerID, employeeID string,
 	if err != nil {
 		return Employee{}, err
 	}
+	e.Role = access.TargetRole
 
-	if err := insertAuditTx(ctx, tx, businessID, ownerID, "employee.updated", "employee", employeeID, map[string]any{
-		"fields": changed,
+	if err := insertAuditTx(ctx, tx, access.BusinessID, actorID, "employee.updated", "member", employeeID, map[string]any{
+		"display_name": e.DisplayName,
+		"role":         string(e.Role),
+		"active":       e.Active,
 	}); err != nil {
 		return Employee{}, err
 	}
@@ -109,51 +108,51 @@ func (s *Store) UpdateEmployee(ctx context.Context, ownerID, employeeID string,
 	return e, nil
 }
 
-// ResetEmployeePassword changes an employee password while preserving history and
-// revokes all previously issued sessions by incrementing auth_version.
-func (s *Store) ResetEmployeePassword(ctx context.Context, ownerID, employeeID, passwordHash string) error {
+// ResetEmployeePassword changes a member password while preserving history and
+// immediately invalidating their existing access/refresh tokens.
+func (s *Store) ResetEmployeePassword(ctx context.Context, actorID, employeeID, passwordHash string) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
 
-	businessID, err := employeeBusinessOwnedByTx(ctx, tx, ownerID, employeeID)
+	access, err := memberAccessTx(ctx, tx, actorID, employeeID, PermissionManageEmployees)
 	if err != nil {
 		return err
 	}
-	ct, err := tx.Exec(ctx, `
-		UPDATE users
-		   SET password_hash = $1, auth_version = auth_version + 1
-		 WHERE id = $2`, passwordHash, employeeID)
+	ct, err := tx.Exec(ctx,
+		`UPDATE users SET password_hash = $1, auth_version = auth_version + 1 WHERE id = $2`,
+		passwordHash, employeeID)
 	if err != nil {
 		return err
 	}
 	if ct.RowsAffected() == 0 {
 		return ErrNotFound
 	}
-	if err := insertAuditTx(ctx, tx, businessID, ownerID, "employee.password_reset", "employee", employeeID, nil); err != nil {
+	if err := insertAuditTx(ctx, tx, access.BusinessID, actorID, "employee.password_reset", "member", employeeID, map[string]any{
+		"role": string(access.TargetRole),
+	}); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
 }
 
-// SetEmployeeActive archives/restores an employee without deleting historical data.
-func (s *Store) SetEmployeeActive(ctx context.Context, ownerID, employeeID string, active bool) error {
+// SetEmployeeActive archives/restores a member without deleting historical data.
+func (s *Store) SetEmployeeActive(ctx context.Context, actorID, employeeID string, active bool) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
 
-	businessID, err := employeeBusinessOwnedByTx(ctx, tx, ownerID, employeeID)
+	access, err := memberAccessTx(ctx, tx, actorID, employeeID, PermissionManageEmployees)
 	if err != nil {
 		return err
 	}
 	ct, err := tx.Exec(ctx, `
 		UPDATE users
-		   SET active = $1,
-		       auth_version = auth_version + 1,
+		   SET active = $1, auth_version = auth_version + 1,
 		       disabled_at = CASE WHEN $1 THEN NULL ELSE COALESCE(disabled_at, now()) END
 		 WHERE id = $2`, active, employeeID)
 	if err != nil {
@@ -162,11 +161,13 @@ func (s *Store) SetEmployeeActive(ctx context.Context, ownerID, employeeID strin
 	if ct.RowsAffected() == 0 {
 		return ErrNotFound
 	}
-	action := "employee.archived"
-	if active {
-		action = "employee.restored"
+	action := "employee.restored"
+	if !active {
+		action = "employee.archived"
 	}
-	if err := insertAuditTx(ctx, tx, businessID, ownerID, action, "employee", employeeID, nil); err != nil {
+	if err := insertAuditTx(ctx, tx, access.BusinessID, actorID, action, "member", employeeID, map[string]any{
+		"role": string(access.TargetRole),
+	}); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)

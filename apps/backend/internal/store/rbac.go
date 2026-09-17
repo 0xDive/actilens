@@ -19,7 +19,7 @@ const (
 type BusinessPermission string
 
 const (
-	PermissionReports          BusinessPermission = "reports"
+	PermissionReports         BusinessPermission = "reports"
 	PermissionManageEmployees BusinessPermission = "manage_employees"
 	PermissionManageDevices   BusinessPermission = "manage_devices"
 	PermissionSettings        BusinessPermission = "settings"

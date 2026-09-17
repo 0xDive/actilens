@@ -97,11 +97,13 @@
       "deviceUpdated": "Device updated",
       "deviceRevoked": "Device revoked",
       "deviceRestored": "Device restored",
-      "unknown": "Administrative action"
+      "unknown": "Administrative action",
+      "memberRoleChanged": "Member role changed"
     },
     "targets": {
       "employee": "employee",
-      "device": "device"
+      "device": "device",
+      "member": "member"
     }
   },
   "saveError": "Could not save settings.",
@@ -114,5 +116,6 @@
     "title": "Account",
     "email": "Email",
     "displayName": "Display name"
-  }
+  },
+  "roleDenied": "Your role can view reports, but organization settings require owner or admin access."
 }
