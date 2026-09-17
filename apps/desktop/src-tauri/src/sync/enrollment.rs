@@ -30,16 +30,37 @@ struct EnrollResp {
     business_id: String,
 }
 
-/// Read a one-time enrollment token from the process environment or command line.
-/// Supported command-line forms:
-///   --enroll-token=atl_enroll_...
-///   --enroll-token atl_enroll_...
+#[cfg(target_os = "windows")]
+fn windows_user_environment(name: &str) -> Option<String> {
+    use winreg::enums::HKEY_CURRENT_USER;
+    use winreg::RegKey;
+
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    hkcu.open_subkey("Environment")
+        .ok()
+        .and_then(|key| key.get_value::<String, _>(name).ok())
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
+#[cfg(not(target_os = "windows"))]
+fn windows_user_environment(_name: &str) -> Option<String> {
+    None
+}
+
+/// Read a one-time enrollment token from the process environment, the persisted
+/// Windows user environment, or command line. Reading HKCU directly matters when
+/// Explorer was already running before a provisioning script changed user env vars.
 pub fn pending_token() -> Option<String> {
     if let Ok(value) = std::env::var("ACTILENS_ENROLL_TOKEN") {
         let value = value.trim().to_string();
         if !value.is_empty() {
             return Some(value);
         }
+    }
+
+    if let Some(value) = windows_user_environment("ACTILENS_ENROLL_TOKEN") {
+        return Some(value);
     }
 
     let mut args = std::env::args().skip(1);
@@ -70,14 +91,11 @@ fn clear_consumed_token() {
 
     #[cfg(target_os = "windows")]
     {
-        use winreg::enums::HKEY_CURRENT_USER;
+        use winreg::enums::{HKEY_CURRENT_USER, KEY_SET_VALUE};
         use winreg::RegKey;
 
         let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-        if let Ok(environment) = hkcu.open_subkey_with_flags(
-            "Environment",
-            winreg::enums::KEY_SET_VALUE,
-        ) {
+        if let Ok(environment) = hkcu.open_subkey_with_flags("Environment", KEY_SET_VALUE) {
             let _ = environment.delete_value("ACTILENS_ENROLL_TOKEN");
         }
     }
