@@ -5,6 +5,7 @@ CREATE TABLE enrollment_tokens (
     user_id         uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     business_id     uuid NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
     created_by      uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    auth_version    integer NOT NULL,
     expires_at      timestamptz NOT NULL,
     used_at         timestamptz,
     revoked_at      timestamptz,
