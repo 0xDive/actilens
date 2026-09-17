@@ -14,15 +14,36 @@ jobs:
     name: Build Windows installers
     runs-on: windows-latest
     env:
-      ACTILENS_BUILD_SERVER_URL: ${{ vars.ACTILENS_SERVER_URL || 'http://localhost:8081' }}
+      ACTILENS_BUILD_SERVER_URL: ${{ vars.ACTILENS_SERVER_URL }}
     steps:
       - uses: actions/checkout@v4
+      - name: Require production backend URL
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:ACTILENS_BUILD_SERVER_URL)) {
+            throw "Repository variable ACTILENS_SERVER_URL is required for production releases. Example: http://192.168.0.249:8081 or https://tracker.example.com"
+          }
+          $uri = $null
+          if (-not [Uri]::TryCreate($env:ACTILENS_BUILD_SERVER_URL, [UriKind]::Absolute, [ref]$uri)) {
+            throw "ACTILENS_SERVER_URL must be an absolute URL"
+          }
+          if ($uri.Scheme -notin @('http','https')) {
+            throw "ACTILENS_SERVER_URL must use http or https"
+          }
+          Write-Host "Building ActiLens for backend: $($uri.AbsoluteUri.TrimEnd('/'))"
+      - name: Set application version from tag
+        shell: pwsh
+        run: python scripts/set-version.py $env:GITHUB_REF_NAME
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri -> target
+          cache-on-failure: true
       - name: Install dependencies
         shell: pwsh
         run: |
@@ -93,4 +114,4 @@ jobs:
             ActiLens release.
 
             Docker image: `ghcr.io/0xdive/actilens:${{ github.ref_name }}`
-            Windows client server: `${{ vars.ACTILENS_SERVER_URL || 'http://localhost:8081' }}`
+            Windows client server: `${{ vars.ACTILENS_SERVER_URL }}`
