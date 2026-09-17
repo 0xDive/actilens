@@ -135,6 +135,7 @@ func staticSite(dir string) gin.HandlerFunc {
 					serve(c, idx)
 					return
 				}
+			}
 		}
 		if p == "/admin" || strings.HasPrefix(p, "/admin/") {
 			serve(c, adminIndex)
