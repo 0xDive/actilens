@@ -19,10 +19,23 @@ concurrency:
 
 jobs:
   validate:
-    name: Backend + web checks
+    name: Backend + web + deploy checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Validate Linux deployment scripts
+        run: |
+          bash -n install-linux.sh
+          bash -n biboctl.sh
+          sh -n corporate/docker-entrypoint.sh
+          docker compose --env-file corporate/.env.example -f corporate/docker-compose.yml config >/dev/null
+          DOMAIN=tracker.example.com \
+          PUBLIC_ORIGIN=https://tracker.example.com \
+          BIBO_BIND_ADDR=127.0.0.1 \
+            docker compose --env-file corporate/.env.example \
+              -f corporate/docker-compose.yml \
+              -f corporate/docker-compose.https.yml config >/dev/null
 
       - name: Set up Go
         uses: actions/setup-go@v5
