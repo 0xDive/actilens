@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   export:
@@ -24,7 +24,7 @@ jobs:
           set -euo pipefail
           if [ -d corporate ]; then git mv corporate deploy; fi
           if [ -f biboctl.sh ]; then git mv biboctl.sh actilensctl.sh; fi
-          rm -rf marketing docs
+          rm -rf marketing docs apps/monitor
           rm -f CLAUDE.md
 
           python3 - <<'PY'
@@ -38,6 +38,7 @@ jobs:
           old_email = 'brian.nguyen.work' + '@gmail.com'
           old_owner = 'ngn' + 'clht1102'
           old_repo = 'emplooyee-' + 'tracking'
+          old_core = 'c' + 'tracking'
 
           replacements = [
               (old_brand + ' Corporate', 'ActiLens'),
@@ -51,9 +52,14 @@ jobs:
               (old_repo, 'actilens'),
               (old_author, '0xDive'),
               (old_email, '0xDive'),
+              ('briannguyen', 'actilens'),
               ('EmployeeTracker', 'ActiLens'),
               ('Employee Tracker', 'ActiLens'),
               ('employeetrack', 'actilens'),
+              ('@' + old_core, '@actilens'),
+              (old_core.upper() + '_', 'ACTILENS_'),
+              (old_core.upper(), 'ACTILENS'),
+              (old_core, 'actilens'),
               ('BIBO_', 'ACTILENS_'),
               ('BIBO', 'ACTILENS'),
               ('biboctl', 'actilensctl'),
@@ -74,6 +80,13 @@ jobs:
                   text = text.replace(old, new)
               path.write_text(text, encoding='utf-8')
 
+          pkg_path = Path('package.json')
+          pkg = json.loads(pkg_path.read_text())
+          pkg['name'] = 'actilens'
+          pkg['version'] = '0.1.0'
+          pkg['description'] = 'Workstation activity monitoring and analytics platform.'
+          pkg_path.write_text(json.dumps(pkg, ensure_ascii=False, indent=2) + '\n')
+
           tauri_path = Path('apps/desktop/src-tauri/tauri.conf.json')
           tauri = json.loads(tauri_path.read_text())
           tauri['productName'] = 'ActiLens'
@@ -85,50 +98,28 @@ jobs:
           tauri['bundle']['macOS'] = {'minimumSystemVersion': '13.0'}
           tauri_path.write_text(json.dumps(tauri, ensure_ascii=False, indent=2) + '\n')
 
-          Path('README.md').write_text('''# ActiLens\n\nActiLens is a self-hosted workstation activity monitoring and analytics platform.\n\n## Features\n- active application and window timeline\n- active / idle time\n- periodic screenshots\n- browser activity\n- employee administration and session revocation\n- Russian and English UI\n- Windows agent with autostart\n- Go backend + PostgreSQL\n- Docker deployment and optional HTTPS with Caddy\n\n## License\nMIT.\n''')
+          Path('apps/desktop/src/updater.ts').write_text('''export type UpdateProgress =\n  | { state: "checking" }\n  | { state: "uptodate" }\n  | { state: "available"; version: string }\n  | { state: "downloading"; pct: number }\n  | { state: "ready"; version: string }\n  | { state: "error"; message: string };\n\nexport async function checkForUpdates(onProgress?: (p: UpdateProgress) => void): Promise<boolean> {\n  onProgress?.({ state: "uptodate" });\n  return false;\n}\n\nexport async function autoCheckAndPrompt(): Promise<void> {\n  // Self-update will be implemented against ActiLens releases later.\n}\n''')
+
+          Path('deploy/Dockerfile').write_text('''# syntax=docker/dockerfile:1\n\nFROM node:20-alpine AS web\nWORKDIR /src\nCOPY . /src\nRUN corepack enable && corepack prepare pnpm@10.30.1 --activate\nRUN pnpm install --frozen-lockfile\nRUN pnpm --filter @actilens/web-admin build\n\nFROM golang:1.26-alpine AS backend\nWORKDIR /src\nCOPY apps/backend /src\nRUN go mod download\nARG VERSION=0.1.0\nRUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags "-s -w -X actilens/backend/internal/handlers.Version=${VERSION}" -o /out/server ./cmd/server\n\nFROM alpine:3.20\nRUN apk add --no-cache ca-certificates tzdata && adduser -D -u 10001 app\nWORKDIR /app\nCOPY --from=backend /out/server /app/server\nCOPY --from=web /src/apps/web-admin/dist /app/static/admin\nCOPY deploy/docker-entrypoint.sh /app/docker-entrypoint.sh\nRUN mkdir -p /app/storage/screenshots /app/config /app/logs /app/static && printf '<!doctype html><meta http-equiv="refresh" content="0;url=/admin/">' > /app/static/index.html && chown -R app:app /app && chmod +x /app/docker-entrypoint.sh\nUSER app\nEXPOSE 8080\nENTRYPOINT ["/app/docker-entrypoint.sh"]\n''')
+
+          Path('README.md').write_text('''# ActiLens\n\nActiLens is a self-hosted workstation activity monitoring and analytics platform.\n\n## Features\n- active application and window timeline\n- active / idle time\n- periodic screenshots\n- browser activity\n- employee administration and session revocation\n- Russian and English UI\n- Windows agent with autostart\n- Go backend + PostgreSQL\n- Docker deployment and optional HTTPS with Caddy\n\n## Linux\n```bash\ngit clone https://github.com/0xDive/actilens.git\ncd actilens\n./install-linux.sh --install-docker --open-firewall\n```\n\n## Operations\n```bash\n./actilensctl.sh status\n./actilensctl.sh logs\n./actilensctl.sh update\n./actilensctl.sh backup\n```\n\n## License\nMIT.\n''')
 
           Path('LICENSE').write_text('''MIT License\n\nCopyright (c) 2026 0xDive\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the "Software"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n''')
           PY
 
-          forbidden="Bi""Bo|bibo|Brian[[:space:]]+Nguyen|brian\.nguyen|ngnclht1102|emplooyee-tracking|employeetrack"
+          forbidden="Bi""Bo|bibo|Brian[[:space:]]+Nguyen|brian\.nguyen|briannguyen|ngnclht1102|emplooyee-tracking|employeetrack|ctracking|CTRACKING"
           if git grep -I -n -E "$forbidden" -- ':!.github/workflows/history-reset.yml' ':!.github/workflows/rebrand-export.yml'; then
             echo "Old identifiers remain." >&2
             exit 1
           fi
 
-      - name: Export changed files
+      - name: Commit review branch
+        shell: bash
         run: |
-          python3 - <<'PY'
-          import base64, json, subprocess
-          from pathlib import Path
-
-          raw = subprocess.check_output(['git','status','--porcelain=v1','-z'])
-          parts = raw.split(b'\0')
-          out = []
-          i = 0
-          while i < len(parts):
-              rec = parts[i]
-              if not rec:
-                  break
-              status = rec[:2].decode()
-              path = rec[3:].decode()
-              if status[0] in 'RC' or status[1] in 'RC':
-                  i += 1
-                  new_path = parts[i].decode()
-                  path = new_path
-              p = Path(path)
-              item = {'status': status, 'path': path}
-              if p.is_file():
-                  item['content_b64'] = base64.b64encode(p.read_bytes()).decode()
-                  item['mode'] = '100755' if (p.stat().st_mode & 0o111) else '100644'
-              out.append(item)
-              i += 1
-          Path('changes.json').write_text(json.dumps(out))
-          PY
-          git diff --stat
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: actilens-rebrand-changes
-          path: changes.json
-          retention-days: 1
+          set -euo pipefail
+          git config user.name "0xDive"
+          git config user.email "72026841+0xDive@users.noreply.github.com"
+          git checkout -B actilens-rebrand
+          git add -A
+          git commit -m "rebrand: establish ActiLens source"
+          git push --force-with-lease origin actilens-rebrand
