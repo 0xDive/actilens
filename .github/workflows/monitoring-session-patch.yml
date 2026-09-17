@@ -1,0 +1,53 @@
+name: Monitoring session patch
+
+on:
+  push:
+    branches: [feature/monitoring-control-v2]
+    paths:
+      - ".github/workflows/monitoring-session-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/monitoring-control-v2
+          fetch-depth: 0
+      - name: Patch logout and local-only transitions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new, count=1):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f"anchor missing in {path}: {old[:140]!r}")
+              p.write_text(text.replace(old, new, count))
+
+          path = 'apps/desktop/src-tauri/src/settings/mod.rs'
+          replace(path,
+          '''    control\n        .org_monitoring_enabled\n        .store(s.org_monitoring_enabled, Relaxed);\n''',
+          '''    control\n        .org_monitoring_enabled\n        .store(s.local_only || s.org_monitoring_enabled, Relaxed);\n''')
+
+          path = 'apps/desktop/src-tauri/src/commands/mod.rs'
+          replace(path,
+          '''    value.locale = current.locale;\n    value.org_monitoring_enabled = current.org_monitoring_enabled;\n''',
+          '''    value.locale = current.locale;\n    value.org_monitoring_enabled = if value.local_only {\n        true\n    } else {\n        current.org_monitoring_enabled\n    };\n''')
+          replace(path,
+          '''/// Clear the stored session (Keychain + memory).\n#[tauri::command]\npub fn logout(auth: State<Arc<AuthState>>) -> Result<(), String> {\n    auth.clear()\n}\n''',
+          '''/// Clear the stored session and release any organization-controlled\n/// collection gate. A future organization login will fetch its own policy again.\n#[tauri::command]\npub fn logout(\n    auth: State<Arc<AuthState>>,\n    settings: State<Arc<crate::settings::SettingsState>>,\n    control: State<Arc<TrackerControl>>,\n) -> Result<(), String> {\n    auth.clear()?;\n    control\n        .org_monitoring_enabled\n        .store(true, Ordering::Relaxed);\n    {\n        let mut current = settings.current.lock().unwrap();\n        current.org_monitoring_enabled = true;\n        crate::settings::save(&settings.path, &current).map_err(err)?;\n    }\n    settings.managed.lock().unwrap().monitoring_enabled = true;\n    Ok(())\n}\n''')
+          PY
+          cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml --all
+          git diff --check
+      - name: Commit session transition fix
+        run: |
+          git config user.name "0xDive Automation"
+          git config user.email "72026841+0xDive@users.noreply.github.com"
+          git add apps/desktop/src-tauri/src
+          git commit -m "fix: isolate org monitoring state from personal mode"
+          git push origin HEAD:feature/monitoring-control-v2
