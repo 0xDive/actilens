@@ -15,27 +15,19 @@ import (
 	"github.com/google/uuid"
 )
 
-// maxScreenshotBytes guards the upload. The desktop compresses to <=50 KB; this is a
-// generous ceiling that still rejects anything clearly wrong.
 const maxScreenshotBytes = 200 * 1024
 
-// ScreenshotHandler ingests multipart screenshot uploads.
 type ScreenshotHandler struct {
 	store *store.Store
 	files *filestore.Store
 }
 
-// NewScreenshotHandler wires the screenshot handler.
 func NewScreenshotHandler(s *store.Store, files *filestore.Store) *ScreenshotHandler {
 	return &ScreenshotHandler{store: s, files: files}
 }
 
-// Upload accepts a multipart screenshot (metadata fields + an "image" file part),
-// stores the bytes on disk, and idempotently records metadata by client_uuid.
 func (h *ScreenshotHandler) Upload(c *gin.Context) {
 	userID, _ := auth.UserID(c)
-
-	// Cap the whole request body so an oversized upload is refused early.
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxScreenshotBytes+16*1024)
 
 	clientUUID := c.PostForm("client_uuid")
@@ -94,7 +86,20 @@ func (h *ScreenshotHandler) Upload(c *gin.Context) {
 
 	bizID, err := h.resolveBusiness(c, userID, businessID)
 	if err != nil {
-		return // resolveBusiness already wrote the response
+		return
+	}
+
+	// Screenshot uploads must obey the same device revocation policy as batch sync.
+	if err := h.store.TouchDevice(c.Request.Context(), userID, deviceID, store.DeviceMetadata{}); err != nil {
+		switch {
+		case errors.Is(err, store.ErrDeviceRevoked):
+			c.JSON(http.StatusForbidden, gin.H{"error": "this device was revoked by the administrator"})
+		case errors.Is(err, store.ErrForbidden):
+			c.JSON(http.StatusForbidden, gin.H{"error": "device id belongs to another account"})
+		default:
+			serverError(c, err)
+		}
+		return
 	}
 
 	// Write the file first, then record metadata (so a row never points at a
@@ -124,8 +129,6 @@ func (h *ScreenshotHandler) Upload(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"accepted": []string{clientUUID}})
 }
 
-// resolveBusiness mirrors the sync handler's resolution, writing the error response
-// itself and returning an error to signal the caller to stop.
 func (h *ScreenshotHandler) resolveBusiness(c *gin.Context, userID string, explicit *string) (string, error) {
 	bizID, err := h.store.ResolveBusinessForUser(c.Request.Context(), userID, explicit)
 	switch {
@@ -141,7 +144,6 @@ func (h *ScreenshotHandler) resolveBusiness(c *gin.Context, userID string, expli
 	return bizID, err
 }
 
-// optInt parses an optional integer form field; empty/invalid → nil.
 func optInt(s string) *int {
 	if s == "" {
 		return nil
