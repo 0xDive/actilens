@@ -1,0 +1,114 @@
+name: Corporate CI
+
+on:
+  push:
+    branches:
+      - main
+      - "corp/**"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: corporate-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Backend + web checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Apply corporate patch
+        run: python3 corporate/apply_patch.py .
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.1 --activate
+
+      - name: Install JS dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck web admin
+        run: pnpm --filter @ctracking/web-admin typecheck
+
+      - name: Build web admin
+        run: pnpm --filter @ctracking/web-admin build
+
+      - name: Typecheck desktop UI
+        run: pnpm --filter @ctracking/desktop typecheck
+
+      - name: Test backend
+        working-directory: apps/backend
+        run: go test ./...
+
+      - name: Build backend
+        working-directory: apps/backend
+        run: go build ./...
+
+  windows:
+    name: Windows installer
+    if: github.event_name != 'pull_request'
+    runs-on: windows-latest
+    env:
+      CTRACKING_BUILD_SERVER_URL: ${{ vars.CTRACKING_SERVER_URL || 'http://localhost:8081' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Apply corporate patch
+        shell: pwsh
+        run: python corporate/apply_patch.py .
+
+      - name: Enable pnpm
+        shell: pwsh
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.1 --activate
+
+      - name: Install dependencies
+        shell: pwsh
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck desktop UI
+        shell: pwsh
+        run: pnpm --filter @ctracking/desktop typecheck
+
+      - name: Build Windows MSI and EXE
+        shell: pwsh
+        run: pnpm --filter @ctracking/desktop tauri build --target x86_64-pc-windows-msvc
+
+      - name: Upload Windows installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: BiBoTracking-Corporate-Windows-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            apps/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+            apps/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
