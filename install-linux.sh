@@ -85,10 +85,11 @@ install_docker() {
       exit 1
     fi
   fi
+  local tmp
   tmp="$(mktemp)"
-  trap 'rm -f "$tmp"' RETURN
   curl -fsSL https://get.docker.com -o "$tmp"
   need_root_cmd sh "$tmp"
+  rm -f "$tmp"
   need_root_cmd systemctl enable --now docker 2>/dev/null || true
 }
 
@@ -141,6 +142,20 @@ detect_ip() {
   printf '%s' "${ip:-127.0.0.1}"
 }
 
+set_env_value() {
+  local key="$1" value="$2" tmp
+  tmp="$(mktemp)"
+  awk -v key="$key" -v value="$value" '
+    BEGIN { found=0 }
+    $0 ~ ("^" key "=") { print key "=" value; found=1; next }
+    { print }
+    END { if (!found) print key "=" value }
+  ' "$ENV_FILE" > "$tmp"
+  cat "$tmp" > "$ENV_FILE"
+  rm -f "$tmp"
+  chmod 600 "$ENV_FILE"
+}
+
 if [[ -z "$ORIGIN" ]]; then
   ORIGIN="http://$(detect_ip):$PORT"
 fi
@@ -161,28 +176,9 @@ EOF
   echo "Created $ENV_FILE with a random database password."
 else
   echo "Using existing $ENV_FILE (existing database settings were preserved)."
-  # Explicit CLI values update only non-secret deployment settings.
-  python3 - "$ENV_FILE" "$PORT" "$ORIGIN" "$IMAGE" <<'PY'
-import sys
-from pathlib import Path
-path = Path(sys.argv[1])
-updates = {"BIBO_PORT": sys.argv[2], "PUBLIC_ORIGIN": sys.argv[3], "BIBO_IMAGE": sys.argv[4]}
-lines = path.read_text().splitlines()
-seen = set()
-out = []
-for line in lines:
-    if "=" in line and not line.lstrip().startswith("#"):
-        k = line.split("=", 1)[0]
-        if k in updates:
-            out.append(f"{k}={updates[k]}")
-            seen.add(k)
-            continue
-    out.append(line)
-for k, v in updates.items():
-    if k not in seen:
-        out.append(f"{k}={v}")
-path.write_text("\n".join(out) + "\n")
-PY
+  set_env_value BIBO_PORT "$PORT"
+  set_env_value PUBLIC_ORIGIN "$ORIGIN"
+  set_env_value BIBO_IMAGE "$IMAGE"
 fi
 
 if (( OPEN_FIREWALL )) && command -v ufw >/dev/null 2>&1; then
