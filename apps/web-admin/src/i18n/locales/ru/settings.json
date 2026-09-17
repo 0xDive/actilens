@@ -99,7 +99,9 @@
       "deviceRestored": "Устройство восстановлено",
       "unknown": "Действие администратора",
       "memberRoleChanged": "Роль участника изменена",
-      "memberMonitoringChanged": "Мониторинг участника изменён"
+      "memberMonitoringChanged": "Мониторинг участника изменён",
+      "memberEnrollmentCreated": "Создан код привязки",
+      "memberEnrollmentRedeemed": "Код привязки использован"
     },
     "targets": {
       "employee": "сотрудник",
