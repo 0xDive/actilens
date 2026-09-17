@@ -28,13 +28,13 @@ func (h *RetentionHandler) Cleanup(c *gin.Context) {
 	ownerID, _ := auth.UserID(c)
 	businessID := c.Param("id")
 
-	owns, err := h.store.IsBusinessOwner(c.Request.Context(), ownerID, businessID)
+	allowed, err := h.store.HasBusinessPermission(c.Request.Context(), ownerID, businessID, store.PermissionSettings)
 	if err != nil {
 		serverError(c, err)
 		return
 	}
-	if !owns {
-		c.JSON(http.StatusForbidden, gin.H{"error": "not your business"})
+	if !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permission"})
 		return
 	}
 

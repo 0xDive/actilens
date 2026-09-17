@@ -33,13 +33,13 @@ func (h *ReportsHandler) Roster(c *gin.Context) {
 		badRequest(c, "business_id is required")
 		return
 	}
-	owns, err := h.store.IsBusinessOwner(c.Request.Context(), ownerID, businessID)
+	allowed, err := h.store.HasBusinessPermission(c.Request.Context(), ownerID, businessID, store.PermissionReports)
 	if err != nil {
 		serverError(c, err)
 		return
 	}
-	if !owns {
-		c.JSON(http.StatusForbidden, gin.H{"error": "not your business"})
+	if !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permission"})
 		return
 	}
 
@@ -148,13 +148,13 @@ func (h *ReportsHandler) scope(c *gin.Context) (ownerID, empID string, from, to 
 	ownerID, _ = auth.UserID(c)
 	empID = c.Param("id")
 
-	owns, err := h.store.OwnsEmployee(c.Request.Context(), ownerID, empID)
+	owns, err := h.store.CanViewEmployeeReports(c.Request.Context(), ownerID, empID)
 	if err != nil {
 		serverError(c, err)
 		return
 	}
 	if !owns {
-		c.JSON(http.StatusForbidden, gin.H{"error": "not your employee"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permission"})
 		return
 	}
 

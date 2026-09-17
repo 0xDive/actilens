@@ -4,10 +4,10 @@ import "testing"
 
 func TestRoleAllows(t *testing.T) {
 	tests := []struct {
-		name string
-		role BusinessRole
+		name       string
+		role       BusinessRole
 		permission BusinessPermission
-		want bool
+		want       bool
 	}{
 		{"owner reports", RoleOwner, PermissionReports, true},
 		{"owner roles", RoleOwner, PermissionManageRoles, true},
