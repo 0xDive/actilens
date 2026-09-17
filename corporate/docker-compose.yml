@@ -16,7 +16,7 @@ services:
       retries: 20
 
   bibotracking:
-    image: ${BIBO_IMAGE:-ghcr.io/0xdive/emplooyee-tracking:latest}
+    image: ${BIBO_IMAGE:-ghcr.io/0xdive/emplooyee-tracking:main}
     build:
       context: ..
       dockerfile: corporate/Dockerfile
@@ -35,7 +35,7 @@ services:
       SENTRY_DSN: ""
       LOG_DIR: /app/logs
     ports:
-      - "${BIBO_PORT:-8081}:8080"
+      - "${BIBO_BIND_ADDR:-0.0.0.0}:${BIBO_PORT:-8081}:8080"
     volumes:
       - screenshots:/app/storage
       - appconfig:/app/config
