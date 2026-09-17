@@ -85,7 +85,6 @@ jobs:
 
   windows:
     name: Windows installer
-    if: github.event_name != 'pull_request'
     runs-on: windows-latest
     env:
       ACTILENS_BUILD_SERVER_URL: ${{ vars.ACTILENS_SERVER_URL || 'http://localhost:8081' }}

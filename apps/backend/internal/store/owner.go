@@ -165,6 +165,12 @@ func (s *Store) CreateEmployee(ctx context.Context, ownerID string, businessID *
 		return Employee{}, Business{}, err
 	}
 
+	if err := insertAuditTx(ctx, tx, biz.ID, ownerID, "employee.created", "employee", emp.ID, map[string]any{
+		"display_name": emp.DisplayName,
+	}); err != nil {
+		return Employee{}, Business{}, err
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return Employee{}, Business{}, err
 	}

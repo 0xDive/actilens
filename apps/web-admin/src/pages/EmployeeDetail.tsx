@@ -19,6 +19,7 @@ import { ActivityPanel } from "../components/reports/ActivityPanel";
 import { BrowserPanel } from "../components/reports/BrowserPanel";
 import { KeystrokePanel } from "../components/reports/KeystrokePanel";
 import { ScreenshotGallery } from "../components/reports/ScreenshotGallery";
+import { DevicesCard } from "../components/employee/DevicesCard";
 import { Notice, Spinner } from "../components/ui";
 import { dayRangeToUnix, fmtDuration, isoDate } from "../format";
 import { useBusinesses } from "../useBusinesses";
@@ -291,6 +292,8 @@ export function EmployeeDetail() {
           sub={t("dashboard.todayLabel")}
         />
       </div>
+
+      <DevicesCard employeeId={id} />
 
       {/* tabs + panel */}
       <div className="ad-tabwrap">

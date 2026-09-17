@@ -132,6 +132,14 @@ struct BatchReq<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     device_label: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    device_hostname: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    device_platform: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    device_arch: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    app_version: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     business_id: Option<&'a str>,
     activity: &'a [PendingActivity],
     keystrokes: &'a [PendingKeystroke],
@@ -297,9 +305,17 @@ impl BackendClient {
         keystrokes: &[PendingKeystroke],
         browser: &[PendingBrowser],
     ) -> Result<BatchAccepted, String> {
+        let hostname = std::env::var("COMPUTERNAME")
+            .or_else(|_| std::env::var("HOSTNAME"))
+            .ok()
+            .filter(|s| !s.trim().is_empty());
         let body = BatchReq {
             device_id,
-            device_label: None,
+            device_label: hostname.as_deref(),
+            device_hostname: hostname.as_deref(),
+            device_platform: Some(std::env::consts::OS),
+            device_arch: Some(std::env::consts::ARCH),
+            app_version: Some(env!("CARGO_PKG_VERSION")),
             business_id,
             activity,
             keystrokes,

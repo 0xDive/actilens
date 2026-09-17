@@ -13,15 +13,12 @@ import (
 	"github.com/google/uuid"
 )
 
-// maxBatch caps how many rows of each kind a single sync request may carry.
 const maxBatch = 1000
 
-// SyncHandler ingests batched activity/keystroke/browser rows from the desktop.
 type SyncHandler struct {
 	store *store.Store
 }
 
-// NewSyncHandler wires the sync handler.
 func NewSyncHandler(s *store.Store) *SyncHandler {
 	return &SyncHandler{store: s}
 }
@@ -54,16 +51,18 @@ type browserIn struct {
 }
 
 type syncBatchReq struct {
-	DeviceID    string        `json:"device_id"`
-	DeviceLabel *string       `json:"device_label"`
-	BusinessID  *string       `json:"business_id"`
-	Activity    []activityIn  `json:"activity"`
-	Keystrokes  []keystrokeIn `json:"keystrokes"`
-	Browser     []browserIn   `json:"browser"`
+	DeviceID       string        `json:"device_id"`
+	DeviceLabel    *string       `json:"device_label"`
+	DeviceHostname *string       `json:"device_hostname"`
+	DevicePlatform *string       `json:"device_platform"`
+	DeviceArch     *string       `json:"device_arch"`
+	AppVersion     *string       `json:"app_version"`
+	BusinessID     *string       `json:"business_id"`
+	Activity       []activityIn  `json:"activity"`
+	Keystrokes     []keystrokeIn `json:"keystrokes"`
+	Browser        []browserIn   `json:"browser"`
 }
 
-// Batch validates and idempotently upserts a sync batch, returning the accepted
-// client_uuids per kind so the desktop can mark exactly those rows synced.
 func (h *SyncHandler) Batch(c *gin.Context) {
 	userID, _ := auth.UserID(c)
 
@@ -145,8 +144,22 @@ func (h *SyncHandler) Batch(c *gin.Context) {
 		return
 	}
 
-	if err := h.store.SyncBatch(c.Request.Context(), userID, businessID, req.DeviceID, req.DeviceLabel, act, keys, brs); err != nil {
-		serverError(c, err)
+	meta := store.DeviceMetadata{
+		Label:      req.DeviceLabel,
+		Hostname:   req.DeviceHostname,
+		Platform:   req.DevicePlatform,
+		Arch:       req.DeviceArch,
+		AppVersion: req.AppVersion,
+	}
+	if err := h.store.SyncBatch(c.Request.Context(), userID, businessID, req.DeviceID, meta, act, keys, brs); err != nil {
+		switch {
+		case errors.Is(err, store.ErrDeviceRevoked):
+			c.JSON(http.StatusForbidden, gin.H{"error": "this device was revoked by the administrator"})
+		case errors.Is(err, store.ErrForbidden):
+			c.JSON(http.StatusForbidden, gin.H{"error": "device id belongs to another account"})
+		default:
+			serverError(c, err)
+		}
 		return
 	}
 

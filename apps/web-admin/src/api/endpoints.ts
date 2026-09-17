@@ -13,11 +13,13 @@ import {
 import type {
   AccountType,
   ActivityResponse,
+  AuditEvent,
   AuthResponse,
   BrowserVisit,
   Business,
   BusinessSettingsPatch,
   CreateEmployeeResponse,
+  Device,
   Employee,
   KeystrokeBucket,
   PrivacyAppCategory,
@@ -52,7 +54,6 @@ export async function register(
   display_name: string,
   account_type: AccountType = "manager",
 ) {
-  // One field accepts an email or a username; route it to the right body key.
   const isEmail = identifier.includes("@");
   const res = await request<AuthResponse>("/v1/auth/register", {
     method: "POST",
@@ -109,6 +110,12 @@ export function cleanupScreenshots(id: string, olderThanDays: number) {
   );
 }
 
+export function listAuditEvents(businessId: string, limit = 100) {
+  return request<{ events: AuditEvent[] }>(`/v1/businesses/${businessId}/audit`, {
+    query: { limit },
+  });
+}
+
 // ---------- employees ----------
 export function createEmployee(input: {
   email?: string;
@@ -145,6 +152,17 @@ export function resetEmployeePassword(id: string, password: string) {
 
 export function archiveEmployee(id: string) {
   return request<{ status: string }>(`/v1/employees/${id}`, { method: "DELETE" });
+}
+
+export function listEmployeeDevices(employeeId: string) {
+  return request<{ devices: Device[] }>(`/v1/employees/${employeeId}/devices`);
+}
+
+export function updateDevice(id: string, patch: { label?: string; revoked?: boolean }) {
+  return request<{ device: Device }>(`/v1/devices/${id}`, {
+    method: "PATCH",
+    body: patch,
+  });
 }
 
 // ---------- reports ----------

@@ -23,16 +23,12 @@ import (
 // New builds the Gin engine with all routes registered. The store, file store, and
 // retention service are shared with the caller (which also runs the retention sweeper).
 func New(cfg *config.Config, st *store.Store, files *filestore.Store, ret *retention.Service) *gin.Engine {
-	// Route gin's own output (access logs, route table, debug warnings) into the same
-	// captured stream as obs/log so every line lands in the log file too.
 	gin.DefaultWriter = obs.Writer()
 	gin.DefaultErrorWriter = obs.Writer()
 
 	r := gin.New()
 	r.Use(gin.Logger(), gin.Recovery(), middleware.CORS(cfg.AllowedOrigin))
 
-	// Report panics to Sentry (then re-panic so gin.Recovery still returns 500).
-	// No-op when SENTRY_DSN is unset (the hub has no client).
 	if cfg.SentryDSN != "" {
 		r.Use(sentrygin.New(sentrygin.Options{Repanic: true}))
 	}
@@ -49,49 +45,41 @@ func New(cfg *config.Config, st *store.Store, files *filestore.Store, ret *reten
 	downloadsH := handlers.NewDownloadsHandler(st, cfg.StaticDir)
 	keepaliveH := handlers.NewKeepaliveHandler(cfg.KeepaliveToken)
 
-	// Counted installer downloads (production, when static content is served). Takes
-	// precedence over the static NoRoute fallback below.
 	if cfg.StaticDir != "" {
 		r.GET("/download/:file", downloadsH.Serve)
 	}
 
 	v1 := r.Group("/v1")
 
-	// Public picker (no auth).
 	v1.GET("/public/businesses", authH.PublicBusinesses)
-	// Public download totals (aggregate counts only).
 	v1.GET("/public/stats/downloads", downloadsH.Stats)
-	// Curated sensitive-app list for screenshot privacy mode / skip-list
-	// suggestions (public: the desktop needs it in personal mode too).
 	v1.GET("/public/screenshot-privacy-apps", handlers.PrivacyApps)
 
-	// CPU keep-alive (token-gated, NOT rate-limited): keeps the Oracle Always Free
-	// box above the idle-reclamation CPU threshold. Only mounted when a token is set.
 	if keepaliveH.Enabled() {
 		v1.POST("/keepalive", keepaliveH.Burn)
 	}
 
-	// Auth endpoints, rate-limited to throttle credential guessing.
 	a := v1.Group("/auth", middleware.LoginRateLimit())
 	a.POST("/register", authH.Register)
 	a.POST("/login", authH.Login)
 	a.POST("/refresh", authH.Refresh)
 
-	// Protected routes. Owner/sync/report routes register under this group in
-	// later tasks.
 	authed := v1.Group("", tok.Required(), accountGuard(st))
 	authed.GET("/me", authH.Me)
 
-	// Owner: business + employee management.
+	// Owner: business, employee, device and audit management.
 	authed.POST("/businesses", ownerH.CreateBusiness)
 	authed.GET("/businesses/mine", ownerH.ListMine)
 	authed.GET("/businesses/:id/employees", ownerH.ListEmployees)
+	authed.GET("/businesses/:id/audit", ownerH.ListAuditEvents)
 	authed.PATCH("/businesses/:id/settings", ownerH.UpdateSettings)
 	authed.POST("/businesses/:id/screenshots/cleanup", retentionH.Cleanup)
 	authed.POST("/employees", ownerH.CreateEmployee)
 	authed.PATCH("/employees/:id", ownerH.UpdateEmployee)
 	authed.POST("/employees/:id/reset-password", ownerH.ResetEmployeePassword)
 	authed.DELETE("/employees/:id", ownerH.ArchiveEmployee)
+	authed.GET("/employees/:id/devices", ownerH.ListEmployeeDevices)
+	authed.PATCH("/devices/:id", ownerH.UpdateDevice)
 
 	// Capture policy for the desktop (employee's org settings).
 	authed.GET("/policy", ownerH.Policy)
@@ -108,9 +96,6 @@ func New(cfg *config.Config, st *store.Store, files *filestore.Store, ret *reten
 	authed.GET("/reports/employees/:id/screenshots", reportsH.Screenshots)
 	authed.GET("/screenshots/:client_uuid", reportsH.ScreenshotImage)
 
-	// Serve static content (same origin as the API) when configured:
-	//   /         → marketing landing page (dir/index.html)
-	//   /admin/*  → web-admin SPA       (dir/admin/index.html)
 	if cfg.StaticDir != "" {
 		r.NoRoute(staticSite(cfg.StaticDir))
 	}
@@ -118,17 +103,9 @@ func New(cfg *config.Config, st *store.Store, files *filestore.Store, ret *reten
 	return r
 }
 
-// staticSite serves files from dir. The marketing page lives at the root and the
-// web-admin SPA under /admin: any unmatched /admin/* path falls back to the SPA's
-// index.html for client-side routing, everything else to the marketing index.
-// Unmatched API paths still return JSON 404s.
 func staticSite(dir string) gin.HandlerFunc {
-	marketingIndex := filepath.Join(dir, "index.html")
+	rootIndex := filepath.Join(dir, "index.html")
 	adminIndex := filepath.Join(dir, "admin", "index.html")
-	// serve sends a file, forcing HTML to revalidate every load so a deploy takes
-	// effect immediately (browsers otherwise heuristically cache HTML that carries
-	// no Cache-Control and keep serving the stale page even on refresh). Cache-busted
-	// assets (styles.css?v=, hashed JS/CSS) and latest.json keep their default behaviour.
 	serve := func(c *gin.Context, file string) {
 		if strings.HasSuffix(file, ".html") {
 			c.Header("Cache-Control", "no-cache")
@@ -147,9 +124,7 @@ func staticSite(dir string) gin.HandlerFunc {
 				serve(c, file)
 				return
 			}
-			// Directory request (e.g. a locale page like /zh/): serve its index.html
-			// if present, so localized pages aren't swallowed by the root fallback.
-			if idx := filepath.Join(file, "index.html"); idx != marketingIndex {
+			if idx := filepath.Join(file, "index.html"); idx != rootIndex {
 				if fi2, err2 := os.Stat(idx); err2 == nil && !fi2.IsDir() {
 					serve(c, idx)
 					return
@@ -160,6 +135,6 @@ func staticSite(dir string) gin.HandlerFunc {
 			serve(c, adminIndex)
 			return
 		}
-		serve(c, marketingIndex)
+		serve(c, rootIndex)
 	}
 }

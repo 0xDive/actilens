@@ -1,12 +1,9 @@
-// Shapes mirror the backend contract in docs/11-backend-and-sync.md.
-
 export interface PublicBusiness {
   business_id: string;
   name: string;
   owner_name: string;
 }
 
-/** Persona of a self-signup owner. Personal users have no account at all. */
 export type AccountType = "manager" | "parent";
 
 export interface User {
@@ -28,18 +25,9 @@ export interface AuthResponse {
   tokens: Tokens;
 }
 
-/** A business is a team or a family; `kind` drives member wording (employees/kids). */
 export type BusinessKind = "team" | "family";
-
-/**
- * How employee screens are captured. "privacy" (the default) captures only the
- * frontmost window; "normal" captures every display in full. The backend may
- * still return pre-rename values ("full_screen"/"active_window") — normalize
- * before comparing.
- */
 export type ScreenshotMode = "privacy" | "normal";
 
-/** One category of the backend's curated sensitive-app list. */
 export interface PrivacyAppCategory {
   key: string;
   apps: string[];
@@ -54,7 +42,7 @@ export interface Business {
   screenshot_interval_s: number;
   idle_threshold_s: number;
   allow_employee_override: boolean;
-  screenshot_mode: string; // normalize to ScreenshotMode before comparing
+  screenshot_mode: string;
   screenshot_skip_apps: string[];
 }
 
@@ -78,6 +66,30 @@ export interface Employee {
   current_window?: string | null;
 }
 
+export interface Device {
+  id: string;
+  user_id: string;
+  label: string;
+  hostname: string;
+  platform: string;
+  arch: string;
+  app_version: string;
+  first_seen: number;
+  last_seen: number | null;
+  revoked_at: number | null;
+}
+
+export interface AuditEvent {
+  id: number;
+  business_id: string;
+  actor_user_id: string;
+  action: string;
+  target_type: string;
+  target_id: string;
+  details: Record<string, unknown>;
+  created_at: number;
+}
+
 export interface CreateEmployeeResponse {
   employee: Employee;
   business: Business;
@@ -94,7 +106,6 @@ export interface ReportEmployee {
   active_yesterday_s: number;
   screenshots_today: number;
   screenshots_yesterday: number;
-  /** 0–100 share of active time with keyboard input; null when no activity today. */
   focus_pct_today: number | null;
 }
 
@@ -143,7 +154,6 @@ export interface ScreenshotsResponse {
   offset: number;
 }
 
-// Thrown by the client for non-2xx responses so UIs can show inline errors.
 export class ApiError extends Error {
   status: number;
   body: unknown;
