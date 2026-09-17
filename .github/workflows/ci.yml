@@ -1,0 +1,93 @@
+name: ActiLens CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: actilens-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Backend + web + deploy checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Linux deployment scripts
+        run: |
+          bash -n bootstrap-linux.sh
+          bash -n install-linux.sh
+          bash -n actilensctl.sh
+          sh -n deploy/docker-entrypoint.sh
+          docker compose --env-file deploy/.env.example -f deploy/docker-compose.yml config >/dev/null
+          DOMAIN=tracker.example.com PUBLIC_ORIGIN=https://tracker.example.com ACTILENS_BIND_ADDR=127.0.0.1 \
+            docker compose --env-file deploy/.env.example -f deploy/docker-compose.yml -f deploy/docker-compose.https.yml config >/dev/null
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.1 --activate
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck web admin
+        run: pnpm --filter @actilens/web-admin typecheck
+      - name: Build web admin
+        run: pnpm --filter @actilens/web-admin build
+      - name: Typecheck desktop UI
+        run: pnpm --filter @actilens/desktop typecheck
+      - name: Test backend
+        working-directory: apps/backend
+        run: go test ./...
+      - name: Build backend
+        working-directory: apps/backend
+        run: go build ./...
+
+  windows:
+    name: Windows installer
+    if: github.event_name != 'pull_request'
+    runs-on: windows-latest
+    env:
+      ACTILENS_BUILD_SERVER_URL: ${{ vars.ACTILENS_SERVER_URL || 'http://localhost:8081' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - name: Enable pnpm
+        shell: pwsh
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.30.1 --activate
+      - name: Install dependencies
+        shell: pwsh
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck desktop UI
+        shell: pwsh
+        run: pnpm --filter @actilens/desktop typecheck
+      - name: Build Windows MSI and EXE
+        shell: pwsh
+        run: pnpm --filter @actilens/desktop tauri build --target x86_64-pc-windows-msvc
+      - name: Upload Windows installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: ActiLens-Windows-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            apps/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+            apps/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
