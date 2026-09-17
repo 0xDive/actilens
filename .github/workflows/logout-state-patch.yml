@@ -1,0 +1,40 @@
+name: Logout managed state patch
+
+on:
+  push:
+    branches: [feature/monitoring-control-v2]
+    paths:
+      - ".github/workflows/logout-state-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/monitoring-control-v2
+          fetch-depth: 0
+      - name: Reset managed state on logout
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('apps/desktop/src-tauri/src/commands/mod.rs')
+          text = p.read_text()
+          old = '    settings.managed.lock().unwrap().monitoring_enabled = true;\n    Ok(())\n}\n'
+          new = '    *settings.managed.lock().unwrap() = crate::settings::CaptureManaged::default();\n    Ok(())\n}\n'
+          if old not in text:
+              raise SystemExit('logout managed-state anchor missing')
+          p.write_text(text.replace(old, new, 1))
+          PY
+          cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml --all
+          git diff --check
+      - name: Commit logout state fix
+        run: |
+          git config user.name "0xDive Automation"
+          git config user.email "72026841+0xDive@users.noreply.github.com"
+          git add apps/desktop/src-tauri/src/commands/mod.rs
+          git commit -m "fix: reset organization policy state on logout"
+          git push origin HEAD:feature/monitoring-control-v2
