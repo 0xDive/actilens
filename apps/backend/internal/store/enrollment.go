@@ -9,10 +9,12 @@ import (
 )
 
 // EnrollmentGrant is the identity + organization resolved from a successfully
-// redeemed one-time enrollment token.
+// redeemed one-time enrollment token. AuthVersion is captured in the same locked
+// transaction so a concurrent security-version change cannot upgrade the grant.
 type EnrollmentGrant struct {
-	User       User
-	BusinessID string
+	User        User
+	BusinessID  string
+	AuthVersion int
 }
 
 // CreateEnrollmentToken records only the token hash. The target organization is
@@ -94,7 +96,7 @@ func (s *Store) RedeemEnrollmentToken(ctx context.Context, tokenHash string) (En
 	var tokenID string
 	var grant EnrollmentGrant
 	err = tx.QueryRow(ctx, `
-		SELECT et.id, et.business_id,
+		SELECT et.id, et.business_id, et.auth_version,
 		       u.id, COALESCE(u.email, ''), COALESCE(u.username, ''), u.display_name, u.account_type
 		  FROM enrollment_tokens et
 		  JOIN users u ON u.id = et.user_id
@@ -106,7 +108,7 @@ func (s *Store) RedeemEnrollmentToken(ctx context.Context, tokenHash string) (En
 		   AND et.auth_version = u.auth_version
 		   AND u.active = true
 		 FOR UPDATE OF et`, tokenHash).Scan(
-		&tokenID, &grant.BusinessID,
+		&tokenID, &grant.BusinessID, &grant.AuthVersion,
 		&grant.User.ID, &grant.User.Email, &grant.User.Username, &grant.User.DisplayName, &grant.User.AccountType,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
