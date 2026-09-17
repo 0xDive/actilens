@@ -13,6 +13,7 @@ const ACTION_KEYS: Record<string, string> = {
   "device.updated": "deviceUpdated",
   "device.revoked": "deviceRevoked",
   "device.restored": "deviceRestored",
+  "member.role_changed": "memberRoleChanged",
 };
 
 function formatTime(ts: number): string {
@@ -31,6 +32,9 @@ function detailsText(event: AuditEvent): string | null {
   }
   if (typeof details.label === "string" && details.label) {
     return details.label;
+  }
+  if (typeof details.from === "string" && typeof details.to === "string") {
+    return `${details.from} → ${details.to}`;
   }
   if (Array.isArray(details.fields) && details.fields.length > 0) {
     return details.fields.filter((v): v is string => typeof v === "string").join(", ");

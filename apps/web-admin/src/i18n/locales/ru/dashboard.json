@@ -39,7 +39,8 @@
     "table": {
       "name": "Имя",
       "login": "Логин",
-      "currentApp": "Текущее приложение"
+      "currentApp": "Текущее приложение",
+      "role": "Роль"
     },
     "actions": {
       "edit": "Изменить",
@@ -56,6 +57,12 @@
       "saved": "Изменения сохранены.",
       "passwordSaved": "Пароль изменён.",
       "failed": "Не удалось выполнить операцию."
+    },
+    "roleAria": "Роль для {{name}}",
+    "roles": {
+      "employee": "Сотрудник",
+      "manager": "Менеджер",
+      "admin": "Администратор"
     }
   },
   "newBusinessModal": {

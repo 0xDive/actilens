@@ -11,9 +11,11 @@ import {
 } from "../api/endpoints";
 import { ApiError, type BusinessKind, type Employee } from "../api/types";
 import { Empty, Modal, Notice, Spinner } from "../components/ui";
+import { MemberRoleControl } from "../components/employee/MemberRoleControl";
 import { useBusinesses } from "../useBusinesses";
 import { memberTerms, type MemberTerms } from "../terms";
 import { useAuth } from "../auth/AuthContext";
+import { canManageMembers, canManageRoles } from "../rbac";
 
 // ── display-only helpers (mirror the Dashboard roster look) ──────────
 const svg = (children: ReactNode) => (
@@ -75,6 +77,8 @@ export function Employees() {
   const [autoCreatedNote, setAutoCreatedNote] = useState<string | null>(null);
 
   const terms = memberTerms(selected?.kind);
+  const mayManageMembers = canManageMembers(selected?.role);
+  const mayManageRoles = canManageRoles(selected?.role);
 
   function loadEmployees(id: string) {
     setLoading(true);
@@ -152,10 +156,12 @@ export function Employees() {
             <span style={{ display: "inline-flex", lineHeight: 0 }}>{IconPlus}</span>
             <span>{t("employees.newOrg", { org: terms.org })}</span>
           </button>
-          <button className="actilens-btn actilens-btn--primary" onClick={() => setShowEmp(true)}>
-            <span style={{ display: "inline-flex", lineHeight: 0 }}>{IconUserPlus}</span>
-            <span>{terms.addCta}</span>
-          </button>
+          {mayManageMembers && (
+            <button className="actilens-btn actilens-btn--primary" onClick={() => setShowEmp(true)}>
+              <span style={{ display: "inline-flex", lineHeight: 0 }}>{IconUserPlus}</span>
+              <span>{terms.addCta}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -194,6 +200,7 @@ export function Employees() {
               <tr>
                 <th>{t("employees.table.name")}</th>
                 <th>{t("employees.table.login")}</th>
+                <th>{t("employees.table.role")}</th>
                 <th>{t("employees.table.currentApp")}</th>
                 <th></th>
               </tr>
@@ -203,6 +210,7 @@ export function Employees() {
                 const pal = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
                 const isSelf = e.id === user?.id;
                 const status = employeeStatus(e);
+                const mayManageThis = mayManageMembers && !(selected?.role === "admin" && e.role === "admin");
                 return (
                   <tr key={e.id}>
                     <td>
@@ -221,17 +229,29 @@ export function Employees() {
                       </div>
                     </td>
                     <td className="ad-login">{e.email || e.username}</td>
+                    <td>
+                      <MemberRoleControl
+                        employee={e}
+                        businessId={selectedId!}
+                        canChange={mayManageRoles}
+                        onChanged={() => selectedId && loadEmployees(selectedId)}
+                      />
+                    </td>
                     <td className="ad-login">{status === "offline" ? "—" : (e.current_app || "—")}</td>
                     <td className="r">
                       <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", alignItems: "center", flexWrap: "wrap" }}>
                         <Link className="ad-viewlink" to={`/employees/${e.id}?business=${selectedId}`}>
                           {t("employees.viewReports")}{IconArrowRight}
                         </Link>
-                        <button className="actilens-btn actilens-btn--ghost" onClick={() => editEmployeeAccount(e)}>{t("employees.actions.edit")}</button>
-                        <button className="actilens-btn actilens-btn--ghost" onClick={() => changeEmployeePassword(e)}>{t("employees.actions.password")}</button>
-                        <button className="actilens-btn actilens-btn--ghost" onClick={() => toggleEmployeeActive(e)}>
-                          {t(e.active ? "employees.actions.archive" : "employees.actions.restore")}
-                        </button>
+                        {mayManageThis && (
+                          <>
+                            <button className="actilens-btn actilens-btn--ghost" onClick={() => editEmployeeAccount(e)}>{t("employees.actions.edit")}</button>
+                            <button className="actilens-btn actilens-btn--ghost" onClick={() => changeEmployeePassword(e)}>{t("employees.actions.password")}</button>
+                            <button className="actilens-btn actilens-btn--ghost" onClick={() => toggleEmployeeActive(e)}>
+                              {t(e.active ? "employees.actions.archive" : "employees.actions.restore")}
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -255,7 +275,7 @@ export function Employees() {
         />
       )}
 
-      {showEmp && (
+      {showEmp && mayManageMembers && (
         <NewEmployeeModal
           businessId={selectedId}
           terms={terms}
