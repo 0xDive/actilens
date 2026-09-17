@@ -27,6 +27,52 @@ everything in a clean web dashboard.
 
 ---
 
+## Corporate fork: Linux server in one command
+
+This fork contains the corporate BiBoTracking layer: Russian UI, employee administration,
+Windows autostart, self-host Docker packaging and GitHub Actions builds.
+
+### Fast LAN install
+
+```bash
+git clone https://github.com/0xDive/emplooyee-tracking.git
+cd emplooyee-tracking
+./install-linux.sh --install-docker --open-firewall
+```
+
+The installer generates a random PostgreSQL password, persistent JWT secret, starts Postgres
+and BiBoTracking, waits for `/healthz`, and prints the admin URL. By default it listens on
+port `8081` and tries the prebuilt image `ghcr.io/0xdive/emplooyee-tracking:main`; if that
+image cannot be pulled it automatically builds from the checked-out source.
+
+### Production HTTPS with a domain
+
+Point the domain's DNS A/AAAA record to the Linux server, make ports 80/443 reachable, then:
+
+```bash
+git clone https://github.com/0xDive/emplooyee-tracking.git
+cd emplooyee-tracking
+./install-linux.sh --install-docker --domain tracker.example.com --open-firewall
+```
+
+Caddy is started automatically and obtains/renews the TLS certificate. The BiBoTracking
+application port is bound to `127.0.0.1` in this mode, while Caddy is the public entry point.
+
+### Server operations
+
+```bash
+./biboctl.sh status
+./biboctl.sh logs
+./biboctl.sh update
+./biboctl.sh backup
+./biboctl.sh restart
+./biboctl.sh down
+```
+
+Backups are stored under `corporate/backups/` and contain PostgreSQL, screenshots, JWT config
+and deployment settings. Docker volumes survive normal restarts, updates and `biboctl.sh down`.
+See [`corporate/README.md`](corporate/README.md) for CI/CD, releases and advanced deployment.
+
 ## Why BiBoTracking
 
 Most employee-tracking tools are expensive per-seat SaaS that ship your team's activity to
@@ -40,7 +86,7 @@ someone else's cloud. BiBoTracking flips that:
 - 👀 **No black box** — see exactly what is captured, and what never leaves the machine.
 - 👨‍👩‍👧 **Teams *or* families** — pick a `team` or `family` workspace; vocabulary adapts
   (employee/kid, owner/parent).
-- 🌍 **7 languages** — English, 简体中文, 日本語, Tiếng Việt, Bahasa Indonesia, Français, Español.
+- 🌍 **7 upstream languages + Russian in the corporate build**.
 
 > **Hosted option:** prefer not to run servers? The hosted service at
 > [bibotracker.com](https://bibotracker.com) is free for your first two years, then $1/month.
@@ -86,8 +132,8 @@ Migrations are embedded and run automatically on startup (goose).
 desktop app).
 
 ```bash
-git clone https://github.com/ngnclht1102/bibo-emplooyee-tracking.git
-cd bibo-emplooyee-tracking
+git clone https://github.com/0xDive/emplooyee-tracking.git
+cd emplooyee-tracking
 pnpm install
 
 # 1. Postgres in Docker (role/db `ctracking`, :5432)
@@ -109,15 +155,13 @@ Open **http://localhost:5174/admin/**, register an owner account, and you're run
 
 ## Self-hosting
 
-The whole stack ships as **one Go binary + Postgres**, no nginx required.
+For this fork, prefer the one-command `install-linux.sh` flow above. The lower-level stack is
+also available directly through `corporate/docker-compose.yml` and
+`corporate/docker-compose.https.yml`.
 
-1. Build the backend for your server: `GOOS=linux GOARCH=amd64 go build ./...` (from `apps/backend`).
-2. Build the dashboard (`apps/web-admin`, `npm run build`) and marketing site
-   (`node marketing/build.mjs`) — the binary serves both as static files.
-3. Point it at a Postgres database (migrations run on startup) and run it behind TLS
-   (a reverse proxy or a [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) both work).
-
-A step-by-step production guide lives in [`docs/`](docs/).
+The whole stack ships as **one Go binary + Postgres**, no nginx required in LAN mode. Migrations
+run automatically at backend startup. For internet-facing deployments, use the included Caddy
+HTTPS mode or another trusted TLS reverse proxy.
 
 ## Tech stack
 
@@ -138,9 +182,8 @@ A step-by-step production guide lives in [`docs/`](docs/).
 
 ## Support
 
-- 💬 **Telegram:** [@bibotracker](https://t.me/bibotracker)
-- 🐛 **Bugs / features:** [open an issue](https://github.com/ngnclht1102/bibo-emplooyee-tracking/issues)
-- ✉️ **Email:** brian.nguyen.work@gmail.com
+- 🐛 **Fork bugs / changes:** use this repository's Issues/PRs.
+- 💬 **Upstream Telegram:** [@bibotracker](https://t.me/bibotracker)
 
 ## Contributing
 
@@ -149,6 +192,7 @@ Issues and PRs are welcome! Useful checks before opening a PR:
 - Web / desktop: `tsc --noEmit` + `vite build`
 - Backend: `go build ./...`
 - Desktop (Rust): `cargo check` (in `apps/desktop/src-tauri`)
+- Corporate patch: `python3 corporate/apply_patch.py .`
 
 ## License
 
@@ -157,5 +201,5 @@ Released under the **MIT License**. See [`LICENSE`](LICENSE).
 ---
 
 <div align="center">
-<sub>Built with care · <a href="https://bibotracker.com">bibotracker.com</a></sub>
+<sub>Corporate fork based on BiBoTracking · <a href="https://github.com/0xDive/emplooyee-tracking">0xDive/emplooyee-tracking</a></sub>
 </div>
