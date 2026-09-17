@@ -88,7 +88,7 @@ const DEFAULT_BACKEND_URL: &str = if cfg!(feature = "local") {
     "https://staging.example.com"
 } else {
     // production (default)
-    "https://github.com/0xDive/actilens"
+    "http://127.0.0.1:8081"
 };
 
 /// Compile-time environment label (matches the backend-URL feature resolution).
@@ -262,7 +262,7 @@ mod tests {
         assert_eq!(backend_base_url(), DEFAULT_BACKEND_URL);
         // Sanity: the default build targets production.
         if cfg!(all(feature = "production", not(feature = "local"), not(feature = "staging"))) {
-            assert_eq!(backend_base_url(), "https://github.com/0xDive/actilens");
+            assert_eq!(backend_base_url(), "http://127.0.0.1:8081");
         }
     }
 }
