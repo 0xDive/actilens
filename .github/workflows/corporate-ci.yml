@@ -48,9 +48,6 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Apply corporate patch
-        run: python3 corporate/apply_patch.py .
-
       - name: Enable pnpm
         run: |
           corepack enable
@@ -94,10 +91,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
-
-      - name: Apply corporate patch
-        shell: pwsh
-        run: python corporate/apply_patch.py .
 
       - name: Enable pnpm
         shell: pwsh
