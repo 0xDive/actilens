@@ -546,10 +546,63 @@ pub fn logout(
     Ok(())
 }
 
-/// The current session, or `None` when logged out. Drives the login UI.
+/// Return the current session. On a first managed launch, a one-time
+/// ACTILENS_ENROLL_TOKEN (or --enroll-token) is redeemed before the UI leaves
+/// its startup gate, so deployment does not need an employee password.
 #[tauri::command]
-pub fn current_session(auth: State<Arc<AuthState>>) -> Option<Session> {
-    auth.session()
+pub async fn current_session(
+    auth: State<'_, Arc<AuthState>>,
+    settings: State<'_, Arc<crate::settings::SettingsState>>,
+    control: State<'_, Arc<TrackerControl>>,
+) -> Option<Session> {
+    if let Some(session) = auth.session() {
+        return Some(session);
+    }
+
+    let token = crate::sync::enrollment::pending_token()?;
+
+    // An enrollment token means this installation is being provisioned for
+    // an organization. Fail closed until the server resolves the membership.
+    control
+        .org_monitoring_enabled
+        .store(false, Ordering::Relaxed);
+    {
+        let mut current = settings.current.lock().unwrap();
+        current.org_monitoring_enabled = false;
+        let _ = crate::settings::save(&settings.path, &current);
+    }
+    settings.managed.lock().unwrap().monitoring_enabled = false;
+
+    let session = match crate::sync::enrollment::redeem(&backend_url(), &token).await {
+        Ok(session) => session,
+        Err(e) => {
+  crate::log_warn!("enrollment", "automatic enrollment failed: {e}");
+  return None;
+        }
+    };
+
+    if let Err(e) = auth.store(session.clone()) {
+        crate::log_warn!("enrollment", "could not persist enrolled session: {e}");
+        return None;
+    }
+
+    // Do not keep the raw secret in this process after it has been consumed.
+    std::env::remove_var("ACTILENS_ENROLL_TOKEN");
+
+    let client = BackendClient::new(backend_url(), auth.inner().clone());
+    if let Ok(enabled) = client.monitoring_enabled(session.business_id.as_deref()).await {
+        control
+  .org_monitoring_enabled
+  .store(enabled, Ordering::Relaxed);
+        {
+  let mut current = settings.current.lock().unwrap();
+  current.org_monitoring_enabled = enabled;
+  let _ = crate::settings::save(&settings.path, &current);
+        }
+        settings.managed.lock().unwrap().monitoring_enabled = enabled;
+    }
+
+    Some(session)
 }
 
 // ---------- sync status (task 53) ----------
