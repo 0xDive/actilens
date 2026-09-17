@@ -86,8 +86,10 @@ jobs:
   windows:
     name: Windows installer
     runs-on: windows-latest
+    # PR/CI artifacts must never be pointed at a real production server by accident.
+    # Production/custom installers are built by release.yml or windows-build.yml.
     env:
-      ACTILENS_BUILD_SERVER_URL: ${{ vars.ACTILENS_SERVER_URL || 'http://localhost:8081' }}
+      ACTILENS_BUILD_SERVER_URL: http://127.0.0.1:8081
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
