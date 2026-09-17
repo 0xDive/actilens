@@ -37,7 +37,25 @@
     "viewReports": "View reports",
     "table": {
       "name": "Name",
-      "login": "Login"
+      "login": "Login",
+      "currentApp": "Current app"
+    },
+    "blocked": "Blocked",
+    "actions": {
+      "edit": "Edit",
+      "password": "Change password",
+      "archive": "Block",
+      "restore": "Unblock"
+    },
+    "prompts": {
+      "displayName": "New display name",
+      "login": "New email or username",
+      "password": "New password (minimum 8 characters)",
+      "confirmArchive": "Block this employee? History and screenshots will be preserved.",
+      "confirmRestore": "Unblock this employee?",
+      "saved": "Changes saved.",
+      "passwordSaved": "Password changed.",
+      "failed": "Operation failed."
     }
   },
   "newBusinessModal": {

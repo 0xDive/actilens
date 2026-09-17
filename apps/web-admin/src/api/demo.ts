@@ -107,6 +107,10 @@ export function demoEmployees(): Employee[] {
     display_name: m.name,
     email: m.login.includes("@") ? m.login : "",
     username: m.login.includes("@") ? undefined : m.login,
+    active: true,
+    last_seen: nowS() - m.ageMin * 60,
+    current_app: "VS Code",
+    current_window: "Demo activity",
   }));
 }
 

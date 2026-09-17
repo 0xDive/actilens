@@ -108,6 +108,11 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		unauthorized(c, "invalid credentials")
 		return
 	}
+	active, err := h.store.IsUserActive(c.Request.Context(), u.ID)
+	if err != nil || !active {
+		unauthorized(c, "invalid credentials")
+		return
+	}
 	ok, err := auth.VerifyPassword(hash, req.Password)
 	if err != nil || !ok {
 		unauthorized(c, "invalid credentials")
@@ -139,12 +144,17 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		badRequest(c, "invalid body")
 		return
 	}
-	userID, err := h.tok.ParseRefresh(req.RefreshToken)
+	userID, tokenVersion, err := h.tok.ParseRefreshVersioned(req.RefreshToken)
 	if err != nil {
 		unauthorized(c, "invalid refresh token")
 		return
 	}
-	pair, err := h.tok.Issue(userID)
+	active, currentVersion, err := h.store.UserSecurity(c.Request.Context(), userID)
+	if err != nil || !active || currentVersion != tokenVersion {
+		unauthorized(c, "invalid refresh token")
+		return
+	}
+	pair, err := h.tok.IssueVersioned(userID, currentVersion)
 	if err != nil {
 		serverError(c, err)
 		return
@@ -185,7 +195,10 @@ func (h *AuthHandler) Me(c *gin.Context) {
 }
 
 func (h *AuthHandler) issue(c *gin.Context, status int, u store.User) {
-	pair, err := h.tok.Issue(u.ID)
+	active, version, err := h.store.UserSecurity(c.Request.Context(), u.ID)
+	if err != nil { serverError(c, err); return }
+	if !active { unauthorized(c, "invalid credentials"); return }
+	pair, err := h.tok.IssueVersioned(u.ID, version)
 	if err != nil {
 		serverError(c, err)
 		return

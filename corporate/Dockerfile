@@ -1,14 +1,8 @@
 # syntax=docker/dockerfile:1
 
-FROM alpine:3.20 AS source
-RUN apk add --no-cache python3
-WORKDIR /src
-COPY . /src
-RUN python3 corporate/apply_patch.py /src
-
 FROM node:20-alpine AS web
 WORKDIR /src
-COPY --from=source /src /src
+COPY . /src
 RUN corepack enable && corepack prepare pnpm@10.30.1 --activate
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @ctracking/web-admin build
@@ -16,7 +10,7 @@ RUN node marketing/build.mjs
 
 FROM golang:1.26-alpine AS backend
 WORKDIR /src
-COPY --from=source /src/apps/backend /src
+COPY apps/backend /src
 RUN go mod download
 ARG VERSION=corporate-dev
 RUN CGO_ENABLED=0 GOOS=linux go build \

@@ -11,6 +11,15 @@ import enPermissions from "./locales/en/permissions.json";
 import enScreens from "./locales/en/screens.json";
 import enMedia from "./locales/en/media.json";
 
+import ruCommon from "./locales/ru/common.json";
+import ruAuth from "./locales/ru/auth.json";
+import ruOnboarding from "./locales/ru/onboarding.json";
+import ruWelcome from "./locales/ru/welcome.json";
+import ruSettings from "./locales/ru/settings.json";
+import ruPermissions from "./locales/ru/permissions.json";
+import ruScreens from "./locales/ru/screens.json";
+import ruMedia from "./locales/ru/media.json";
+
 import zhCommon from "./locales/zh/common.json";
 import zhAuth from "./locales/zh/auth.json";
 import zhOnboarding from "./locales/zh/onboarding.json";
@@ -68,6 +77,7 @@ import esMedia from "./locales/es/media.json";
 /** Supported locales (en is the source of truth). `zh` = Simplified Chinese. */
 export const LOCALES = [
   { code: "en", label: "English", flag: "🇺🇸" },
+  { code: "ru", label: "Русский", flag: "🇷🇺" },
   { code: "zh", label: "中文（简体）", flag: "🇨🇳" },
   { code: "ja", label: "日本語", flag: "🇯🇵" },
   { code: "vi", label: "Tiếng Việt", flag: "🇻🇳" },
@@ -80,6 +90,7 @@ export type LocaleCode = (typeof LOCALES)[number]["code"];
 
 const resources = {
   en: { common: enCommon, auth: enAuth, onboarding: enOnboarding, welcome: enWelcome, settings: enSettings, permissions: enPermissions, screens: enScreens, media: enMedia },
+  ru: { common: ruCommon, auth: ruAuth, onboarding: ruOnboarding, welcome: ruWelcome, settings: ruSettings, permissions: ruPermissions, screens: ruScreens, media: ruMedia },
   zh: { common: zhCommon, auth: zhAuth, onboarding: zhOnboarding, welcome: zhWelcome, settings: zhSettings, permissions: zhPermissions, screens: zhScreens, media: zhMedia },
   ja: { common: jaCommon, auth: jaAuth, onboarding: jaOnboarding, welcome: jaWelcome, settings: jaSettings, permissions: jaPermissions, screens: jaScreens, media: jaMedia },
   vi: { common: viCommon, auth: viAuth, onboarding: viOnboarding, welcome: viWelcome, settings: viSettings, permissions: viPermissions, screens: viScreens, media: viMedia },

@@ -67,7 +67,7 @@ fn default_true() -> bool {
 }
 
 fn default_locale() -> String {
-    "en".into()
+    "ru".into()
 }
 
 fn default_screenshot_mode() -> String {
@@ -103,12 +103,13 @@ pub fn env_label() -> &'static str {
     }
 }
 
-/// Base URL of the sync backend. The compile-time env default ([`DEFAULT_BACKEND_URL`])
-/// can be overridden at runtime by `CTRACKING_BACKEND_URL` (used by dev-desktop.sh).
+/// Base URL of the sync backend. Corporate builds can bake a self-host URL at
+/// compile time with CTRACKING_BUILD_SERVER_URL. Runtime override still wins.
 pub fn backend_base_url() -> String {
     std::env::var("CTRACKING_BACKEND_URL")
         .ok()
         .filter(|s| !s.is_empty())
+        .or_else(|| option_env!("CTRACKING_BUILD_SERVER_URL").map(str::to_string).filter(|s| !s.is_empty()))
         .unwrap_or_else(|| DEFAULT_BACKEND_URL.to_string())
 }
 

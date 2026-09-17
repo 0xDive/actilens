@@ -72,6 +72,10 @@ export interface Employee {
   email: string;
   username?: string;
   display_name: string;
+  active: boolean;
+  last_seen?: number | null;
+  current_app?: string | null;
+  current_window?: string | null;
 }
 
 export interface CreateEmployeeResponse {

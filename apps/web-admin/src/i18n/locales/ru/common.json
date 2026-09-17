@@ -1,0 +1,50 @@
+{
+  "appName": "BiBoTracking",
+  "language": "Язык",
+  "nav": {
+    "dashboard": "Обзор",
+    "employees": "Сотрудники",
+    "settings": "Настройки"
+  },
+  "actions": {
+    "signIn": "Войти",
+    "signOut": "Выйти",
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "remove": "удалить",
+    "continue": "Продолжить",
+    "finish": "Готово",
+    "back": "Назад",
+    "skip": "Пропустить"
+  },
+  "theme": {
+    "light": "Светлая",
+    "dark": "Тёмная",
+    "auto": "Системная"
+  },
+  "time": {
+    "never": "Никогда",
+    "justNow": "Только что",
+    "minutesAgo": "{{count}} мин назад",
+    "hoursAgo": "{{count}} ч назад",
+    "daysAgo": "{{count}} дн назад"
+  },
+  "terms": {
+    "team": {
+      "one": "Сотрудник",
+      "many": "Сотрудники",
+      "lowerOne": "сотрудника",
+      "lowerMany": "сотрудников",
+      "addCta": "Добавить сотрудника",
+      "org": "команда"
+    },
+    "family": {
+      "one": "Ребёнок",
+      "many": "Дети",
+      "lowerOne": "ребёнка",
+      "lowerMany": "детей",
+      "addCta": "Добавить ребёнка",
+      "org": "семья"
+    }
+  }
+}

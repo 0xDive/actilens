@@ -19,6 +19,7 @@ export type UpdateProgress =
 // We check on launch AND on every window focus (App.tsx). These module-level guards keep
 // that cheap and non-spammy: skip overlapping checks, rate-limit the network call, and
 // once an update is downloaded-and-waiting, stop re-checking/re-prompting for this run.
+const CORPORATE_BUILD = true;
 let inFlight = false;
 let stagedVersion: string | null = null;
 let lastCheckAt = 0;
@@ -81,6 +82,7 @@ export async function promptRestart(update: Update): Promise<void> {
  * version it downloads then prompts to restart. Returns true if an update was found.
  */
 export async function checkForUpdates(onProgress?: (p: UpdateProgress) => void): Promise<boolean> {
+  if (CORPORATE_BUILD) { onProgress?.({ state: "uptodate" }); return false; }
   try {
     onProgress?.({ state: "checking" });
     const update = await check();
@@ -107,6 +109,7 @@ export async function checkForUpdates(onProgress?: (p: UpdateProgress) => void):
  * re-checked on the next launch).
  */
 export async function autoCheckAndPrompt(): Promise<void> {
+  if (CORPORATE_BUILD) return;
   if (inFlight || stagedVersion) return;
   const now = Date.now();
   if (now - lastCheckAt < CHECK_THROTTLE_MS) return;

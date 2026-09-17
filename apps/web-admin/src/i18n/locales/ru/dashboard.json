@@ -1,0 +1,111 @@
+{
+  "dashboard": {
+    "title": "Обзор",
+    "loadingBusinesses": "Загрузка организаций…",
+    "loadingRoster": "Загрузка сотрудников…",
+    "errorRoster": "Не удалось загрузить список сотрудников.",
+    "noBusinesses": "Организаций пока нет. Откройте <0>{{members}}</0> и добавьте первого {{member}} — организация создастся автоматически.",
+    "noActivity": "Сотрудники ещё не синхронизировали активность.",
+    "selfBadge": "Вы",
+    "view": "Открыть",
+    "table": {
+      "login": "Логин",
+      "lastSeen": "Последняя активность",
+      "activeToday": "Активно сегодня",
+      "focus": "Фокус",
+      "name": "Имя"
+    },
+    "statRecorded": "Записано сегодня",
+    "statActive": "Активно сегодня",
+    "statFocus": "Средний фокус",
+    "statScreenshots": "Скриншоты",
+    "vsYesterday": "к вчера",
+    "ofMembers": "из {{count}} {{members}}",
+    "todayLabel": "сегодня",
+    "newTeam": "Новая команда"
+  },
+  "employees": {
+    "newBusiness": "Новая организация",
+    "newOrg": "Новая {{org}}",
+    "loading": "Загрузка…",
+    "loadingMembers": "Загрузка {{members}}…",
+    "errorLoadMembers": "Не удалось загрузить {{members}}.",
+    "noBusinessNotice": "У вас пока нет организации. При добавлении первого {{member}} она будет создана автоматически.",
+    "rosterFor": "Список для <0>{{name}}</0>",
+    "noMembersYet": "В этой организации пока нет сотрудников.",
+    "autoCreatedNote": "Организация была создана автоматически, и сотрудник добавлен в неё.",
+    "viewReports": "Отчёты",
+    "blocked": "Заблокирован",
+    "table": {
+      "name": "Имя",
+      "login": "Логин",
+      "currentApp": "Текущее приложение"
+    },
+    "actions": {
+      "edit": "Изменить",
+      "password": "Сменить пароль",
+      "archive": "Заблокировать",
+      "restore": "Разблокировать"
+    },
+    "prompts": {
+      "displayName": "Новое отображаемое имя",
+      "login": "Новый email или логин",
+      "password": "Новый пароль (минимум 8 символов)",
+      "confirmArchive": "Заблокировать сотрудника? История и скриншоты сохранятся.",
+      "confirmRestore": "Разблокировать сотрудника?",
+      "saved": "Изменения сохранены.",
+      "passwordSaved": "Пароль изменён.",
+      "failed": "Не удалось выполнить операцию."
+    }
+  },
+  "newBusinessModal": {
+    "title": "Новая организация",
+    "nameLabel": "Название",
+    "orgNameLabel": "Название: {{org}}",
+    "namePlaceholder": "Например, Моя компания",
+    "namePlaceholderFamily": "Например, Семья Ивановых",
+    "cancel": "Отмена",
+    "create": "Создать",
+    "creating": "Создание…",
+    "errorCreate": "Не удалось создать организацию."
+  },
+  "newEmployeeModal": {
+    "noBusinessSelected": "Организация не выбрана — она будет создана автоматически.",
+    "displayName": "Имя",
+    "usernameOrEmail": "Логин или email",
+    "temporaryPassword": "Временный пароль",
+    "shareCredentials": "Передайте эти данные сотруднику для входа в приложение.",
+    "cancel": "Отмена",
+    "adding": "Добавление…",
+    "generate": "Сгенерировать",
+    "errorTaken": "Такой email или логин уже занят.",
+    "errorCreate": "Не удалось создать сотрудника."
+  },
+  "detail": {
+    "breadcrumbDashboard": "Обзор",
+    "dateMode": "Режим даты",
+    "day": "День",
+    "range": "Период",
+    "from": "С",
+    "to": "По",
+    "noBusinessContext": "Откройте эту страницу из списка сотрудников или с главной панели.",
+    "errorRange": "Не удалось загрузить отчёты за период.",
+    "errorStartAfterEnd": "Начальная дата позже конечной.",
+    "loadingReports": "Загрузка отчётов…",
+    "summary": {
+      "activeTime": "Активное время",
+      "activeTimeRange": "Активное время за период",
+      "topApp": "Главное приложение",
+      "keypresses": "Нажатия",
+      "screenshots": "Скриншоты"
+    },
+    "tabs": {
+      "activity": "Активность",
+      "keystrokes": "Клавиатура",
+      "browser": "Браузер",
+      "screenshots": "Скриншоты"
+    },
+    "singleDay": "Один день",
+    "dateRange": "Период"
+  }
+}

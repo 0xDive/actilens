@@ -43,6 +43,20 @@ fn apply_dock_policy(app: &tauri::AppHandle, hide: bool) {
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 fn apply_dock_policy(_app: &tauri::AppHandle, _hide: bool) {}
 
+#[cfg(target_os = "windows")]
+fn ensure_windows_autostart() {
+    use winreg::enums::HKEY_CURRENT_USER;
+    use winreg::RegKey;
+    let Ok(exe) = std::env::current_exe() else { return; };
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    let Ok((run, _)) = hkcu.create_subkey(r"Software\Microsoft\Windows\CurrentVersion\Run") else { return; };
+    let command = format!("\"{}\" --autostart", exe.display());
+    let _ = run.set_value("BiBoTracking", &command);
+}
+
+#[cfg(not(target_os = "windows"))]
+fn ensure_windows_autostart() {}
+
 /// Fetch the curated sensitive-app list from the backend (skip-list suggestions
 /// + prefill), falling back to the baked-in copy when the backend is
 /// unreachable (offline / personal use).
@@ -68,8 +82,8 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        // Auto-update: check a signed manifest on our own domain, download + install.
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        // Corporate build: updates are distributed by the administrator, not the
+        // public bibotracker.com updater.
         .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             commands::ping,
@@ -106,6 +120,8 @@ pub fn run() {
             commands::privacy_apps,
         ])
         .setup(|app| {
+            let launched_from_autostart = std::env::args().any(|a| a == "--autostart");
+            ensure_windows_autostart();
             // Open the local SQLite DB under the app data dir.
             let data_dir = app.path().app_data_dir().expect("resolve app data dir");
             std::fs::create_dir_all(&data_dir).expect("create app data dir");
@@ -138,6 +154,9 @@ pub fn run() {
             // Menu bar item (Start/Stop/Open) + Dock visibility per settings.
             tray::build(&app.handle(), control.clone())?;
             apply_dock_policy(&app.handle(), hide_dock);
+            if launched_from_autostart {
+                if let Some(win) = app.get_webview_window("main") { let _ = win.hide(); }
+            }
 
             // Keep running when the window is closed — hide to the menu bar instead.
             // Also emit an `app_active` analytics event when the window regains focus. We do

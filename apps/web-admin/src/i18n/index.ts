@@ -10,6 +10,14 @@ import enSettings from "./locales/en/settings.json";
 import enUi from "./locales/en/ui.json";
 import enReports from "./locales/en/reports.json";
 
+import ruCommon from "./locales/ru/common.json";
+import ruAuth from "./locales/ru/auth.json";
+import ruSignup from "./locales/ru/signup.json";
+import ruDashboard from "./locales/ru/dashboard.json";
+import ruSettings from "./locales/ru/settings.json";
+import ruUi from "./locales/ru/ui.json";
+import ruReports from "./locales/ru/reports.json";
+
 import zhCommon from "./locales/zh/common.json";
 import zhAuth from "./locales/zh/auth.json";
 import zhSignup from "./locales/zh/signup.json";
@@ -61,6 +69,7 @@ import esReports from "./locales/es/reports.json";
 /** Supported locales (en is the source of truth). `zh` = Simplified Chinese. */
 export const LOCALES = [
   { code: "en", label: "English", flag: "🇺🇸" },
+  { code: "ru", label: "Русский", flag: "🇷🇺" },
   { code: "zh", label: "中文", flag: "🇨🇳" },
   { code: "ja", label: "日本語", flag: "🇯🇵" },
   { code: "vi", label: "Tiếng Việt", flag: "🇻🇳" },
@@ -73,6 +82,7 @@ export type LocaleCode = (typeof LOCALES)[number]["code"];
 
 const resources = {
   en: { common: enCommon, auth: enAuth, signup: enSignup, dashboard: enDashboard, settings: enSettings, ui: enUi, reports: enReports },
+  ru: { common: ruCommon, auth: ruAuth, signup: ruSignup, dashboard: ruDashboard, settings: ruSettings, ui: ruUi, reports: ruReports },
   zh: { common: zhCommon, auth: zhAuth, signup: zhSignup, dashboard: zhDashboard, settings: zhSettings, ui: zhUi, reports: zhReports },
   ja: { common: jaCommon, auth: jaAuth, signup: jaSignup, dashboard: jaDashboard, settings: jaSettings, ui: jaUi, reports: jaReports },
   vi: { common: viCommon, auth: viAuth, signup: viSignup, dashboard: viDashboard, settings: viSettings, ui: viUi, reports: viReports },

@@ -1,6 +1,6 @@
 [package]
 name = "ctracking"
-version = "1.5.1"
+version = "1.5.2"
 description = "Local-only macOS employee activity tracker"
 authors = ["Brian Nguyen"]
 edition = "2021"
@@ -53,7 +53,7 @@ windows = { version = "0.58", features = [
     "Win32_UI_Input_KeyboardAndMouse",
     "Win32_UI_WindowsAndMessaging",
 ] }
-
+winreg = "0.52"
 
 # Backend environment selected at compile time. Resolution order in code is
 # local > staging > production (see settings::DEFAULT_BACKEND_URL). The runtime

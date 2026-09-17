@@ -79,7 +79,7 @@ func New(cfg *config.Config, st *store.Store, files *filestore.Store, ret *reten
 
 	// Protected routes. Owner/sync/report routes register under this group in
 	// later tasks.
-	authed := v1.Group("", tok.Required())
+	authed := v1.Group("", tok.Required(), accountGuard(st))
 	authed.GET("/me", authH.Me)
 
 	// Owner: business + employee management.
@@ -89,6 +89,9 @@ func New(cfg *config.Config, st *store.Store, files *filestore.Store, ret *reten
 	authed.PATCH("/businesses/:id/settings", ownerH.UpdateSettings)
 	authed.POST("/businesses/:id/screenshots/cleanup", retentionH.Cleanup)
 	authed.POST("/employees", ownerH.CreateEmployee)
+	authed.PATCH("/employees/:id", ownerH.UpdateEmployee)
+	authed.POST("/employees/:id/reset-password", ownerH.ResetEmployeePassword)
+	authed.DELETE("/employees/:id", ownerH.ArchiveEmployee)
 
 	// Capture policy for the desktop (employee's org settings).
 	authed.GET("/policy", ownerH.Policy)

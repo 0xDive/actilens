@@ -46,8 +46,9 @@ fn current_locale(app: &AppHandle) -> String {
 /// Localized native (tray) strings. Brand name stays verbatim. Falls back to
 /// English for any unknown locale.
 fn tr(locale: &str, key: &str) -> String {
-    let s = |en: &str, zh: &str, ja: &str, vi: &str, id: &str, fr: &str, es: &str| -> String {
+    let s = |en: &str, zh: &str, ja: &str, vi: &str, id: &str, fr: &str, es: &str, ru: &str| -> String {
         match locale {
+            "ru" => ru,
             "zh" => zh,
             "ja" => ja,
             "vi" => vi,
@@ -59,14 +60,14 @@ fn tr(locale: &str, key: &str) -> String {
         .to_string()
     };
     match key {
-        "open" => s("Open main UI", "打开主界面", "メイン画面を開く", "Mở giao diện chính", "Buka antarmuka utama", "Ouvrir l'interface", "Abrir la interfaz"),
-        "start" => s("Start", "开始", "開始", "Bắt đầu", "Mulai", "Démarrer", "Iniciar"),
-        "stop" => s("Stop", "停止", "停止", "Dừng", "Hentikan", "Arrêter", "Detener"),
-        "version" => s("Version", "版本", "バージョン", "Phiên bản", "Versi", "Version", "Versión"),
-        "quit" => s("Quit BiBoTracking", "退出 BiBoTracking", "BiBoTracking を終了", "Thoát BiBoTracking", "Keluar dari BiBoTracking", "Quitter BiBoTracking", "Salir de BiBoTracking"),
-        "tip_tracking" => s("tracking", "正在跟踪", "トラッキング中", "đang theo dõi", "melacak", "suivi en cours", "en seguimiento"),
-        "tip_idle" => s("idle (not counting)", "空闲（未计数）", "アイドル（カウントなし）", "không hoạt động (không tính)", "diam (tidak menghitung)", "inactif (pas de comptage)", "inactivo (sin contar)"),
-        "tip_paused" => s("paused", "已暂停", "一時停止中", "đã tạm dừng", "dijeda", "en pause", "en pausa"),
+        "open" => s("Open main UI", "打开主界面", "メイン画面を開く", "Mở giao diện chính", "Buka antarmuka utama", "Ouvrir l'interface", "Abrir la interfaz", "Открыть главное окно"),
+        "start" => s("Start", "开始", "開始", "Bắt đầu", "Mulai", "Démarrer", "Iniciar", "Начать"),
+        "stop" => s("Stop", "停止", "停止", "Dừng", "Hentikan", "Arrêter", "Detener", "Остановить"),
+        "version" => s("Version", "版本", "バージョン", "Phiên bản", "Versi", "Version", "Versión", "Версия"),
+        "quit" => s("Quit BiBoTracking", "退出 BiBoTracking", "BiBoTracking を終了", "Thoát BiBoTracking", "Keluar dari BiBoTracking", "Quitter BiBoTracking", "Salir de BiBoTracking", "Выйти из BiBoTracking"),
+        "tip_tracking" => s("tracking", "正在跟踪", "トラッキング中", "đang theo dõi", "melacak", "suivi en cours", "en seguimiento", "отслеживание"),
+        "tip_idle" => s("idle (not counting)", "空闲（未计数）", "アイドル（カウントなし）", "không hoạt động (không tính)", "diam (tidak menghitung)", "inactif (pas de comptage)", "inactivo (sin contar)", "простой (не считается)"),
+        "tip_paused" => s("paused", "已暂停", "一時停止中", "đã tạm dừng", "dijeda", "en pause", "en pausa", "пауза"),
         _ => key.to_string(),
     }
 }

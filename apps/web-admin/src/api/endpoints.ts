@@ -128,6 +128,25 @@ export function listBusinessEmployees(businessId: string) {
   return request<{ employees: Employee[] }>(`/v1/businesses/${businessId}/employees`);
 }
 
+export function updateEmployee(id: string, patch: {
+  email?: string;
+  username?: string;
+  display_name?: string;
+  active?: boolean;
+}) {
+  return request<{ employee: Employee }>(`/v1/employees/${id}`, { method: "PATCH", body: patch });
+}
+
+export function resetEmployeePassword(id: string, password: string) {
+  return request<{ status: string }>(`/v1/employees/${id}/reset-password`, {
+    method: "POST", body: { password },
+  });
+}
+
+export function archiveEmployee(id: string) {
+  return request<{ status: string }>(`/v1/employees/${id}`, { method: "DELETE" });
+}
+
 // ---------- reports ----------
 export function reportEmployees(businessId: string) {
   if (isDemo()) return Promise.resolve({ employees: demoRoster() });

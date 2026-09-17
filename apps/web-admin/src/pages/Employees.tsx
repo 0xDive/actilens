@@ -5,6 +5,9 @@ import {
   createBusiness,
   createEmployee,
   listBusinessEmployees,
+  updateEmployee,
+  resetEmployeePassword,
+  archiveEmployee,
 } from "../api/endpoints";
 import { ApiError, type BusinessKind, type Employee } from "../api/types";
 import { Empty, Modal, Notice, Spinner } from "../components/ui";
@@ -43,14 +46,12 @@ const AVATAR_PALETTE = [
 const initials = (name: string) =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
 
-/** PLACEHOLDER presence dot for the roster avatars. The employees list has no
- *  `last_seen`, so status is derived deterministically from the id (stable, no
- *  flicker) purely for the visual — replace once the backend exposes presence. */
-const STATUSES = ["active", "idle", "offline"] as const;
-function placeholderStatus(seed: string): (typeof STATUSES)[number] {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  return STATUSES[h % STATUSES.length];
+function employeeStatus(e: Employee): "active" | "idle" | "offline" {
+  if (!e.active || !e.last_seen) return "offline";
+  const age = Math.max(0, Date.now() / 1000 - e.last_seen);
+  if (age < 420) return "active";
+  if (age < 1200) return "idle";
+  return "offline";
 }
 
 export function Employees() {
@@ -99,6 +100,41 @@ export function Employees() {
   }, [searchParams, setSearchParams]);
 
   const hasBusiness = businesses.length > 0;
+
+  async function editEmployeeAccount(e: Employee) {
+    const displayName = window.prompt(t("employees.prompts.displayName"), e.display_name);
+    if (displayName === null) return;
+    const login = window.prompt(t("employees.prompts.login"), e.email || e.username || "");
+    if (login === null) return;
+    const v = login.trim();
+    const patch = v.includes("@")
+      ? { display_name: displayName.trim(), email: v, username: "" }
+      : { display_name: displayName.trim(), username: v.toLowerCase(), email: "" };
+    try {
+      await updateEmployee(e.id, patch);
+      if (selectedId) loadEmployees(selectedId);
+    } catch { window.alert(t("employees.prompts.failed")); }
+  }
+
+  async function changeEmployeePassword(e: Employee) {
+    const password = window.prompt(t("employees.prompts.password"));
+    if (!password) return;
+    if (password.length < 8) { window.alert(t("employees.prompts.password")); return; }
+    try {
+      await resetEmployeePassword(e.id, password);
+      window.alert(t("employees.prompts.passwordSaved"));
+    } catch { window.alert(t("employees.prompts.failed")); }
+  }
+
+  async function toggleEmployeeActive(e: Employee) {
+    const ok = window.confirm(t(e.active ? "employees.prompts.confirmArchive" : "employees.prompts.confirmRestore"));
+    if (!ok) return;
+    try {
+      if (e.active) await archiveEmployee(e.id);
+      else await updateEmployee(e.id, { active: true });
+      if (selectedId) loadEmployees(selectedId);
+    } catch { window.alert(t("employees.prompts.failed")); }
+  }
 
   return (
     <div className="ad-wrap" style={{ paddingBottom: 32 }}>
@@ -158,6 +194,7 @@ export function Employees() {
               <tr>
                 <th>{t("employees.table.name")}</th>
                 <th>{t("employees.table.login")}</th>
+                <th>{t("employees.table.currentApp")}</th>
                 <th></th>
               </tr>
             </thead>
@@ -165,7 +202,7 @@ export function Employees() {
               {employees.map((e, i) => {
                 const pal = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
                 const isSelf = e.id === user?.id;
-                const status = placeholderStatus(e.id); // PLACEHOLDER pending backend presence
+                const status = employeeStatus(e);
                 return (
                   <tr key={e.id}>
                     <td>
@@ -179,15 +216,23 @@ export function Employees() {
                         <span className="ad-name__txt">
                           {e.display_name}
                           {isSelf && <span className="ad-self">{t("dashboard.selfBadge")}</span>}
+                          {!e.active && <span className="ad-self">{t("employees.blocked")}</span>}
                         </span>
                       </div>
                     </td>
                     <td className="ad-login">{e.email || e.username}</td>
+                    <td className="ad-login">{status === "offline" ? "—" : (e.current_app || "—")}</td>
                     <td className="r">
-                      <Link className="ad-viewlink" to={`/employees/${e.id}?business=${selectedId}`}>
-                        {t("employees.viewReports")}
-                        {IconArrowRight}
-                      </Link>
+                      <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", alignItems: "center", flexWrap: "wrap" }}>
+                        <Link className="ad-viewlink" to={`/employees/${e.id}?business=${selectedId}`}>
+                          {t("employees.viewReports")}{IconArrowRight}
+                        </Link>
+                        <button className="bibo-btn bibo-btn--ghost" onClick={() => editEmployeeAccount(e)}>{t("employees.actions.edit")}</button>
+                        <button className="bibo-btn bibo-btn--ghost" onClick={() => changeEmployeePassword(e)}>{t("employees.actions.password")}</button>
+                        <button className="bibo-btn bibo-btn--ghost" onClick={() => toggleEmployeeActive(e)}>
+                          {t(e.active ? "employees.actions.archive" : "employees.actions.restore")}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
