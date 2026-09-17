@@ -67,7 +67,13 @@ func New(cfg *config.Config, st *store.Store, files *filestore.Store, ret *reten
 	authed := v1.Group("", tok.Required(), accountGuard(st))
 	authed.GET("/me", authH.Me)
 
-	// Owner: business, employee, device and audit management.
+	// Membership / RBAC discovery. These routes do not replace the existing owner
+	// handlers yet; they are the stable foundation for the role-aware console.
+	authed.GET("/memberships/mine", ownerH.ListMyMemberships)
+	authed.GET("/businesses/console", ownerH.ListConsoleBusinesses)
+	authed.PATCH("/businesses/:id/members/:user_id/role", ownerH.UpdateMemberRole)
+
+	// Business, employee, device and audit management.
 	authed.POST("/businesses", ownerH.CreateBusiness)
 	authed.GET("/businesses/mine", ownerH.ListMine)
 	authed.GET("/businesses/:id/employees", ownerH.ListEmployees)
@@ -88,7 +94,7 @@ func New(cfg *config.Config, st *store.Store, files *filestore.Store, ret *reten
 	authed.POST("/sync/batch", syncH.Batch)
 	authed.POST("/sync/screenshots", shotH.Upload)
 
-	// Owner read path (reporting).
+	// Reporting.
 	authed.GET("/reports/employees", reportsH.Roster)
 	authed.GET("/reports/employees/:id/activity", reportsH.Activity)
 	authed.GET("/reports/employees/:id/keystrokes", reportsH.Keystrokes)
