@@ -144,6 +144,16 @@ func (h *SyncHandler) Batch(c *gin.Context) {
 		return
 	}
 
+	monitoringEnabled, err := h.store.MembershipMonitoringEnabled(c.Request.Context(), userID, businessID)
+	if err != nil {
+		serverError(c, err)
+		return
+	}
+	if !monitoringEnabled {
+		c.JSON(http.StatusForbidden, gin.H{"error": "monitoring is disabled for this membership"})
+		return
+	}
+
 	meta := store.DeviceMetadata{
 		Label:      req.DeviceLabel,
 		Hostname:   req.DeviceHostname,
