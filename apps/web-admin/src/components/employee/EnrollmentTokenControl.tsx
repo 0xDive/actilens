@@ -30,8 +30,9 @@ async function copyText(value: string) {
   if (!copied) throw new Error("copy failed");
 }
 
-export function EnrollmentTokenControl({ employee, canChange }: {
+export function EnrollmentTokenControl({ employee, businessId, canChange }: {
   employee: Employee;
+  businessId: string;
   canChange: boolean;
 }) {
   const { t } = useTranslation("dashboard");
@@ -60,7 +61,7 @@ export function EnrollmentTokenControl({ employee, canChange }: {
     setError(null);
     setCopied(null);
     try {
-      setGrant(await createEnrollmentToken(employee.id, hours));
+      setGrant(await createEnrollmentToken(businessId, employee.id, hours));
     } catch {
       setError(t("employees.enrollment.failed"));
     } finally {
