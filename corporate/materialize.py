@@ -12,33 +12,8 @@ def p(rel: str) -> Path:
     return root / rel
 
 
-def replace(rel: str, old: str, new: str) -> None:
-    path = p(rel)
-    text = path.read_text(encoding="utf-8")
-    if old not in text:
-        raise SystemExit(f"materialize anchor missing in {rel}: {old[:100]!r}")
-    path.write_text(text.replace(old, new), encoding="utf-8")
-
-
 # Apply the already CI-verified corporate patch to the actual checkout.
 subprocess.check_call([sys.executable, str(p("corporate/apply_patch.py")), str(root)])
-
-# CI now builds the real modified source; no patch application step remains.
-replace(
-    ".github/workflows/corporate-ci.yml",
-    "      - name: Apply corporate patch\n        run: python3 corporate/apply_patch.py .\n\n",
-    "",
-)
-replace(
-    ".github/workflows/corporate-ci.yml",
-    "      - name: Apply corporate patch\n        shell: pwsh\n        run: python corporate/apply_patch.py .\n\n",
-    "",
-)
-replace(
-    ".github/workflows/corporate-release.yml",
-    "      - name: Apply corporate patch\n        shell: pwsh\n        run: python corporate/apply_patch.py .\n\n",
-    "",
-)
 
 # Build directly from the repository source.
 p("corporate/Dockerfile").write_text('''# syntax=docker/dockerfile:1
@@ -152,7 +127,7 @@ readme = readme.replace(
 )
 p("README.md").write_text(readme, encoding="utf-8")
 
-# Delete the overlay payload. Deployment files under corporate/ stay.
+# Delete only the overlay payload. Workflow files are updated separately through GitHub.
 for rel in [
     "corporate/apply_patch.py",
     "corporate/patch.part1.b64",
@@ -160,7 +135,6 @@ for rel in [
     "corporate/patch.part3.b64",
     "corporate/patch.part4.b64",
     "corporate/materialize.py",
-    ".github/workflows/materialize-source.yml",
 ]:
     path = p(rel)
     if path.exists():
