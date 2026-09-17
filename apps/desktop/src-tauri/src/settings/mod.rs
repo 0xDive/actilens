@@ -175,7 +175,7 @@ pub fn apply(s: &Settings, control: &crate::trackers::TrackerControl) {
     use std::sync::atomic::Ordering::Relaxed;
     control
         .org_monitoring_enabled
-        .store(s.org_monitoring_enabled, Relaxed);
+        .store(s.local_only || s.org_monitoring_enabled, Relaxed);
     control.idle_threshold_s.store(s.idle_threshold_s, Relaxed);
     control
         .screenshot_interval_s

@@ -157,7 +157,11 @@ pub fn set_settings(
     // state, so preserve both instead of letting serde defaults reset them.
     let current = state.current.lock().unwrap().clone();
     value.locale = current.locale;
-    value.org_monitoring_enabled = current.org_monitoring_enabled;
+    value.org_monitoring_enabled = if value.local_only {
+        true
+    } else {
+        current.org_monitoring_enabled
+    };
     // When the org controls capture settings, ignore changes to those fields —
     // the rest (theme, dock, etc.) still apply.
     if state.managed.lock().unwrap().locked() {
@@ -489,10 +493,25 @@ pub async fn login(
     Ok(session)
 }
 
-/// Clear the stored session (Keychain + memory).
+/// Clear the stored session and release any organization-controlled
+/// collection gate. A future organization login will fetch its own policy again.
 #[tauri::command]
-pub fn logout(auth: State<Arc<AuthState>>) -> Result<(), String> {
-    auth.clear()
+pub fn logout(
+    auth: State<Arc<AuthState>>,
+    settings: State<Arc<crate::settings::SettingsState>>,
+    control: State<Arc<TrackerControl>>,
+) -> Result<(), String> {
+    auth.clear()?;
+    control
+        .org_monitoring_enabled
+        .store(true, Ordering::Relaxed);
+    {
+        let mut current = settings.current.lock().unwrap();
+        current.org_monitoring_enabled = true;
+        crate::settings::save(&settings.path, &current).map_err(err)?;
+    }
+    settings.managed.lock().unwrap().monitoring_enabled = true;
+    Ok(())
 }
 
 /// The current session, or `None` when logged out. Drives the login UI.
