@@ -1,0 +1,97 @@
+name: Login monitoring gate patch
+
+on:
+  push:
+    branches: [feature/monitoring-control-v2]
+    paths:
+      - ".github/workflows/login-monitoring-gate-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/monitoring-control-v2
+          fetch-depth: 0
+      - name: Close monitoring gate until server confirms it
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('apps/desktop/src-tauri/src/commands/mod.rs')
+          text = p.read_text()
+          old = '''pub async fn login(
+    email: String,
+    password: String,
+    business_id: Option<String>,
+    auth: State<'_, Arc<AuthState>>,
+) -> Result<Session, String> {
+    let client = BackendClient::new(backend_url(), auth.inner().clone());
+    let session = client
+        .login(&email, &password, business_id.as_deref())
+        .await?;
+    auth.store(session.clone())?;
+    Ok(session)
+}
+'''
+          new = '''pub async fn login(
+    email: String,
+    password: String,
+    business_id: Option<String>,
+    auth: State<'_, Arc<AuthState>>,
+    settings: State<'_, Arc<crate::settings::SettingsState>>,
+    control: State<'_, Arc<TrackerControl>>,
+) -> Result<Session, String> {
+    let client = BackendClient::new(backend_url(), auth.inner().clone());
+    let session = client
+        .login(&email, &password, business_id.as_deref())
+        .await?;
+    auth.store(session.clone())?;
+
+    // Fail closed between authentication and membership-policy resolution. This
+    // prevents a completed onboarding session from collecting even a few local
+    // samples before the React policy effect runs.
+    control
+        .org_monitoring_enabled
+        .store(false, Ordering::Relaxed);
+    {
+        let mut current = settings.current.lock().unwrap();
+        current.org_monitoring_enabled = false;
+        let _ = crate::settings::save(&settings.path, &current);
+    }
+    settings.managed.lock().unwrap().monitoring_enabled = false;
+
+    // The login call itself just succeeded, so normally this resolves immediately.
+    // If the membership endpoint has a transient failure we intentionally stay
+    // disabled; the background sync/policy refresh will retry and re-enable only
+    // after the server explicitly says collection is allowed.
+    if let Ok(enabled) = client.monitoring_enabled(session.business_id.as_deref()).await {
+        control
+            .org_monitoring_enabled
+            .store(enabled, Ordering::Relaxed);
+        {
+            let mut current = settings.current.lock().unwrap();
+            current.org_monitoring_enabled = enabled;
+            let _ = crate::settings::save(&settings.path, &current);
+        }
+        settings.managed.lock().unwrap().monitoring_enabled = enabled;
+    }
+
+    Ok(session)
+}
+'''
+          if old not in text:
+              raise SystemExit('login anchor missing')
+          p.write_text(text.replace(old, new, 1))
+          PY
+          git diff --check
+      - name: Commit login gate fix
+        run: |
+          git config user.name "0xDive Automation"
+          git config user.email "72026841+0xDive@users.noreply.github.com"
+          git add apps/desktop/src-tauri/src/commands/mod.rs
+          git commit -m "fix: fail closed until monitoring policy resolves after login"
+          git push origin HEAD:feature/monitoring-control-v2
