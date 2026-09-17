@@ -19,7 +19,7 @@ const (
 type BusinessPermission string
 
 const (
-	PermissionReports         BusinessPermission = "reports"
+	PermissionReports          BusinessPermission = "reports"
 	PermissionManageEmployees BusinessPermission = "manage_employees"
 	PermissionManageDevices   BusinessPermission = "manage_devices"
 	PermissionSettings        BusinessPermission = "settings"
@@ -32,6 +32,11 @@ type Membership struct {
 	BusinessName      string       `json:"business_name"`
 	Role              BusinessRole `json:"role"`
 	MonitoringEnabled bool         `json:"monitoring_enabled"`
+}
+
+type BusinessAccess struct {
+	Business Business     `json:"business"`
+	Role     BusinessRole `json:"role"`
 }
 
 func ValidBusinessRole(role BusinessRole) bool {
@@ -130,7 +135,7 @@ func (s *Store) MembershipsForUser(ctx context.Context, userID string) ([]Member
 
 // ListBusinessesForConsole returns businesses visible in the administrative web
 // console. Employees intentionally do not get a console business list.
-func (s *Store) ListBusinessesForConsole(ctx context.Context, userID string) ([]Business, error) {
+func (s *Store) ListBusinessesForConsole(ctx context.Context, userID string) ([]BusinessAccess, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT `+businessCols+`, m.role
 		  FROM memberships m
@@ -142,17 +147,18 @@ func (s *Store) ListBusinessesForConsole(ctx context.Context, userID string) ([]
 	}
 	defer rows.Close()
 
-	out := []Business{}
+	out := []BusinessAccess{}
 	for rows.Next() {
-		var b Business
+		var a BusinessAccess
 		if err := rows.Scan(
-			&b.ID, &b.Name, &b.Kind, &b.OwnerUserID, &b.ScreenshotRetentionDays,
-			&b.ScreenshotIntervalS, &b.IdleThresholdS, &b.AllowEmployeeOverride,
-			&b.ScreenshotMode, &b.ScreenshotSkipApps, &b.Role,
+			&a.Business.ID, &a.Business.Name, &a.Business.Kind, &a.Business.OwnerUserID,
+			&a.Business.ScreenshotRetentionDays, &a.Business.ScreenshotIntervalS,
+			&a.Business.IdleThresholdS, &a.Business.AllowEmployeeOverride,
+			&a.Business.ScreenshotMode, &a.Business.ScreenshotSkipApps, &a.Role,
 		); err != nil {
 			return nil, err
 		}
-		out = append(out, b)
+		out = append(out, a)
 	}
 	return out, rows.Err()
 }
@@ -193,7 +199,7 @@ func (s *Store) UpdateMembershipRole(ctx context.Context, actorID, businessID, t
 	); err != nil {
 		return err
 	}
-	if err := insertAuditTx(ctx, tx, businessID, actorID, "member.role_changed", "employee", targetUserID, map[string]any{
+	if err := insertAuditTx(ctx, tx, businessID, actorID, "member.role_changed", "member", targetUserID, map[string]any{
 		"from": string(current),
 		"to":   string(role),
 	}); err != nil {
