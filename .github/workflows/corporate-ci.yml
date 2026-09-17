@@ -26,6 +26,7 @@ jobs:
 
       - name: Validate Linux deployment scripts
         run: |
+          bash -n bootstrap-linux.sh
           bash -n install-linux.sh
           bash -n biboctl.sh
           sh -n corporate/docker-entrypoint.sh
