@@ -4,10 +4,12 @@ set -Eeuo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$ROOT/corporate/.env"
 COMPOSE_FILE="$ROOT/corporate/docker-compose.yml"
+HTTPS_COMPOSE_FILE="$ROOT/corporate/docker-compose.https.yml"
 
-PORT="8081"
-ORIGIN=""
-IMAGE="ghcr.io/0xdive/emplooyee-tracking:main"
+PORT_ARG=""
+ORIGIN_ARG=""
+IMAGE_ARG=""
+DOMAIN_ARG=""
 LOCAL_BUILD=0
 INSTALL_DOCKER=0
 OPEN_FIREWALL=0
@@ -21,26 +23,28 @@ Usage:
 
 Options:
   --port N               Published HTTP port (default: 8081)
-  --origin URL           Public URL, e.g. https://tracker.example.com
+  --origin URL           Public URL, e.g. http://192.168.1.50:8081
+  --domain NAME          Enable automatic HTTPS with Caddy for this DNS name
   --image IMAGE          Docker image (default: ghcr.io/0xdive/emplooyee-tracking:main)
   --local-build          Always build the app image from this checkout
   --install-docker       Install Docker using Docker's official installer if missing
-  --open-firewall        If UFW is active, allow the selected TCP port
+  --open-firewall        Open required UFW ports if UFW is active
   -h, --help             Show this help
 
 Examples:
   ./install-linux.sh
   ./install-linux.sh --port 8081 --open-firewall
-  ./install-linux.sh --origin https://tracker.example.com
-  sudo ./install-linux.sh --install-docker --open-firewall
+  ./install-linux.sh --domain tracker.example.com --open-firewall
+  sudo ./install-linux.sh --install-docker --domain tracker.example.com --open-firewall
 EOF
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --port) PORT="${2:?missing port}"; shift 2 ;;
-    --origin) ORIGIN="${2:?missing origin}"; shift 2 ;;
-    --image) IMAGE="${2:?missing image}"; shift 2 ;;
+    --port) PORT_ARG="${2:?missing port}"; shift 2 ;;
+    --origin) ORIGIN_ARG="${2:?missing origin}"; shift 2 ;;
+    --domain) DOMAIN_ARG="${2:?missing domain}"; shift 2 ;;
+    --image) IMAGE_ARG="${2:?missing image}"; shift 2 ;;
     --local-build) LOCAL_BUILD=1; shift ;;
     --install-docker) INSTALL_DOCKER=1; shift ;;
     --open-firewall) OPEN_FIREWALL=1; shift ;;
@@ -51,11 +55,6 @@ done
 
 if [[ "$(uname -s)" != "Linux" ]]; then
   echo "ERROR: this installer is for Linux." >&2
-  exit 1
-fi
-
-if ! [[ "$PORT" =~ ^[0-9]+$ ]] || (( PORT < 1 || PORT > 65535 )); then
-  echo "ERROR: invalid port: $PORT" >&2
   exit 1
 fi
 
@@ -119,10 +118,6 @@ if ! "${DOCKER[@]}" compose version >/dev/null 2>&1; then
   exit 1
 fi
 
-compose() {
-  "${DOCKER[@]}" compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
-}
-
 random_hex() {
   if command -v openssl >/dev/null 2>&1; then
     openssl rand -hex 32
@@ -156,8 +151,39 @@ set_env_value() {
   chmod 600 "$ENV_FILE"
 }
 
-if [[ -z "$ORIGIN" ]]; then
+# Preserve existing deployment values on re-run unless explicitly overridden.
+if [[ -f "$ENV_FILE" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "$ENV_FILE"
+  set +a
+fi
+
+PORT="${PORT_ARG:-${BIBO_PORT:-8081}}"
+IMAGE="${IMAGE_ARG:-${BIBO_IMAGE:-ghcr.io/0xdive/emplooyee-tracking:main}}"
+DOMAIN="${DOMAIN_ARG:-${DOMAIN:-}}"
+
+if ! [[ "$PORT" =~ ^[0-9]+$ ]] || (( PORT < 1 || PORT > 65535 )); then
+  echo "ERROR: invalid port: $PORT" >&2
+  exit 1
+fi
+
+if [[ -n "$DOMAIN_ARG" ]]; then
+  ORIGIN="https://$DOMAIN_ARG"
+elif [[ -n "$ORIGIN_ARG" ]]; then
+  ORIGIN="$ORIGIN_ARG"
+elif [[ -n "${PUBLIC_ORIGIN:-}" ]]; then
+  ORIGIN="$PUBLIC_ORIGIN"
+elif [[ -n "$DOMAIN" ]]; then
+  ORIGIN="https://$DOMAIN"
+else
   ORIGIN="http://$(detect_ip):$PORT"
+fi
+
+if [[ -n "$DOMAIN" ]]; then
+  BIND_ADDR="127.0.0.1"
+else
+  BIND_ADDR="${BIBO_BIND_ADDR:-0.0.0.0}"
 fi
 
 mkdir -p "$ROOT/corporate/backups"
@@ -169,27 +195,48 @@ POSTGRES_USER=ctracking
 POSTGRES_DB=ctracking
 POSTGRES_PASSWORD=$DB_PASSWORD
 BIBO_PORT=$PORT
+BIBO_BIND_ADDR=$BIND_ADDR
 PUBLIC_ORIGIN=$ORIGIN
 BIBO_IMAGE=$IMAGE
+DOMAIN=$DOMAIN
 EOF
   chmod 600 "$ENV_FILE"
   echo "Created $ENV_FILE with a random database password."
 else
-  echo "Using existing $ENV_FILE (existing database settings were preserved)."
+  echo "Using existing $ENV_FILE (database credentials were preserved)."
   set_env_value BIBO_PORT "$PORT"
+  set_env_value BIBO_BIND_ADDR "$BIND_ADDR"
   set_env_value PUBLIC_ORIGIN "$ORIGIN"
   set_env_value BIBO_IMAGE "$IMAGE"
+  set_env_value DOMAIN "$DOMAIN"
 fi
+
+compose() {
+  local args=(--env-file "$ENV_FILE" -f "$COMPOSE_FILE")
+  if [[ -n "$DOMAIN" ]]; then
+    args+=(-f "$HTTPS_COMPOSE_FILE")
+  fi
+  "${DOCKER[@]}" compose "${args[@]}" "$@"
+}
 
 if (( OPEN_FIREWALL )) && command -v ufw >/dev/null 2>&1; then
   if need_root_cmd ufw status 2>/dev/null | grep -q '^Status: active'; then
-    need_root_cmd ufw allow "$PORT/tcp"
+    if [[ -n "$DOMAIN" ]]; then
+      need_root_cmd ufw allow 80/tcp
+      need_root_cmd ufw allow 443/tcp
+      need_root_cmd ufw allow 443/udp
+    else
+      need_root_cmd ufw allow "$PORT/tcp"
+    fi
   fi
 fi
 
 echo
 echo "Starting BiBoTracking Corporate..."
 compose pull db >/dev/null
+if [[ -n "$DOMAIN" ]]; then
+  compose pull caddy >/dev/null
+fi
 
 if (( LOCAL_BUILD )); then
   compose build --pull bibotracking
@@ -204,7 +251,7 @@ else
   fi
 fi
 
-echo "Waiting for health check..."
+echo "Waiting for application health check..."
 health_url="http://127.0.0.1:$PORT/healthz"
 ok=0
 for _ in $(seq 1 60); do
@@ -226,12 +273,25 @@ if (( ! ok )); then
   exit 1
 fi
 
+if [[ -n "$DOMAIN" ]]; then
+  echo "Waiting for Caddy/TLS..."
+  for _ in $(seq 1 45); do
+    if command -v curl >/dev/null 2>&1 && curl -kfsS "$ORIGIN/healthz" >/dev/null 2>&1; then
+      break
+    fi
+    sleep 2
+  done
+fi
+
 echo
 echo "============================================================"
 echo "BiBoTracking Corporate is running."
 echo "Admin:  $ORIGIN/admin/"
 echo "Health: $ORIGIN/healthz"
 echo "Config: $ENV_FILE"
+if [[ -n "$DOMAIN" ]]; then
+  echo "HTTPS:   enabled via Caddy ($DOMAIN)"
+fi
 echo "============================================================"
 echo
 echo "Useful commands:"
