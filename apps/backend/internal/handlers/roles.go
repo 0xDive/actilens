@@ -61,6 +61,35 @@ func (h *OwnerHandler) UpdateMemberRole(c *gin.Context) {
 	}
 }
 
+type updateMemberMonitoringReq struct {
+	Enabled *bool `json:"enabled"`
+}
+
+// UpdateMemberMonitoring controls whether ActiLens may collect/sync telemetry for
+// this membership. It is intentionally independent from the console role.
+func (h *OwnerHandler) UpdateMemberMonitoring(c *gin.Context) {
+	actorID, _ := auth.UserID(c)
+	var req updateMemberMonitoringReq
+	if err := c.ShouldBindJSON(&req); err != nil || req.Enabled == nil {
+		badRequest(c, "enabled must be a boolean")
+		return
+	}
+
+	err := h.store.UpdateMembershipMonitoring(
+		c.Request.Context(), actorID, c.Param("id"), c.Param("user_id"), *req.Enabled,
+	)
+	switch {
+	case err == nil:
+		c.JSON(http.StatusOK, gin.H{"status": "ok", "monitoring_enabled": *req.Enabled})
+	case errors.Is(err, store.ErrNotFound):
+		c.JSON(http.StatusNotFound, gin.H{"error": "member not found"})
+	case errors.Is(err, store.ErrForbidden):
+		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permission"})
+	default:
+		serverError(c, err)
+	}
+}
+
 // ListConsoleBusinesses exposes the organizations in which the current user has
 // a console-capable role (owner/admin/manager). Employees get an empty list.
 func (h *OwnerHandler) ListConsoleBusinesses(c *gin.Context) {
