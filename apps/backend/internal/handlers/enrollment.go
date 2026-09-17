@@ -56,6 +56,7 @@ func (h *OwnerHandler) CreateEnrollmentToken(c *gin.Context) {
 	)
 	switch {
 	case err == nil:
+		c.Header("Cache-Control", "no-store")
 		c.JSON(http.StatusCreated, gin.H{
 			"token":       token,
 			"business_id": businessID,
@@ -102,17 +103,16 @@ func (h *AuthHandler) Enroll(c *gin.Context) {
 		return
 	}
 
-	active, version, err := h.store.UserSecurity(c.Request.Context(), grant.User.ID)
-	if err != nil || !active {
-		unauthorized(c, "invalid or expired enrollment token")
-		return
-	}
-	pair, err := h.tok.IssueVersioned(grant.User.ID, version)
+	// Issue at the exact auth_version that was verified inside the locked redeem
+	// transaction. A concurrent password reset/disable makes this pair stale rather
+	// than accidentally upgrading the enrollment grant to a newer security version.
+	pair, err := h.tok.IssueVersioned(grant.User.ID, grant.AuthVersion)
 	if err != nil {
 		serverError(c, err)
 		return
 	}
 	obs.Info("enrollment ok", "user", grant.User.ID, "business", grant.BusinessID)
+	c.Header("Cache-Control", "no-store")
 	c.JSON(http.StatusOK, gin.H{
 		"user": gin.H{
 			"id":           grant.User.ID,
