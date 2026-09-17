@@ -5,7 +5,7 @@ import type { Employee } from "../../api/types";
 import { Modal, Notice } from "../ui";
 
 function psQuote(value: string) {
-  return value.replaceAll("'", "''");
+  return value.replace(/'/g, "''");
 }
 
 async function copyText(value: string) {
