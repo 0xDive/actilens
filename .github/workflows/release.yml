@@ -31,6 +31,9 @@ jobs:
             throw "ACTILENS_SERVER_URL must use http or https"
           }
           Write-Host "Building ActiLens for backend: $($uri.AbsoluteUri.TrimEnd('/'))"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Set application version from tag
         shell: pwsh
         run: python scripts/set-version.py $env:GITHUB_REF_NAME
