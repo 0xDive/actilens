@@ -62,8 +62,30 @@ pub fn pending_token() -> Option<String> {
     None
 }
 
+/// Remove the enrollment secret after it has been redeemed. The server token is
+/// already one-time, but leaving a consumed secret in HKCU\Environment is needless
+/// exposure and makes future troubleshooting confusing.
+fn clear_consumed_token() {
+    std::env::remove_var("ACTILENS_ENROLL_TOKEN");
+
+    #[cfg(target_os = "windows")]
+    {
+        use winreg::enums::HKEY_CURRENT_USER;
+        use winreg::RegKey;
+
+        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+        if let Ok(environment) = hkcu.open_subkey_with_flags(
+            "Environment",
+            winreg::enums::KEY_SET_VALUE,
+        ) {
+            let _ = environment.delete_value("ACTILENS_ENROLL_TOKEN");
+        }
+    }
+}
+
 /// Exchange a short-lived one-time enrollment token for the normal ActiLens
-/// session. The raw token is sent only in this TLS/HTTP request and is never logged.
+/// session. The raw token is sent only in this HTTP request and is never logged.
+/// Production deployments should use HTTPS when the backend is outside a trusted LAN.
 pub async fn redeem(base_url: &str, token: &str) -> Result<Session, String> {
     let http = reqwest::Client::builder()
         .timeout(Duration::from_secs(20))
@@ -89,6 +111,9 @@ pub async fn redeem(base_url: &str, token: &str) -> Result<Session, String> {
         parsed.user.email
     };
 
+    // The server has atomically consumed the one-time credential by this point.
+    clear_consumed_token();
+
     Ok(Session {
         access_token: parsed.tokens.access_token,
         refresh_token: parsed.tokens.refresh_token,
@@ -99,8 +124,6 @@ pub async fn redeem(base_url: &str, token: &str) -> Result<Session, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn command_line_prefix_is_documented() {
         // Keep a cheap regression guard around the CLI convention used by deployment
