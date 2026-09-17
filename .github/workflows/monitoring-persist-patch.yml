@@ -1,0 +1,78 @@
+name: Monitoring persistence patch
+
+on:
+  push:
+    branches: [feature/monitoring-control-v2]
+    paths:
+      - ".github/workflows/monitoring-persist-patch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/monitoring-control-v2
+          fetch-depth: 0
+      - name: Persist last known monitoring state
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new, count=1):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f"anchor missing in {path}: {old[:140]!r}")
+              p.write_text(text.replace(old, new, count))
+
+          path = 'apps/desktop/src-tauri/src/settings/mod.rs'
+          replace(path,
+          '''    /// UI language code (e.g. "en", "zh", "ja"). Persisted so the native side\n    /// (tray, notifications) can localize to match the in-app choice. Default "en".\n    #[serde(default = "default_locale")]\n    pub locale: String,\n''',
+          '''    /// UI language code (e.g. "en", "zh", "ja"). Persisted so the native side\n    /// (tray, notifications) can localize to match the in-app choice. Default "en".\n    #[serde(default = "default_locale")]\n    pub locale: String,\n    /// Last server-confirmed membership collection state. Persisted so an offline\n    /// restart never silently re-enables monitoring that an administrator disabled.\n    #[serde(default = "default_true")]\n    pub org_monitoring_enabled: bool,\n''')
+          replace(path,
+          '''            device_id: String::new(),\n            locale: default_locale(),\n''',
+          '''            device_id: String::new(),\n            locale: default_locale(),\n            org_monitoring_enabled: true,\n''')
+          replace(path,
+          '''    control.idle_threshold_s.store(s.idle_threshold_s, Relaxed);\n''',
+          '''    control\n        .org_monitoring_enabled\n        .store(s.org_monitoring_enabled, Relaxed);\n    control.idle_threshold_s.store(s.idle_threshold_s, Relaxed);\n''')
+          replace(path,
+          '''        assert_eq!(loaded.screenshot_interval_s, 600);\n''',
+          '''        assert_eq!(loaded.screenshot_interval_s, 600);\n        assert!(loaded.org_monitoring_enabled);\n''')
+
+          path = 'apps/desktop/src-tauri/src/commands/mod.rs'
+          replace(path,
+          '''    // The UI's settings payload doesn't carry `locale` (it's owned by `set_locale`),\n    // so preserve the persisted value instead of letting serde's default reset it.\n    value.locale = state.current.lock().unwrap().locale.clone();\n''',
+          '''    // The UI payload doesn't own locale or the server-controlled monitoring\n    // state, so preserve both instead of letting serde defaults reset them.\n    let current = state.current.lock().unwrap().clone();\n    value.locale = current.locale;\n    value.org_monitoring_enabled = current.org_monitoring_enabled;\n''')
+          replace(path,
+          '''    control\n        .org_monitoring_enabled\n        .store(monitoring_enabled, Ordering::Relaxed);\n\n    let status = crate::settings::CaptureManaged {\n''',
+          '''    control\n        .org_monitoring_enabled\n        .store(monitoring_enabled, Ordering::Relaxed);\n    {\n        let mut current = settings.current.lock().unwrap();\n        if current.org_monitoring_enabled != monitoring_enabled {\n            current.org_monitoring_enabled = monitoring_enabled;\n            let _ = crate::settings::save(&settings.path, &current);\n        }\n    }\n\n    let status = crate::settings::CaptureManaged {\n''')
+
+          path = 'apps/desktop/src-tauri/src/sync/worker.rs'
+          replace(path,
+          '''    if let Ok(enabled) = client.monitoring_enabled(business_id.as_deref()).await {\n        ctx.control\n            .org_monitoring_enabled\n            .store(enabled, Ordering::Relaxed);\n    }\n''',
+          '''    if let Ok(enabled) = client.monitoring_enabled(business_id.as_deref()).await {\n        ctx.control\n            .org_monitoring_enabled\n            .store(enabled, Ordering::Relaxed);\n        let mut current = ctx.settings.current.lock().unwrap();\n        if current.org_monitoring_enabled != enabled {\n            current.org_monitoring_enabled = enabled;\n            let _ = crate::settings::save(&ctx.settings.path, &current);\n        }\n        let mut managed = ctx.settings.managed.lock().unwrap();\n        managed.monitoring_enabled = enabled;\n    }\n''')
+
+          path = 'apps/desktop/src-tauri/src/lib.rs'
+          replace(path,
+          '''            let settings_state = Arc::new(settings::SettingsState {\n                path: settings_path,\n                current: std::sync::Mutex::new(loaded),\n                managed: std::sync::Mutex::new(settings::CaptureManaged::default()),\n            });\n''',
+          '''            let settings_state = Arc::new(settings::SettingsState {\n                path: settings_path,\n                current: std::sync::Mutex::new(loaded.clone()),\n                managed: std::sync::Mutex::new(settings::CaptureManaged {\n                    monitoring_enabled: loaded.org_monitoring_enabled,\n                    ..settings::CaptureManaged::default()\n                }),\n            });\n''')
+
+          # A focused persistence regression test.
+          path = 'apps/desktop/src-tauri/src/settings/mod.rs'
+          replace(path,
+          '''    #[test]\n    fn device_id_is_created_once_and_stable() {\n''',
+          '''    #[test]\n    fn monitoring_state_round_trips() {\n        let dir = std::env::temp_dir().join(format!("actilens_monitoring_{}", std::process::id()));\n        std::fs::create_dir_all(&dir).unwrap();\n        let path = dir.join("settings.json");\n        let mut s = Settings::default();\n        s.org_monitoring_enabled = false;\n        save(&path, &s).unwrap();\n        assert!(!load(&path).org_monitoring_enabled);\n        std::fs::remove_dir_all(&dir).ok();\n    }\n\n    #[test]\n    fn device_id_is_created_once_and_stable() {\n''')
+          PY
+          cargo fmt --manifest-path apps/desktop/src-tauri/Cargo.toml --all
+          git diff --check
+      - name: Commit persistence fix
+        run: |
+          git config user.name "0xDive Automation"
+          git config user.email "72026841+0xDive@users.noreply.github.com"
+          git add apps/desktop/src-tauri/src
+          git commit -m "fix: persist server monitoring state across restarts"
+          git push origin HEAD:feature/monitoring-control-v2
