@@ -73,6 +73,7 @@ func New(cfg *config.Config, st *store.Store, files *filestore.Store, ret *reten
 	authed.GET("/businesses/console", ownerH.ListConsoleBusinesses)
 	authed.PATCH("/businesses/:id/members/:user_id/role", ownerH.UpdateMemberRole)
 	authed.PATCH("/businesses/:id/members/:user_id/monitoring", ownerH.UpdateMemberMonitoring)
+	authed.POST("/businesses/:id/members/:user_id/enrollment-token", ownerH.CreateEnrollmentToken)
 
 	// Business, employee, device and audit management.
 	authed.POST("/businesses", ownerH.CreateBusiness)
@@ -84,7 +85,6 @@ func New(cfg *config.Config, st *store.Store, files *filestore.Store, ret *reten
 	authed.POST("/employees", ownerH.CreateEmployee)
 	authed.PATCH("/employees/:id", ownerH.UpdateEmployee)
 	authed.POST("/employees/:id/reset-password", ownerH.ResetEmployeePassword)
-	authed.POST("/employees/:id/enrollment-token", ownerH.CreateEnrollmentToken)
 	authed.DELETE("/employees/:id", ownerH.ArchiveEmployee)
 	authed.GET("/employees/:id/devices", ownerH.ListEmployeeDevices)
 	authed.PATCH("/devices/:id", ownerH.UpdateDevice)
