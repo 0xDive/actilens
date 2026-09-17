@@ -1,7 +1,7 @@
 [package]
 name = "actilens"
-version = "1.5.2"
-description = "Local-only macOS employee activity tracker"
+version = "0.1.0"
+description = "Workstation activity monitoring agent"
 authors = ["0xDive"]
 edition = "2021"
 
