@@ -15,56 +15,62 @@ type EnrollmentGrant struct {
 	BusinessID string
 }
 
-// CreateEnrollmentToken records only the token hash. Creating a new token revokes
-// any older unused token for the same member in the resolved organization. The
-// token is bound to the user's current auth_version, so password resets and account
-// disable/restore operations invalidate it automatically.
-func (s *Store) CreateEnrollmentToken(ctx context.Context, actorID, targetUserID, tokenHash string, expiresAt time.Time) (string, error) {
+// CreateEnrollmentToken records only the token hash. The target organization is
+// explicit so a member shared by several organizations can never be provisioned
+// into whichever shared membership happens to sort first.
+func (s *Store) CreateEnrollmentToken(ctx context.Context, actorID, businessID, targetUserID, tokenHash string, expiresAt time.Time) (string, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return "", err
 	}
 	defer tx.Rollback(ctx)
 
-	access, err := memberAccessTx(ctx, tx, actorID, targetUserID, PermissionManageEmployees)
+	actorRole, err := requireBusinessPermissionTx(ctx, tx, actorID, businessID, PermissionManageEmployees)
 	if err != nil {
 		return "", err
 	}
 
+	var targetRole BusinessRole
 	var active bool
 	var authVersion int
-	if err := tx.QueryRow(ctx, `SELECT active, auth_version FROM users WHERE id = $1 FOR UPDATE`, targetUserID).Scan(&active, &authVersion); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return "", ErrNotFound
-		}
+	err = tx.QueryRow(ctx, `
+		SELECT m.role, u.active, u.auth_version
+		  FROM memberships m
+		  JOIN users u ON u.id = m.user_id
+		 WHERE m.business_id = $1 AND m.user_id = $2
+		 FOR UPDATE OF m, u`, businessID, targetUserID).Scan(&targetRole, &active, &authVersion)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	if err != nil {
 		return "", err
 	}
-	if !active {
+	if !roleMayManageTarget(actorRole, targetRole, PermissionManageEmployees) || !active {
 		return "", ErrForbidden
 	}
 
-	// There should be one current deployment secret per member. Old values become
-	// unusable immediately when an administrator asks for a new one.
+	// There should be one current deployment secret per member in this organization.
+	// Old values become unusable immediately when an administrator asks for a new one.
 	if _, err := tx.Exec(ctx, `
 		UPDATE enrollment_tokens
 		   SET revoked_at = now()
 		 WHERE business_id = $1 AND user_id = $2
-		   AND used_at IS NULL AND revoked_at IS NULL`, access.BusinessID, targetUserID); err != nil {
+		   AND used_at IS NULL AND revoked_at IS NULL`, businessID, targetUserID); err != nil {
 		return "", err
 	}
 
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO enrollment_tokens (token_hash, user_id, business_id, created_by, auth_version, expires_at)
-		VALUES ($1, $2, $3, $4, $5, $6)`, tokenHash, targetUserID, access.BusinessID, actorID, authVersion, expiresAt); err != nil {
+		VALUES ($1, $2, $3, $4, $5, $6)`, tokenHash, targetUserID, businessID, actorID, authVersion, expiresAt); err != nil {
 		if isUniqueViolation(err) {
 			return "", ErrConflict
 		}
 		return "", err
 	}
 
-	if err := insertAuditTx(ctx, tx, access.BusinessID, actorID, "member.enrollment_created", "member", targetUserID, map[string]any{
+	if err := insertAuditTx(ctx, tx, businessID, actorID, "member.enrollment_created", "member", targetUserID, map[string]any{
 		"expires_at": expiresAt.UTC().Format(time.RFC3339),
-		"role":       string(access.TargetRole),
+		"role":       string(targetRole),
 	}); err != nil {
 		return "", err
 	}
@@ -72,7 +78,7 @@ func (s *Store) CreateEnrollmentToken(ctx context.Context, actorID, targetUserID
 	if err := tx.Commit(ctx); err != nil {
 		return "", err
 	}
-	return access.BusinessID, nil
+	return businessID, nil
 }
 
 // RedeemEnrollmentToken atomically consumes a one-time token and returns the
