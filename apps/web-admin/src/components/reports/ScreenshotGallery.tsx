@@ -15,9 +15,11 @@ function hhmmss(timestamp: number): string {
 
 function Shot({
   meta,
+  businessId,
   onOpen,
 }: {
   meta: ScreenshotMeta;
+  businessId: string;
   onOpen: () => void;
 }) {
   const { t } = useTranslation("reports");
@@ -29,7 +31,7 @@ function Shot({
     let objectUrl: string | null = null;
     setFailed(false);
 
-    fetchImageObjectUrl(meta.client_uuid)
+    fetchImageObjectUrl(meta.client_uuid, businessId)
       .then((nextUrl) => {
         objectUrl = nextUrl;
         if (alive) setUrl(nextUrl);
@@ -43,7 +45,7 @@ function Shot({
       alive = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [meta.client_uuid]);
+  }, [businessId, meta.client_uuid]);
 
   return (
     <button
@@ -74,11 +76,13 @@ function Shot({
 
 function Lightbox({
   shots,
+  businessId,
   index,
   onIndex,
   onClose,
 }: {
   shots: ScreenshotMeta[];
+  businessId: string;
   index: number;
   onIndex: (index: number) => void;
   onClose: () => void;
@@ -94,7 +98,7 @@ function Lightbox({
     let alive = true;
     setUrl(null);
 
-    fetchImageObjectUrl(meta.client_uuid)
+    fetchImageObjectUrl(meta.client_uuid, businessId)
       .then((nextUrl) => {
         if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
         objectUrlRef.current = nextUrl;
@@ -110,7 +114,7 @@ function Lightbox({
         objectUrlRef.current = null;
       }
     };
-  }, [meta.client_uuid]);
+  }, [businessId, meta.client_uuid]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -186,7 +190,13 @@ function Lightbox({
   );
 }
 
-export function ScreenshotGallery({ shots }: { shots: ScreenshotMeta[] }) {
+export function ScreenshotGallery({
+  shots,
+  businessId,
+}: {
+  shots: ScreenshotMeta[];
+  businessId: string;
+}) {
   const { t } = useTranslation("reports");
   const [active, setActive] = useState<number | null>(null);
 
@@ -211,6 +221,7 @@ export function ScreenshotGallery({ shots }: { shots: ScreenshotMeta[] }) {
           <Shot
             key={shot.client_uuid}
             meta={shot}
+            businessId={businessId}
             onOpen={() => setActive(index)}
           />
         ))}
@@ -219,6 +230,7 @@ export function ScreenshotGallery({ shots }: { shots: ScreenshotMeta[] }) {
       {active !== null && (
         <Lightbox
           shots={shots}
+          businessId={businessId}
           index={active}
           onIndex={setActive}
           onClose={() => setActive(null)}
