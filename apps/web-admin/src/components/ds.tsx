@@ -284,7 +284,7 @@ export function Skeleton({
     <span
       className={cx("ds-skeleton", className)}
       aria-hidden
-      style={{ display: "block", width, height }}
+      style={{ width, height }}
     />
   );
 }
@@ -300,12 +300,12 @@ export function EmptyState({
 }) {
   return (
     <div className="ds-empty">
-      <div>
-        <div style={{ color: "var(--ds-text-primary)", fontWeight: 700 }}>{title}</div>
+      <div className="ds-empty__content">
+        <div className="ds-empty__title">{title}</div>
         {description && (
-          <div style={{ marginTop: 6, fontSize: "var(--ds-text-sm)" }}>{description}</div>
+          <div className="ds-empty__description">{description}</div>
         )}
-        {action && <div style={{ marginTop: 16 }}>{action}</div>}
+        {action && <div className="ds-empty__action">{action}</div>}
       </div>
     </div>
   );

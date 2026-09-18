@@ -91,6 +91,40 @@ jobs:
           if hits:
               raise SystemExit("Legacy identifiers found:\n" + "\n".join(hits))
           PY
+      - name: Reject legacy web-admin design usage
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path("apps/web-admin/src")
+          legacy_classes = {
+              "ad-*": re.compile(r"(?<![A-Za-z0-9_-])ad-[A-Za-z0-9_-]+"),
+              "actilens-*": re.compile(r"(?<![A-Za-z0-9_-])actilens-[A-Za-z0-9_-]+"),
+          }
+          forbidden_refs = {
+              "components/ui": "legacy UI primitive import",
+              "LanguageSwitcher": "removed legacy language switcher",
+              "BusinessPicker": "removed legacy business picker",
+              "Sparkline": "removed placeholder sparkline component",
+          }
+          hits = []
+          for path in root.rglob("*"):
+              if not path.is_file() or path.suffix not in {".ts", ".tsx", ".css"}:
+                  continue
+              source = path.read_text(encoding="utf-8")
+              for label, pattern in legacy_classes.items():
+                  match = pattern.search(source)
+                  if match:
+                      hits.append(f"{path}: legacy {label} class ({match.group(0)})")
+              for needle, label in forbidden_refs.items():
+                  if needle in source:
+                      hits.append(f"{path}: {label} ({needle})")
+          if hits:
+              raise SystemExit(
+                  "Legacy web-admin design usage found:\n" + "\n".join(hits)
+              )
+          PY
       - name: Validate Linux deployment scripts
         run: |
           bash -n bootstrap-linux.sh
@@ -130,6 +164,10 @@ jobs:
         run: pnpm --filter @actilens/web-admin typecheck
       - name: Build web admin
         run: pnpm --filter @actilens/web-admin build
+      - name: Typecheck design fixtures
+        run: pnpm --filter @actilens/design typecheck
+      - name: Build design fixtures
+        run: pnpm --filter @actilens/design build
       - name: Typecheck desktop UI
         run: pnpm --filter @actilens/desktop typecheck
       - name: Test backend

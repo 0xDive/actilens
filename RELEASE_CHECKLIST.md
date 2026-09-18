@@ -16,6 +16,18 @@ correctness, security, deployment, testing and documentation.
 - [ ] `Cargo.lock` is synchronized with `Cargo.toml` and Rust CI can run with
       `--locked`.
 
+## Design acceptance
+
+- [ ] Web admin uses only the v1 design system (no legacy `ad-*` / `actilens-*` UI classes).
+- [ ] Dashboard, Employees, Employee detail, Settings, Sign in and Signup are reviewed at 1280, 1440 and 1920 px.
+- [ ] Web admin is reviewed in Russian and English.
+- [ ] Light, Dark and System modes are reviewed on every primary web-admin flow.
+- [ ] Desktop shell, welcome/login/onboarding and core screens are reviewed in Light and Dark modes.
+- [ ] Browser-extension popup is reviewed in Light and Dark OS themes.
+- [ ] Keyboard focus/navigation is verified for shell navigation, tables, menus, dialogs and auth flows.
+- [ ] Destructive actions use explicit danger styling and confirmation copy.
+- [ ] No placeholder/fake analytics values are rendered in Dashboard or Employee reports.
+
 ## Linux acceptance
 
 - [ ] Install on a clean Linux host with `install-linux.sh`.

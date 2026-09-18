@@ -637,6 +637,7 @@ textarea {
 /* skeleton */
 .ds-skeleton {
   position: relative;
+  display: block;
   overflow: hidden;
   border-radius: var(--ds-radius-sm);
   background: var(--ds-bg-subtle);
@@ -724,6 +725,22 @@ textarea {
   text-align: center;
   color: var(--ds-text-secondary);
   background: var(--ds-bg-surface);
+}
+.ds-empty__content {
+  max-width: 520px;
+}
+.ds-empty__title {
+  color: var(--ds-text-primary);
+  font-weight: 700;
+}
+.ds-empty__description {
+  margin-top: 6px;
+  color: var(--ds-text-secondary);
+  font-size: var(--ds-text-sm);
+  line-height: 19px;
+}
+.ds-empty__action {
+  margin-top: 16px;
 }
 
 @keyframes ds-spin {

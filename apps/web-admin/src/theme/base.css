@@ -1,0 +1,59 @@
+/* Minimal web-admin base. Product visuals live in foundation/shell/page v1 styles. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--ds-bg-app);
+  color: var(--ds-text-primary);
+  font-family: var(--ds-font-sans);
+  font-size: var(--ds-text-md);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: inherit;
+}
+
+img,
+svg {
+  max-width: 100%;
+}
+
+.app-error-fallback {
+  margin: 0;
+  padding: 24px;
+  color: var(--ds-text-primary);
+}
