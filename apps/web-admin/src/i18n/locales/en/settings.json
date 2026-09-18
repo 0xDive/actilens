@@ -166,5 +166,46 @@
     "account": {
       "description": "Your current ActiLens account identity."
     }
+  },
+  "foundation": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "organization": {
+      "nameHelp": "Shown in the organization switcher, reports and audit context.",
+      "nameSaved": "Organization name updated.",
+      "typeHelp": "Controls product terminology. Existing data and monitoring policy are preserved.",
+      "ownerOnly": "Only the organization owner can change the type.",
+      "kinds": {
+        "team": "Team",
+        "family": "Family",
+        "other": "Other"
+      },
+      "timezone": "Timezone",
+      "timezoneHelp": "Defines day boundaries for Today/Yesterday and reports. Stored timestamps are never rewritten.",
+      "timezoneSaved": "Timezone updated.",
+      "weekStart": "Week starts on",
+      "weekStartHelp": "Auto follows the interface locale; choose a day to override it.",
+      "weekStartSaved": "Week-start preference updated.",
+      "weekDays": {
+        "0": "Sunday",
+        "1": "Monday",
+        "2": "Tuesday",
+        "3": "Wednesday",
+        "4": "Thursday",
+        "5": "Friday",
+        "6": "Saturday",
+        "auto": "Automatic by locale"
+      },
+      "changeTypeTitle": "Change organization type?",
+      "confirmType": "Change type",
+      "typeSafeIntro": "ActiLens will change this organization to {{type}}.",
+      "willChange": "Will change",
+      "changeTerminology": "Organization/member terminology and type-specific presentation.",
+      "willNotChange": "Will not change",
+      "noDataLoss": "Activity, screenshots, browser history, keystroke counts or audit history.",
+      "noMemberChanges": "Member accounts, roles, passwords, monitoring states or devices.",
+      "noPolicyReset": "Retention, capture policy, privacy rules or enrollment settings.",
+      "typeSaved": "Organization type updated."
+    }
   }
 }
