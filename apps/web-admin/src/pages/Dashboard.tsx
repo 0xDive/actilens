@@ -181,7 +181,7 @@ function DashboardSkeleton() {
       <div className="dashboard-grid">
         <Card className="dashboard-panel dashboard-panel--activity">
           <Skeleton width={180} height={20} />
-          <div style={{ marginTop: 22, display: "grid", gap: 16 }}>
+          <div className="dashboard-skeleton-list">
             {Array.from({ length: 5 }, (_, index) => (
               <Skeleton key={index} width="100%" height={20} />
             ))}
@@ -189,7 +189,7 @@ function DashboardSkeleton() {
         </Card>
         <Card className="dashboard-panel dashboard-panel--status">
           <Skeleton width={140} height={20} />
-          <div style={{ marginTop: 22, display: "grid", gap: 10 }}>
+          <div className="dashboard-skeleton-list dashboard-skeleton-list--compact">
             {Array.from({ length: 3 }, (_, index) => (
               <Skeleton key={index} width="100%" height={42} />
             ))}
@@ -504,12 +504,11 @@ export function Dashboard() {
                 {recentMembers.map((employee) => (
                   <button
                     type="button"
-                    className="dashboard-recent-row"
+                    className="dashboard-recent-row dashboard-recent-button"
                     key={employee.id}
                     onClick={() =>
                       navigate(`/employees/${employee.id}?business=${selectedId}`)
                     }
-                    style={{ border: 0, background: "transparent", width: "100%" }}
                   >
                     <span className="dashboard-recent-avatar">
                       {initials(employee.display_name)}
@@ -555,7 +554,7 @@ export function Dashboard() {
                   return (
                     <tr
                       key={employee.id}
-                      style={{ cursor: "pointer" }}
+                      className="dashboard-team-row"
                       onClick={() =>
                         navigate(
                           `/employees/${employee.id}?business=${selectedId}`,
@@ -570,14 +569,7 @@ export function Dashboard() {
                           <span className="dashboard-table-person__name">
                             {employee.display_name}
                             {isSelf && (
-                              <span
-                                style={{
-                                  marginLeft: 7,
-                                  color: "var(--ds-text-tertiary)",
-                                  fontSize: 11,
-                                  fontWeight: 600,
-                                }}
-                              >
+                              <span className="dashboard-self-badge">
                                 {t("dashboard.selfBadge")}
                               </span>
                             )}
@@ -592,12 +584,7 @@ export function Dashboard() {
                       </td>
                       <td className="ds-num">{employee.screenshots_today}</td>
                       <td>
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            color: "var(--ds-text-tertiary)",
-                          }}
-                        >
+                        <span className="dashboard-row-arrow">
                           <ArrowRightIcon />
                         </span>
                       </td>
