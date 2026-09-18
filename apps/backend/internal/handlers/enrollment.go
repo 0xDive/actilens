@@ -15,6 +15,7 @@ import (
 	"actilens/backend/internal/store"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 const (
@@ -103,15 +104,23 @@ func (h *AuthHandler) Enroll(c *gin.Context) {
 		return
 	}
 
-	// Issue at the exact auth_version that was verified inside the locked redeem
-	// transaction. A concurrent password reset/disable makes this pair stale rather
-	// than accidentally upgrading the enrollment grant to a newer security version.
-	pair, err := h.tok.IssueVersioned(grant.User.ID, grant.AuthVersion)
+	// Enrollment creates a first-class desktop session bound to the enrolled
+	// organization. The device row itself is bound on the first sync when the
+	// client-generated device UUID is known.
+	sessionID := uuid.NewString()
+	pair, err := h.tok.IssueSessionVersioned(grant.User.ID, grant.AuthVersion, sessionID)
 	if err != nil {
 		serverError(c, err)
 		return
 	}
-	obs.Info("enrollment ok", "user", grant.User.ID, "business", grant.BusinessID)
+	if err := h.store.CreateAuthSession(
+		c.Request.Context(), grant.User.ID, sessionID, auth.HashToken(pair.RefreshToken),
+		"desktop", "Managed desktop", grant.AuthVersion, time.Now().UTC().Add(auth.RefreshTTL()),
+	); err != nil {
+		serverError(c, err)
+		return
+	}
+	obs.Info("enrollment ok", "user", grant.User.ID, "business", grant.BusinessID, "session", sessionID)
 	c.Header("Cache-Control", "no-store")
 	c.JSON(http.StatusOK, gin.H{
 		"user": gin.H{
