@@ -141,11 +141,20 @@ func (h *ScreenshotHandler) Upload(c *gin.Context) {
 			serverError(c, cleanupErr)
 			return
 		}
-		if errors.Is(err, store.ErrMembershipUnavailable) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "membership is unavailable or monitoring is disabled"})
-			return
+		switch {
+		case errors.Is(err, store.ErrMemberBlocked):
+			apiError(c, http.StatusForbidden, ErrCodeMemberBlocked, "organization access is suspended", nil)
+		case errors.Is(err, store.ErrMemberRemoved):
+			apiError(c, http.StatusForbidden, ErrCodeMemberRemoved, "organization membership was removed", nil)
+		case errors.Is(err, store.ErrOrganizationArchived):
+			apiError(c, http.StatusConflict, ErrCodeOrganizationArchived, "organization is archived", nil)
+		case errors.Is(err, store.ErrOrganizationDeletionPending):
+			apiError(c, http.StatusConflict, ErrCodeOrganizationDeletionPending, "organization deletion is pending", nil)
+		case errors.Is(err, store.ErrMembershipUnavailable):
+			apiError(c, http.StatusForbidden, ErrCodePermissionDenied, "monitoring is disabled for this membership", nil)
+		default:
+			serverError(c, err)
 		}
-		serverError(c, err)
 		return
 	}
 
