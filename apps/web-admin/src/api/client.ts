@@ -178,14 +178,19 @@ export async function request<T>(path: string, opts: RequestOpts = {}): Promise<
 
 // Auth-gated image fetch: pulls bytes with the Bearer header and returns an
 // object URL the caller can use as an <img src> (and must revoke later).
-export async function fetchImageObjectUrl(clientUuid: string): Promise<string> {
+export async function fetchImageObjectUrl(
+  clientUuid: string,
+  businessId: string,
+): Promise<string> {
   const tok = tokenStore.getAccess();
-  const res = await fetch(buildUrl(`/v1/screenshots/${clientUuid}`), {
+  const res = await fetch(
+    buildUrl(`/v1/screenshots/${clientUuid}`, { business_id: businessId }),
+    {
     headers: tok ? { Authorization: `Bearer ${tok}` } : {},
   });
   if (res.status === 401) {
     const ok = await refreshOnce();
-    if (ok) return fetchImageObjectUrl(clientUuid);
+    if (ok) return fetchImageObjectUrl(clientUuid, businessId);
     emitLogout();
     throw new ApiError(401, "Session expired.", null, "session_revoked");
   }
