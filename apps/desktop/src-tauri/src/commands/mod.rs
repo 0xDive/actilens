@@ -554,12 +554,15 @@ pub async fn current_session(
     auth: State<'_, Arc<AuthState>>,
     settings: State<'_, Arc<crate::settings::SettingsState>>,
     control: State<'_, Arc<TrackerControl>>,
-) -> Option<Session> {
+) -> Result<Option<Session>, String> {
     if let Some(session) = auth.session() {
-        return Some(session);
+        return Ok(Some(session));
     }
 
-    let token = crate::sync::enrollment::pending_token()?;
+    let token = match crate::sync::enrollment::pending_token() {
+        Some(token) => token,
+        None => return Ok(None),
+    };
 
     // An enrollment token means this installation is being provisioned for
     // an organization. Fail closed until the server resolves the membership.
@@ -576,14 +579,14 @@ pub async fn current_session(
     let session = match crate::sync::enrollment::redeem(&backend_url(), &token).await {
         Ok(session) => session,
         Err(e) => {
-  crate::log_warn!("enrollment", "automatic enrollment failed: {e}");
-  return None;
+            crate::log_warn!("enrollment", "automatic enrollment failed: {e}");
+            return Ok(None);
         }
     };
 
     if let Err(e) = auth.store(session.clone()) {
         crate::log_warn!("enrollment", "could not persist enrolled session: {e}");
-        return None;
+        return Err(e);
     }
 
     // Do not keep the raw secret in this process after it has been consumed.
@@ -602,7 +605,7 @@ pub async fn current_session(
         settings.managed.lock().unwrap().monitoring_enabled = enabled;
     }
 
-    Some(session)
+    Ok(Some(session))
 }
 
 // ---------- sync status (task 53) ----------
