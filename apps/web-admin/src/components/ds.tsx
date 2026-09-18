@@ -139,10 +139,18 @@ export function FieldFrame({
       <label className="ds-field__label" htmlFor={htmlFor}>
         {label}
       </label>
-      {description && <p className="ds-field__description">{description}</p>}
+      {description && (
+        <p id={`${htmlFor}-description`} className="ds-field__description">
+          {description}
+        </p>
+      )}
       {children}
       {error && (
-        <p className="ds-field__message ds-field__message--error" role="alert">
+        <p
+          id={`${htmlFor}-error`}
+          className="ds-field__message ds-field__message--error"
+          role="alert"
+        >
           {error}
         </p>
       )}
