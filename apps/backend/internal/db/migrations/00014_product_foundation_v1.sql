@@ -77,7 +77,7 @@ ALTER TABLE devices
 UPDATE devices d
 SET business_id = only_membership.business_id
 FROM (
-    SELECT user_id, min(business_id) AS business_id
+    SELECT user_id, min(business_id::text)::uuid AS business_id
     FROM memberships
     WHERE status = 'active'
     GROUP BY user_id
