@@ -216,3 +216,40 @@ func (s *Store) MembershipStatus(
 	}
 	return status, err
 }
+
+
+func (s *Store) ListFormerMembers(ctx context.Context, businessID string) ([]Employee, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT u.id, COALESCE(u.email, ''), COALESCE(u.username, ''), u.display_name, u.active,
+		       m.role, m.status, m.monitoring_enabled, m.blocked_at, m.removed_at,
+		       (SELECT extract(epoch FROM max(d.last_seen_at))::bigint
+		          FROM devices d WHERE d.user_id = u.id AND (d.business_id = $1 OR d.business_id IS NULL)),
+		       NULL::text AS current_app,
+		       NULL::text AS current_window
+		  FROM memberships m
+		  JOIN users u ON u.id = m.user_id
+		 WHERE m.business_id = $1
+		   AND m.status = 'removed'
+		   AND m.role IN ('admin','manager','employee')
+		 ORDER BY m.removed_at DESC NULLS LAST, u.display_name`,
+		businessID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []Employee{}
+	for rows.Next() {
+		var e Employee
+		if err := rows.Scan(
+			&e.ID, &e.Email, &e.Username, &e.DisplayName, &e.Active,
+			&e.Role, &e.Status, &e.MonitoringEnabled, &e.BlockedAt, &e.RemovedAt,
+			&e.LastSeen, &e.CurrentApp, &e.CurrentWindow,
+		); err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
