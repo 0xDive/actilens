@@ -1108,3 +1108,208 @@ Before implementation, confirm these product decisions:
 
 Once these decisions are accepted, implementation can be split into API/schema/UI PRs
 without inventing product behavior during coding.
+
+
+---
+
+## 20. Approved product decisions
+
+The following decisions are approved and are no longer open questions.
+
+### Organization
+
+- Organization rename: **Owner + Admin**.
+- Organization type change: **Owner only**.
+- Type changes never delete or reset historical data/policies.
+- Organization kinds must be extensible beyond Team/Family.
+- Organization has an explicit editable timezone.
+- Week start is an organization setting.
+- Ownership transfer is required.
+- Organization archive/restore is required.
+- Permanent organization deletion must go through archive first; immediate one-click hard delete is not part of the product model.
+
+### Member lifecycle
+
+Member lifecycle is explicitly separated into:
+
+- active;
+- blocked;
+- removed from organization;
+- permanently purged.
+
+Blocking preserves history and prevents login/sync according to the organization scope.
+Removing from an organization preserves historical data and does not destroy a shared account.
+Permanent purge remains an explicit irreversible organization-scoped operation and tombstones the account only when no memberships remain.
+
+Because users can belong to multiple organizations, blocked/removed state must ultimately be represented at the **membership** level rather than by overloading one global user-active flag.
+
+### RBAC
+
+The product keeps exactly four built-in roles for v1:
+
+- Owner;
+- Admin;
+- Manager;
+- Employee.
+
+Admin may manage Employee/Manager but not Owner or peer Admin.
+
+Implementation direction: roles remain product-facing presets, while backend authorization is centralized around explicit capabilities/permissions. New endpoints must check a named permission rather than scatter direct role comparisons through handlers/stores. This preserves the four-role UX while keeping the authorization model extensible.
+
+### Monitoring and collection
+
+- No organization-wide master monitoring switch for now.
+- New-member default monitoring state is configurable.
+- Managed employees cannot override/pause organization monitoring settings locally.
+- Admin/Owner configure managed monitoring from the web console.
+- Local-only mode remains independently configurable by the local user.
+- Organization collection categories are explicit:
+  - application activity;
+  - window titles;
+  - active/idle;
+  - screenshots;
+  - browser activity;
+  - keystroke counts.
+- Window-title collection can be disabled while application-name collection remains enabled.
+- There is no separate duplicate "browser master" setting outside the collection-category model; browser collection is controlled by the browser collection capability above.
+- Keystrokes are permanently **counts only**. Typed content is never collected.
+- Disabling a collection category affects future collection only and never deletes historical data.
+- Historical reports are never retroactively recalculated after monitoring-policy changes.
+
+### Screenshots and privacy
+
+- Screenshots have a first-class enabled/disabled setting.
+- Capture area is separated from privacy behavior.
+- Capture scope supports the product model:
+  - active window only;
+  - full active display;
+  - all displays.
+- Multi-monitor behavior is explicitly designed now even if some modes ship later.
+- Privacy exclusions support application rules and should be extensible to window-title rules.
+- Disabling screenshots preserves the configured capture scope, interval and privacy rules for later re-enable.
+
+### Retention and cleanup
+
+Retention is separate by data class.
+
+Approved default proposal:
+
+| Data | Default retention |
+|---|---:|
+| Activity / active-idle / app-window data | 180 days |
+| Screenshots | 30 days |
+| Browser activity | 90 days |
+| Keystroke counts | 90 days |
+| Audit log | 365 days |
+
+`null` may represent keep indefinitely where policy permits it.
+
+Reducing retention is destructive and requires a backend preview before confirmation.
+Manual cleanup becomes a unified data-cleanup flow with data type + date range, not a screenshot-only action.
+Export is part of the product lifecycle and should exist before high-impact destructive operations.
+
+### Enrollment and devices
+
+- Enrollment-code default TTL is configurable; proposed default: **24 hours**.
+- Enrollment tokens remain one-time use.
+- New validly enrolled devices are accepted automatically.
+- Per-member device limit is configurable; `null` means unlimited.
+- Proposed initial default is **unlimited** to avoid surprising enrollment failures in existing installations.
+- Admin/Owner must see whether installed agents are current/outdated/unknown.
+- No minimum enforced desktop version yet.
+- A managed device is explicitly bound to exactly one organization.
+- A device does not automatically switch between organizations.
+- Multi-organization users are supported, but each managed device has one governing organization context.
+
+This requires a future `devices.business_id` (or equivalent binding) and a migration/backfill plan for existing devices.
+
+### Account and security
+
+- Users cannot change their own display name in v1; managed profile naming remains administrator-controlled where applicable.
+- Login identifier (email/username) is changeable with security confirmation.
+- Password change revokes existing sessions and forces fresh authentication.
+- Active sessions UI is required, including revoke/revoke-all controls.
+- Account deletion is required; an Owner must transfer/delete owned organizations first.
+- MFA/2FA support is part of the core product, not a distant post-v1 idea.
+
+### Audit and errors
+
+- All administrative changes are audited.
+- API moves to stable machine-readable error codes such as:
+  - `permission_denied`;
+  - `not_found`;
+  - `conflict`;
+  - `validation_error`;
+  - `reauth_required`.
+- Frontends localize the final RU/EN message instead of displaying raw backend strings.
+
+### Settings behavior
+
+- Most safe settings save immediately.
+- Text/form metadata such as organization name uses explicit Save where appropriate.
+- Security/destructive actions always use dedicated confirmation flows.
+- When a default changes (for example default monitoring for new members), UI asks whether to apply it to existing members; it never silently rewrites existing memberships.
+
+### Local-only mode
+
+Local-only desktop mode remains supported.
+Managed-mode restrictions do not remove local control from users who intentionally operate in local-only mode.
+
+---
+
+## 21. Implementation order after final clarification
+
+The dependency-first order is:
+
+1. **Organization scope + RBAC foundation**
+   - explicit organization context everywhere;
+   - capability-based authorization layer behind the four roles;
+   - membership lifecycle state model;
+   - stable API errors;
+   - audit mutation convention.
+
+2. **Organization + account maturity**
+   - rename;
+   - type change;
+   - timezone/week start;
+   - login identifier/password/session management;
+   - MFA foundation.
+
+3. **Member lifecycle**
+   - block/unblock;
+   - remove/restore membership where applicable;
+   - former-members view;
+   - purge remains separate.
+
+4. **Device + enrollment model**
+   - organization-bound devices;
+   - configurable device limits;
+   - default token TTL;
+   - version health/status.
+
+5. **Collection policy completeness**
+   - explicit data-category switches;
+   - screenshots enabled;
+   - capture scope;
+   - privacy rules;
+   - new-member defaults;
+   - no managed employee overrides.
+
+6. **Retention/export/cleanup**
+   - per-class retention;
+   - dry-run previews;
+   - unified cleanup;
+   - export foundation.
+
+7. **Organization lifecycle**
+   - ownership transfer;
+   - archive/restore;
+   - leave organization;
+   - scheduled permanent deletion.
+
+8. **Release hardening**
+   - migration tests from existing production schema/data;
+   - end-to-end RBAC matrix;
+   - RU/EN and error-state acceptance;
+   - desktop/web multi-org tests;
+   - destructive-operation recovery tests.
