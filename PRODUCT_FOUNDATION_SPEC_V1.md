@@ -1507,3 +1507,222 @@ When an organization changes a new-member default such as monitoring enabled:
 - if applying to existing members, backend provides/uses an affected-member count;
 - UI confirms the count before bulk mutation;
 - bulk mutation is audited.
+
+
+---
+
+## 23. Approved clarification round 3 — final product decisions
+
+This section supersedes earlier open questions where there is any conflict.
+
+### Organization deletion and user accounts
+
+When an organization is permanently deleted:
+
+- organization-scoped memberships and monitoring data are deleted according to the deletion job;
+- managed user accounts that have no remaining memberships are deleted with the organization;
+- a user account that still belongs to another organization cannot be destroyed as a side effect of deleting one organization; only the deleted membership and organization-scoped data are removed;
+- this multi-organization safety rule is an implementation invariant even though the normal single-organization managed-account outcome is account deletion.
+
+### Self-service account deletion
+
+There is **no self-service Delete account button for managed users in v1**.
+
+Managed-account lifecycle is controlled through organization/member lifecycle operations.
+A user who is still a member of an organization cannot self-delete their identity from underneath organization-owned history.
+
+Standalone/local-only account deletion can be reconsidered separately later, but it must not be conflated with managed-member deletion.
+
+### Former-member visibility
+
+- Owner/Admin can view Former members and their retained historical reports.
+- Manager sees active members only and does not receive former-member history access in v1.
+
+### Restore former member
+
+Restoring a former member:
+
+- reuses the same user/account identity;
+- preserves and reconnects retained historical organization data;
+- restores the member with the built-in Employee role rather than silently restoring a previous elevated role;
+- asks whether monitoring should be enabled or disabled as part of the restore operation;
+- writes an audit event.
+
+### Blocked member experience
+
+A member blocked in an organization may still authenticate to their account where technically appropriate, but:
+
+- managed sync for the blocked organization is rejected;
+- organization access is suspended;
+- UI/desktop shows an explicit suspended-by-organization state instead of pretending credentials are invalid;
+- blocking remains membership-scoped, so other organization memberships continue to work.
+
+### Permanent member purge
+
+Permanent purge is **Owner only**.
+Admin cannot permanently purge organization data.
+
+### Archived organization permissions
+
+While archived, the organization is read-only except for restoration/cancellation actions.
+
+Allowed for Owner/Admin:
+
+- reports/history;
+- export;
+- audit log;
+- former-members history;
+- restore organization;
+- cancel scheduled deletion where allowed.
+
+Not allowed while archived:
+
+- new enrollment;
+- member mutations;
+- monitoring-policy mutations;
+- device mutations;
+- new sync/collection.
+
+Restoring an archived organization immediately restores its previous operational state and monitoring policy. There is no extra "resume" step.
+
+### Scheduled deletion state
+
+During the 7-day deletion window:
+
+- organization remains archived/read-only;
+- monitoring and sync remain disabled;
+- deletion may be cancelled by the Owner;
+- hard deletion runs only after the deadline.
+
+### Security invalidation after privilege changes
+
+Ownership transfer revokes all active sessions for both the previous and new Owner.
+Both must sign in again.
+
+Role demotion from Admin to Manager/Employee also revokes that user's active sessions so stale permissions cannot survive in existing access/refresh tokens.
+
+The same security-version/session invalidation principle applies to other privilege reductions.
+
+### Internal RBAC capabilities
+
+Approved initial capability vocabulary:
+
+```text
+reports.view
+members.view
+members.manage
+members.purge
+devices.view
+devices.manage
+settings.view
+settings.manage
+audit.view
+roles.manage
+organization.manage
+organization.transfer
+organization.delete
+```
+
+Roles are fixed product presets mapped to capabilities. Frontends show the four roles, not raw capability editing.
+
+### Mandatory monitoring core
+
+Managed monitoring always includes active/idle state as the core signal.
+It is not independently disableable in managed mode.
+
+Optional organization-controlled collection categories are:
+
+- application names;
+- window titles;
+- screenshots;
+- browser activity;
+- keystroke counts.
+
+If window-title collection is disabled, clients do not transmit window titles at all. The server does not merely hide them in UI.
+
+### Privacy-rule evaluation
+
+Initial privacy matching is case-insensitive.
+
+Supported first-pass rules:
+
+- application exact/contains as defined by the policy representation;
+- window title contains.
+
+When a privacy exclusion matches, the screenshot is **not captured/created in the first place**. ActiLens must prefer prevention over capture-then-delete for sensitive exclusions.
+
+### Multi-display screenshots
+
+For all-displays capture:
+
+- each display image is stored as its own screenshot record;
+- records captured at the same moment share a common `capture_group_id`;
+- this supports per-display metadata, cleanup and gallery grouping without storing multi-display blobs.
+
+### Device-limit semantics
+
+- only active/non-revoked devices consume the limit;
+- revoking a device frees a slot immediately;
+- restoring a revoked device is rejected with `device_limit_reached` if the configured limit is already occupied.
+
+### Agent-version visibility
+
+Version health is shown at all three levels:
+
+- badge on the device itself;
+- warning/context on the employee page;
+- aggregate Dashboard indicator such as "3 devices need an update".
+
+No minimum-version enforcement yet.
+
+### MFA recovery and reset
+
+- generate 10 one-time recovery codes;
+- store only cryptographic hashes;
+- recovery codes cannot be displayed again after initial generation;
+- regenerating codes invalidates all previous recovery codes.
+
+MFA reset policy:
+
+- Admin may reset MFA for Employee/Manager;
+- Owner may reset MFA for organization members except the Owner's own MFA;
+- Owner self-recovery requires recovery codes or a dedicated secure self-recovery path;
+- MFA reset revokes affected user sessions and is audited.
+
+### Managed login identity
+
+Owner/Admin may change a managed member's username/email without knowing the member's old password.
+The operation:
+
+- validates uniqueness;
+- revokes all sessions for that account;
+- bumps the account security version;
+- is audited.
+
+### Username and email model
+
+A user may have **both** a username and an email address.
+They are separate attributes rather than mutually exclusive alternatives.
+Either may be accepted as a login identifier where unique and enabled by the auth implementation.
+
+Email verification is not required in v1; self-hosted deployment must not depend on SMTP.
+
+### Notification foundation
+
+The architecture may reserve a notification/event layer for future product events such as:
+
+- outdated device;
+- long-offline member/device;
+- pending organization deletion;
+- ownership transfer;
+- security events.
+
+Notification delivery/UI is not part of the first implementation milestone.
+
+### First implementation milestone
+
+The first implementation milestone is approved as:
+
+**Organization Core + RBAC Foundation + Account Security**
+
+It includes the prerequisites required to make later settings/lifecycle work complete rather than piecemeal.
