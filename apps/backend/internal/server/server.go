@@ -37,7 +37,7 @@ func New(cfg *config.Config, st *store.Store, files *filestore.Store, ret *reten
 
 	tok := auth.NewManager(cfg.JWTSecret)
 	authH := handlers.NewAuthHandler(st, tok)
-	ownerH := handlers.NewOwnerHandler(st)
+	ownerH := handlers.NewOwnerHandler(st, cfg.RecommendedDesktopVersion)
 	syncH := handlers.NewSyncHandler(st)
 	shotH := handlers.NewScreenshotHandler(st, files)
 	reportsH := handlers.NewReportsHandler(st, files)
