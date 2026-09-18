@@ -112,7 +112,10 @@ export interface Employee {
   display_name: string;
   active: boolean;
   role?: BusinessRole;
+  status?: MembershipStatus;
   monitoring_enabled?: boolean;
+  blocked_at?: string | null;
+  removed_at?: string | null;
   last_seen?: number | null;
   current_app?: string | null;
   current_window?: string | null;
