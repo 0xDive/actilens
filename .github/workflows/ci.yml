@@ -95,11 +95,14 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           root = Path("apps/web-admin/src")
-          forbidden = {
-              "ad-": "legacy ad-* class",
-              "actilens-": "legacy actilens-* class",
+          legacy_classes = {
+              "ad-*": re.compile(r"(?<![A-Za-z0-9_-])ad-[A-Za-z0-9_-]+"),
+              "actilens-*": re.compile(r"(?<![A-Za-z0-9_-])actilens-[A-Za-z0-9_-]+"),
+          }
+          forbidden_refs = {
               "components/ui": "legacy UI primitive import",
               "LanguageSwitcher": "removed legacy language switcher",
               "BusinessPicker": "removed legacy business picker",
@@ -109,9 +112,13 @@ jobs:
           for path in root.rglob("*"):
               if not path.is_file() or path.suffix not in {".ts", ".tsx", ".css"}:
                   continue
-              text = path.read_text(encoding="utf-8")
-              for needle, label in forbidden.items():
-                  if needle in text:
+              source = path.read_text(encoding="utf-8")
+              for label, pattern in legacy_classes.items():
+                  match = pattern.search(source)
+                  if match:
+                      hits.append(f"{path}: legacy {label} class ({match.group(0)})")
+              for needle, label in forbidden_refs.items():
+                  if needle in source:
                       hits.append(f"{path}: {label} ({needle})")
           if hits:
               raise SystemExit(
