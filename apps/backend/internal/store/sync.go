@@ -18,16 +18,37 @@ var ErrMembershipUnavailable = errors.New("membership unavailable")
 
 func ensureMembershipCollectableTx(ctx context.Context, tx pgx.Tx, userID, businessID string) error {
 	var enabled bool
+	var status string
+	var archived, deletionPending bool
 	err := tx.QueryRow(ctx, `
-		SELECT monitoring_enabled
-		  FROM memberships
-		 WHERE user_id = $1 AND business_id = $2
-		 FOR SHARE`, userID, businessID).Scan(&enabled)
+		SELECT m.monitoring_enabled, m.status,
+		       b.archived_at IS NOT NULL,
+		       b.deletion_scheduled_at IS NOT NULL
+		  FROM memberships m
+		  JOIN businesses b ON b.id = m.business_id
+		 WHERE m.user_id = $1 AND m.business_id = $2
+		 FOR SHARE OF m`, userID, businessID,
+	).Scan(&enabled, &status, &archived, &deletionPending)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrMembershipUnavailable
 	}
 	if err != nil {
 		return err
+	}
+	if deletionPending {
+		return ErrOrganizationDeletionPending
+	}
+	if archived {
+		return ErrOrganizationArchived
+	}
+	switch status {
+	case MemberStatusBlocked:
+		return ErrMemberBlocked
+	case MemberStatusRemoved:
+		return ErrMemberRemoved
+	case MemberStatusActive:
+	default:
+		return ErrMembershipUnavailable
 	}
 	if !enabled {
 		return ErrMembershipUnavailable
