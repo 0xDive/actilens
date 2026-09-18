@@ -50,7 +50,8 @@ type RosterEntry struct {
 	Email            string `json:"email"`
 	Username         string `json:"username"`
 	DisplayName      string `json:"display_name"`
-	Role             string `json:"role"`      // 'owner' (self) | 'employee'
+	Role             string `json:"role"`
+	Status           string `json:"status"`
 	LastSeen         *int64 `json:"last_seen"` // unix seconds (the web UI expects a number)
 	ActiveTodayS     int64  `json:"active_today_s"`
 	ActiveYesterdayS int64  `json:"active_yesterday_s"`
@@ -68,9 +69,11 @@ type RosterEntry struct {
 func (s *Store) Roster(ctx context.Context, businessID string, dayStart, dayEnd int64) ([]RosterEntry, error) {
 	ydayStart := dayStart - 86400
 	rows, err := s.pool.Query(ctx, `
-		SELECT u.id, COALESCE(u.email, ''), COALESCE(u.username, ''), u.display_name, m.role,
+		SELECT u.id, COALESCE(u.email, ''), COALESCE(u.username, ''), u.display_name, m.role, m.status,
 		       (SELECT extract(epoch FROM max(last_seen_at))::bigint
-		          FROM devices d WHERE d.user_id = u.id) AS last_seen,
+		          FROM devices d
+		         WHERE d.user_id = u.id
+		           AND (d.business_id = $1 OR d.business_id IS NULL)) AS last_seen,
 		       COALESCE((SELECT sum(duration_s) FROM activity_samples a
 		                  WHERE a.user_id = u.id AND a.business_id = $1
 		                    AND a.ts >= $2 AND a.ts < $3), 0) AS active_today,
@@ -88,7 +91,10 @@ func (s *Store) Roster(ctx context.Context, businessID string, dayStart, dayEnd 
 		           AND k.ts_bucket >= $2 AND k.ts_bucket < $3 AND k.count > 0) AS key_minutes
 		  FROM memberships m
 		  JOIN users u ON u.id = m.user_id
-		 WHERE m.business_id = $1 AND m.role IN ('owner','admin','manager','employee') AND u.active = true
+		 WHERE m.business_id = $1
+		   AND m.status IN ('active','blocked')
+		   AND m.role IN ('owner','admin','manager','employee')
+		   AND u.active = true
 		 ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 WHEN 'manager' THEN 2 ELSE 3 END, u.display_name`, businessID, dayStart, dayEnd, ydayStart)
 	if err != nil {
 		return nil, err
@@ -99,7 +105,7 @@ func (s *Store) Roster(ctx context.Context, businessID string, dayStart, dayEnd 
 	for rows.Next() {
 		var e RosterEntry
 		var keyMinutes int64
-		if err := rows.Scan(&e.ID, &e.Email, &e.Username, &e.DisplayName, &e.Role, &e.LastSeen,
+		if err := rows.Scan(&e.ID, &e.Email, &e.Username, &e.DisplayName, &e.Role, &e.Status, &e.LastSeen,
 			&e.ActiveTodayS, &e.ActiveYesterdayS, &e.ScreenshotsToday, &e.ScreenshotsYday, &keyMinutes); err != nil {
 			return nil, err
 		}
