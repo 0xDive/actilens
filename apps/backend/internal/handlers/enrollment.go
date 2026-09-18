@@ -38,12 +38,27 @@ func (h *OwnerHandler) CreateEnrollmentToken(c *gin.Context) {
 			return
 		}
 	}
+	var ttl time.Duration
 	if req.ExpiresInHours == 0 {
-		req.ExpiresInHours = defaultEnrollmentHours
+		business, err := h.store.GetBusiness(c.Request.Context(), c.Param("id"))
+		if err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				notFound(c, "organization not found")
+			} else {
+				serverError(c, err)
+			}
+			return
+		}
+		ttl = time.Duration(business.EnrollmentTokenTTLS) * time.Second
+	} else {
+		if req.ExpiresInHours < 1 || req.ExpiresInHours > maxEnrollmentHours {
+			badRequest(c, "expires_in_hours must be between 1 and 168")
+			return
+		}
+		ttl = time.Duration(req.ExpiresInHours) * time.Hour
 	}
-	if req.ExpiresInHours < 1 || req.ExpiresInHours > maxEnrollmentHours {
-		badRequest(c, "expires_in_hours must be between 1 and 168")
-		return
+	if ttl <= 0 {
+		ttl = defaultEnrollmentHours * time.Hour
 	}
 
 	token, hash, err := newEnrollmentToken()
@@ -51,7 +66,7 @@ func (h *OwnerHandler) CreateEnrollmentToken(c *gin.Context) {
 		serverError(c, err)
 		return
 	}
-	expiresAt := time.Now().UTC().Add(time.Duration(req.ExpiresInHours) * time.Hour)
+	expiresAt := time.Now().UTC().Add(ttl)
 	businessID, err := h.store.CreateEnrollmentToken(
 		c.Request.Context(), actorID, c.Param("id"), c.Param("user_id"), hash, expiresAt,
 	)
