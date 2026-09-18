@@ -139,6 +139,18 @@ CREATE INDEX idx_auth_sessions_user_active
     ON auth_sessions(user_id, last_used_at DESC)
     WHERE revoked_at IS NULL;
 
+CREATE TABLE security_events (
+    id            bigserial PRIMARY KEY,
+    user_id       uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    actor_user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+    action        text NOT NULL,
+    details       jsonb NOT NULL DEFAULT '{}'::jsonb,
+    created_at    timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_security_events_user_created
+    ON security_events(user_id, created_at DESC);
+
 -- TOTP MFA and one-time recovery codes.
 CREATE TABLE user_mfa (
     user_id               uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -186,6 +198,7 @@ CREATE INDEX idx_organization_exports_business_created
 DROP TABLE organization_exports;
 DROP TABLE mfa_recovery_codes;
 DROP TABLE user_mfa;
+DROP TABLE security_events;
 DROP TABLE auth_sessions;
 DROP TABLE privacy_rules;
 
