@@ -40,8 +40,9 @@ http://192.168.0.249:8081/admin/
 
 ## Windows client
 
-The backend URL is baked into release/custom Windows builds with
-`ACTILENS_BUILD_SERVER_URL`.
+Custom Windows builds can bake a backend URL with `ACTILENS_BUILD_SERVER_URL`.
+Tagged public releases are server-agnostic; the deployment server is selected at
+provisioning time.
 
 ### Build locally on Windows
 
@@ -65,24 +66,24 @@ artifacts.
 
 ### Production releases
 
-Repository variable `ACTILENS_SERVER_URL` is required for tagged releases. Example:
-
-```text
-ACTILENS_SERVER_URL=http://192.168.0.249:8081
-```
-
-Tagged releases publish stable assets:
+Tagged releases are server-agnostic and publish stable assets:
 
 ```text
 ActiLens-x64.msi
 ActiLens-x64-setup.exe
+install-windows-agent.ps1
 ```
+
+The same release can be provisioned against `http://192.168.0.249:8081`, another
+LAN server, or an HTTPS deployment. The provisioning script stores the selected
+`ACTILENS_BACKEND_URL` for that Windows user; the agent also reads it directly
+from `HKCU\\Environment`, so a Windows sign-out is not required.
 
 For Internet/WAN deployments, use an HTTPS URL such as
 `https://tracker.example.com` instead of exposing plain HTTP publicly.
 
-CI validation builds intentionally use `http://127.0.0.1:8081` and never inherit the
-production server address.
+CI/release fallback builds use `http://127.0.0.1:8081` only when no runtime
+server has been provisioned.
 
 ## Employee enrollment
 
