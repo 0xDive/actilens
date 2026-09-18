@@ -188,10 +188,16 @@ func (s *Store) MembershipsForUser(ctx context.Context, userID string) ([]Member
 // console. Employees intentionally do not get a console business list.
 func (s *Store) ListBusinessesForConsole(ctx context.Context, userID string) ([]BusinessAccess, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT b.id, b.name, b.kind, b.owner_user_id,
-		       b.screenshot_retention_days, b.screenshot_interval_s,
-		       b.idle_threshold_s, b.allow_employee_override,
-		       b.screenshot_mode, b.screenshot_skip_apps, m.role
+		SELECT b.id, b.name, b.kind, b.owner_user_id, b.timezone, b.week_starts_on,
+		       b.default_member_monitoring_enabled,
+		       b.collect_app_activity, b.collect_window_titles, b.collect_screenshots,
+		       b.collect_browser_activity, b.collect_keystroke_counts,
+		       b.screenshot_retention_days, b.screenshot_interval_s, b.screenshot_capture_scope,
+		       b.idle_threshold_s, b.allow_employee_override, b.screenshot_mode, b.screenshot_skip_apps,
+		       b.activity_retention_days, b.browser_retention_days, b.keystroke_retention_days,
+		       b.audit_retention_days, b.device_limit, b.enrollment_token_ttl_s,
+		       b.archived_at, b.deletion_scheduled_at, b.created_at, b.updated_at,
+		       m.role
 		  FROM memberships m
 		  JOIN businesses b ON b.id = m.business_id
 		 WHERE m.user_id = $1 AND m.status = 'active' AND m.role IN ('owner','admin','manager')
@@ -206,9 +212,17 @@ func (s *Store) ListBusinessesForConsole(ctx context.Context, userID string) ([]
 		var a BusinessAccess
 		if err := rows.Scan(
 			&a.Business.ID, &a.Business.Name, &a.Business.Kind, &a.Business.OwnerUserID,
-			&a.Business.ScreenshotRetentionDays, &a.Business.ScreenshotIntervalS,
+			&a.Business.Timezone, &a.Business.WeekStartsOn,
+			&a.Business.DefaultMemberMonitoringEnabled,
+			&a.Business.CollectAppActivity, &a.Business.CollectWindowTitles, &a.Business.CollectScreenshots,
+			&a.Business.CollectBrowserActivity, &a.Business.CollectKeystrokeCounts,
+			&a.Business.ScreenshotRetentionDays, &a.Business.ScreenshotIntervalS, &a.Business.ScreenshotCaptureScope,
 			&a.Business.IdleThresholdS, &a.Business.AllowEmployeeOverride,
-			&a.Business.ScreenshotMode, &a.Business.ScreenshotSkipApps, &a.Role,
+			&a.Business.ScreenshotMode, &a.Business.ScreenshotSkipApps,
+			&a.Business.ActivityRetentionDays, &a.Business.BrowserRetentionDays, &a.Business.KeystrokeRetentionDays,
+			&a.Business.AuditRetentionDays, &a.Business.DeviceLimit, &a.Business.EnrollmentTokenTTLS,
+			&a.Business.ArchivedAt, &a.Business.DeletionScheduledAt,
+			&a.Business.CreatedAt, &a.Business.UpdatedAt, &a.Role,
 		); err != nil {
 			return nil, err
 		}
