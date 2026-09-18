@@ -83,7 +83,7 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
 
   return (
     <Card>
-      <div className="report-card__head" style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
+      <div className="settings-audit-head">
         <div>
           <h2 className="report-card__title">{t("audit.title")}</h2>
           <p className="report-card__subtitle">{t("audit.desc")}</p>
@@ -99,7 +99,7 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
             <div className="settings-audit-row" key={index}>
               <div>
                 <Skeleton width="52%" height={14} />
-                <div style={{ marginTop: 7 }}>
+                <div className="settings-audit-skeleton-gap">
                   <Skeleton width="72%" height={12} />
                 </div>
               </div>
