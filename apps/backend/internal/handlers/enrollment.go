@@ -64,11 +64,19 @@ func (h *OwnerHandler) CreateEnrollmentToken(c *gin.Context) {
 			"expires_at":  expiresAt.Format(time.RFC3339),
 		})
 	case errors.Is(err, store.ErrNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"error": "member not found"})
+		notFound(c, "member not found")
+	case errors.Is(err, store.ErrMemberBlocked):
+		apiError(c, http.StatusConflict, ErrCodeMemberBlocked, "member is blocked", nil)
+	case errors.Is(err, store.ErrMemberRemoved):
+		apiError(c, http.StatusConflict, ErrCodeMemberRemoved, "member was removed from this organization", nil)
+	case errors.Is(err, store.ErrOrganizationArchived):
+		apiError(c, http.StatusConflict, ErrCodeOrganizationArchived, "organization is archived", nil)
+	case errors.Is(err, store.ErrOrganizationDeletionPending):
+		apiError(c, http.StatusConflict, ErrCodeOrganizationDeletionPending, "organization deletion is pending", nil)
 	case errors.Is(err, store.ErrForbidden):
-		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permission or member is disabled"})
+		forbidden(c, "insufficient permission")
 	case errors.Is(err, store.ErrConflict):
-		c.JSON(http.StatusConflict, gin.H{"error": "could not create enrollment token"})
+		apiError(c, http.StatusConflict, ErrCodeConflict, "could not create enrollment token", nil)
 	default:
 		serverError(c, err)
 	}
