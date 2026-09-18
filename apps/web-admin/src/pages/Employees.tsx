@@ -482,6 +482,135 @@ function EmployeeActionsMenu({
   );
 }
 
+function FormerMemberActions({
+  employee,
+  businessId,
+  canRestore,
+  canDelete,
+  onChanged,
+}: {
+  employee: Employee;
+  businessId: string;
+  canRestore: boolean;
+  canDelete: boolean;
+  onChanged: () => void;
+}) {
+  const { t } = useTranslation("dashboard");
+  const { pushToast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [restoreOpen, setRestoreOpen] = useState(false);
+  const [monitoringEnabled, setMonitoringEnabled] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const ref = useDismiss(open, () => setOpen(false));
+
+  async function restore() {
+    setBusy(true);
+    setError(null);
+    try {
+      await restoreMember(businessId, employee.id, monitoringEnabled);
+      setRestoreOpen(false);
+      onChanged();
+      pushToast({ title: t("employees.lifecycle.restoredToast"), tone: "success" });
+    } catch {
+      setError(t("employees.prompts.failed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="employees-actions" ref={ref}>
+      <IconButton
+        label={t("employees.actions.more")}
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen((current) => !current);
+        }}
+      >
+        <MoreIcon />
+      </IconButton>
+
+      {open && (
+        <div className="ds-shell-popover employees-actions__menu" role="menu">
+          <Link
+            className="ds-menu__item"
+            to={`/employees/${employee.id}?business=${businessId}&former=1`}
+            onClick={() => setOpen(false)}
+          >
+            {t("employees.lifecycle.viewHistory")}
+          </Link>
+
+          {canRestore && (
+            <button
+              type="button"
+              className="ds-menu__item"
+              onClick={() => {
+                setOpen(false);
+                setError(null);
+                setMonitoringEnabled(true);
+                setRestoreOpen(true);
+              }}
+            >
+              {t("employees.lifecycle.restore")}
+            </button>
+          )}
+
+          {canDelete && (
+            <>
+              <div className="ds-menu__separator" />
+              <PermanentDeleteControl
+                employee={employee}
+                businessId={businessId}
+                canDelete={canDelete}
+                onDeleted={onChanged}
+                triggerVariant="menu-item"
+                onDialogClose={() => setOpen(false)}
+              />
+            </>
+          )}
+        </div>
+      )}
+
+      {restoreOpen && (
+        <Dialog
+          title={t("employees.lifecycle.restoreTitle", { name: employee.display_name })}
+          size="confirm"
+          onClose={() => !busy && setRestoreOpen(false)}
+          closeOnBackdrop={!busy}
+          footer={
+            <>
+              <Button variant="secondary" disabled={busy} onClick={() => setRestoreOpen(false)}>
+                {t("newBusinessModal.cancel")}
+              </Button>
+              <Button variant="primary" loading={busy} onClick={restore}>
+                {t("employees.lifecycle.restore")}
+              </Button>
+            </>
+          }
+        >
+          <div className="employees-dialog-stack">
+            <Alert tone="info">{t("employees.lifecycle.restoreInfo")}</Alert>
+            <label className="employees-monitoring-choice">
+              <input
+                type="checkbox"
+                checked={monitoringEnabled}
+                disabled={busy}
+                onChange={(event) => setMonitoringEnabled(event.currentTarget.checked)}
+              />
+              <span>
+                <strong>{t("employees.lifecycle.restoreMonitoring")}</strong>
+                <small>{t("employees.lifecycle.restoreMonitoringHelp")}</small>
+              </span>
+            </label>
+            {error && <Alert tone="danger">{error}</Alert>}
+          </div>
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
 function NewBusinessDialog({
   terms,
   kind,
@@ -707,6 +836,8 @@ export function Employees() {
   } = useBusinesses();
 
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [formerEmployees, setFormerEmployees] = useState<Employee[]>([]);
+  const [view, setView] = useState<"active" | "former">("active");
   const [loading, setLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
   const [showBusiness, setShowBusiness] = useState(false);
@@ -727,10 +858,24 @@ export function Employees() {
       .finally(() => setLoading(false));
   }
 
+  function loadFormer(id: string) {
+    setLoading(true);
+    setListError(null);
+    listFormerMembers(id)
+      .then((result) => setFormerEmployees(result.employees))
+      .catch(() => setListError(t("employees.lifecycle.errorLoadFormer")))
+      .finally(() => setLoading(false));
+  }
+
   useEffect(() => {
-    if (selectedId) loadEmployees(selectedId);
-    else setEmployees([]);
-  }, [selectedId]);
+    if (!selectedId) {
+      setEmployees([]);
+      setFormerEmployees([]);
+      return;
+    }
+    if (view === "former") loadFormer(selectedId);
+    else loadEmployees(selectedId);
+  }, [selectedId, view]);
 
   const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
@@ -756,7 +901,9 @@ export function Employees() {
         title={terms.many}
         subtitle={
           selected
-            ? `${selected.name} · ${t("employees.total", { count: employees.length })}`
+            ? `${selected.name} · ${t("employees.total", {
+                count: view === "former" ? formerEmployees.length : employees.length,
+              })}`
             : undefined
         }
         actions={
@@ -771,6 +918,29 @@ export function Employees() {
           ) : undefined
         }
       />
+
+      {selectedId && mayManageMembers && (
+        <div className="employees-view-tabs" role="tablist" aria-label={t("employees.lifecycle.viewLabel")}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "active"}
+            className={`employees-view-tab${view === "active" ? " is-active" : ""}`}
+            onClick={() => setView("active")}
+          >
+            {t("employees.lifecycle.activeMembers")}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "former"}
+            className={`employees-view-tab${view === "former" ? " is-active" : ""}`}
+            onClick={() => setView("former")}
+          >
+            {t("employees.lifecycle.formerMembers")}
+          </button>
+        </div>
+      )}
 
       {!businessLoading && businesses.length === 0 && (
         <div style={{ marginBottom: 16 }}>
@@ -793,7 +963,7 @@ export function Employees() {
 
       {(businessLoading || loading) && <EmployeesSkeleton />}
 
-      {!businessLoading && !loading && selectedId && employees.length === 0 && !listError && (
+      {view === "active" && !businessLoading && !loading && selectedId && employees.length === 0 && !listError && (
         <EmptyState
           title={t("employees.noMembersYet", { members: terms.lowerMany })}
           action={
@@ -806,7 +976,7 @@ export function Employees() {
         />
       )}
 
-      {!loading && employees.length > 0 && selectedId && (
+      {view === "active" && !loading && employees.length > 0 && selectedId && (
         <div className="ds-table-wrap employees-table-wrap">
           <table className="ds-table employees-table">
             <thead>
@@ -913,6 +1083,64 @@ export function Employees() {
                   </tr>
                 );
               })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {view === "former" && !loading && selectedId && formerEmployees.length === 0 && !listError && (
+        <EmptyState
+          title={t("employees.lifecycle.noFormer")}
+          description={t("employees.lifecycle.noFormerDescription")}
+        />
+      )}
+
+      {view === "former" && !loading && selectedId && formerEmployees.length > 0 && (
+        <div className="ds-table-wrap employees-table-wrap">
+          <table className="ds-table employees-table employees-table--former">
+            <thead>
+              <tr>
+                <th>{t("employees.table.name")}</th>
+                <th>{t("employees.table.login")}</th>
+                <th>{t("employees.table.role")}</th>
+                <th>{t("employees.lifecycle.removedAt")}</th>
+                <th>{t("employees.table.lastSeen")}</th>
+                <th aria-label={t("employees.actions.more")} />
+              </tr>
+            </thead>
+            <tbody>
+              {formerEmployees.map((employee) => (
+                <tr key={employee.id}>
+                  <td>
+                    <div className="employees-person">
+                      <span className="employees-avatar employees-avatar--former">
+                        {initials(employee.display_name)}
+                      </span>
+                      <span className="employees-person__copy">
+                        <span className="employees-person__name">{employee.display_name}</span>
+                        <span className="employees-person__status">
+                          {t("employees.lifecycle.removed")}
+                        </span>
+                      </span>
+                    </div>
+                  </td>
+                  <td className="employees-login">{employee.email || employee.username || "—"}</td>
+                  <td>{employee.role ? t(`employees.roles.${employee.role}`) : "—"}</td>
+                  <td className="employees-last-seen">
+                    {employee.removed_at ? new Date(employee.removed_at).toLocaleString() : "—"}
+                  </td>
+                  <td className="employees-last-seen">{relativeTime(employee.last_seen)}</td>
+                  <td>
+                    <FormerMemberActions
+                      employee={employee}
+                      businessId={selectedId}
+                      canRestore={mayManageMembers}
+                      canDelete={mayManageRoles}
+                      onChanged={() => loadFormer(selectedId)}
+                    />
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
