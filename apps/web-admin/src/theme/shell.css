@@ -457,12 +457,6 @@
   margin: 0 auto;
 }
 
-.ds-shell-content__inner > .ad-wrap {
-  width: 100%;
-  max-width: none;
-  margin-inline: 0;
-}
-
 .ds-app-shell[data-sidebar="collapsed"] .ds-brand-wordmark,
 .ds-app-shell[data-sidebar="collapsed"] .ds-org-picker__copy,
 .ds-app-shell[data-sidebar="collapsed"] .ds-org-picker__chevron,
