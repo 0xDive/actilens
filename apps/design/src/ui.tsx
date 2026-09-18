@@ -1,64 +1,104 @@
-import type { ReactNode } from "react";
+import type {
+  ButtonHTMLAttributes,
+  InputHTMLAttributes,
+  ReactNode,
+} from "react";
 
-export function Card({ children, style }: { children: ReactNode; style?: React.CSSProperties }) {
-  return (
-    <div className="card" style={style}>
-      {children}
-    </div>
-  );
+export function cx(...values: Array<string | false | null | undefined>) {
+  return values.filter(Boolean).join(" ");
 }
 
-export function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <Card>
-      <div className="stat-label">{label}</div>
-      <div className="stat-value num">{value}</div>
-    </Card>
-  );
-}
-
-export function BarRow({ label, value, pct }: { label: string; value: string; pct: number }) {
-  return (
-    <div className="row" style={{ marginBottom: 10 }}>
-      <div style={{ width: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {label}
-      </div>
-      <div className="bar-track">
-        <div className="bar-fill" style={{ width: `${pct}%` }} />
-      </div>
-      <div className="num muted" style={{ width: 64, textAlign: "right" }}>
-        {value}
-      </div>
-    </div>
-  );
-}
-
-export function Pill({ kind, children }: { kind: "success" | "danger"; children: ReactNode }) {
-  return <span className={`pill pill-${kind}`}>{children}</span>;
-}
-
-export function SectionTitle({ children }: { children: ReactNode }) {
-  return (
-    <div style={{ fontSize: 13, fontWeight: 600, margin: "24px 0 10px" }}>{children}</div>
-  );
-}
-
-export function Segmented({
-  options,
-  value,
-  onChange,
-}: {
-  options: string[];
-  value: string;
-  onChange: (v: string) => void;
+export function Button({
+  variant = "secondary",
+  size = "md",
+  children,
+  className,
+  type = "button",
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: "primary" | "secondary" | "ghost" | "danger";
+  size?: "sm" | "md" | "lg";
 }) {
   return (
-    <div className="segmented">
-      {options.map((o) => (
-        <button key={o} className={o === value ? "active" : ""} onClick={() => onChange(o)}>
-          {o}
-        </button>
-      ))}
-    </div>
+    <button
+      type={type}
+      className={cx(
+        "fixture-button",
+        `fixture-button--${variant}`,
+        `fixture-button--${size}`,
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+export function Card({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return <section className={cx("fixture-card", className)}>{children}</section>;
+}
+
+export function Badge({
+  children,
+  tone = "neutral",
+}: {
+  children: ReactNode;
+  tone?: "neutral" | "brand" | "success" | "warning" | "danger";
+}) {
+  return (
+    <span className={`fixture-badge fixture-badge--${tone}`}>
+      {children}
+    </span>
+  );
+}
+
+export function Field({
+  id,
+  label,
+  description,
+  ...props
+}: InputHTMLAttributes<HTMLInputElement> & {
+  id: string;
+  label: string;
+  description?: string;
+}) {
+  return (
+    <label className="fixture-field" htmlFor={id}>
+      <span className="fixture-field__label">{label}</span>
+      {description && (
+        <span className="fixture-field__description">{description}</span>
+      )}
+      <input id={id} className="fixture-input" {...props} />
+    </label>
+  );
+}
+
+export function Switch({
+  checked,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  label: string;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="fixture-switch-row">
+      <input
+        type="checkbox"
+        role="switch"
+        className="fixture-switch"
+        checked={checked}
+        onChange={(event) => onChange(event.currentTarget.checked)}
+      />
+      <span>{label}</span>
+    </label>
   );
 }
