@@ -689,3 +689,7 @@
   display: grid;
   gap: 16px;
 }
+
+.device-health-warning {
+  margin-bottom: 14px;
+}
