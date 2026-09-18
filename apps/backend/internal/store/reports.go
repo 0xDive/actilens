@@ -29,18 +29,20 @@ func (s *Store) OwnsEmployee(ctx context.Context, ownerID, employeeID string) (b
 	return ok, err
 }
 
-// CanViewEmployeeReports reports whether viewerID and targetID share at least one
-// business where the viewer has report permission.
-func (s *Store) CanViewEmployeeReports(ctx context.Context, viewerID, targetID string) (bool, error) {
+// CanViewEmployeeReports reports whether viewerID can view targetID inside the
+// exact organization selected by the UI.
+func (s *Store) CanViewEmployeeReports(ctx context.Context, viewerID, businessID, targetID string) (bool, error) {
 	var ok bool
 	err := s.pool.QueryRow(ctx, `
 		SELECT EXISTS(
 			SELECT 1
 			  FROM memberships viewer
 			  JOIN memberships target ON target.business_id = viewer.business_id
-			 WHERE viewer.user_id = $1 AND target.user_id = $2
+			 WHERE viewer.user_id = $1
+			   AND target.user_id = $2
+			   AND viewer.business_id = $3
 			   AND viewer.role IN ('owner','admin','manager')
-		)`, viewerID, targetID).Scan(&ok)
+		)`, viewerID, targetID, businessID).Scan(&ok)
 	return ok, err
 }
 
@@ -115,10 +117,6 @@ func (s *Store) Roster(ctx context.Context, businessID string, dayStart, dayEnd 
 	return out, rows.Err()
 }
 
-// All per-employee reads are scoped to businesses the caller owns via this filter,
-// so an owner can never read another business's data.
-const ownedFilter = `business_id IN (SELECT business_id FROM memberships WHERE user_id = $2 AND role IN ('owner','admin','manager'))`
-
 // ActivitySample is one app-usage interval in a report.
 type ActivitySample struct {
 	Ts          int64   `json:"ts"`
@@ -134,12 +132,12 @@ type AppBreakdown struct {
 }
 
 // ActivityReport returns the timeline samples plus a per-app breakdown.
-func (s *Store) ActivityReport(ctx context.Context, employeeID, ownerID string, from, to int64) ([]ActivitySample, []AppBreakdown, error) {
+func (s *Store) ActivityReport(ctx context.Context, employeeID, businessID string, from, to int64) ([]ActivitySample, []AppBreakdown, error) {
 	rows, err := s.pool.Query(ctx,
 		`SELECT ts, app_name, window_title, duration_s
 		   FROM activity_samples
-		  WHERE user_id = $1 AND `+ownedFilter+` AND ts >= $3 AND ts < $4
-		  ORDER BY ts`, employeeID, ownerID, from, to)
+		  WHERE user_id = $1 AND business_id = $2 AND ts >= $3 AND ts < $4
+		  ORDER BY ts`, employeeID, businessID, from, to)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -160,8 +158,8 @@ func (s *Store) ActivityReport(ctx context.Context, employeeID, ownerID string, 
 	brk, err := s.pool.Query(ctx,
 		`SELECT app_name, sum(duration_s)
 		   FROM activity_samples
-		  WHERE user_id = $1 AND `+ownedFilter+` AND ts >= $3 AND ts < $4
-		  GROUP BY app_name ORDER BY sum(duration_s) DESC`, employeeID, ownerID, from, to)
+		  WHERE user_id = $1 AND business_id = $2 AND ts >= $3 AND ts < $4
+		  GROUP BY app_name ORDER BY sum(duration_s) DESC`, employeeID, businessID, from, to)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -185,11 +183,11 @@ type KeystrokeBucket struct {
 }
 
 // KeystrokesReport returns count buckets in range (counts only — never keys).
-func (s *Store) KeystrokesReport(ctx context.Context, employeeID, ownerID string, from, to int64) ([]KeystrokeBucket, error) {
+func (s *Store) KeystrokesReport(ctx context.Context, employeeID, businessID string, from, to int64) ([]KeystrokeBucket, error) {
 	rows, err := s.pool.Query(ctx,
 		`SELECT ts_bucket, count FROM keystroke_buckets
-		  WHERE user_id = $1 AND `+ownedFilter+` AND ts_bucket >= $3 AND ts_bucket < $4
-		  ORDER BY ts_bucket`, employeeID, ownerID, from, to)
+		  WHERE user_id = $1 AND business_id = $2 AND ts_bucket >= $3 AND ts_bucket < $4
+		  ORDER BY ts_bucket`, employeeID, businessID, from, to)
 	if err != nil {
 		return nil, err
 	}
@@ -216,11 +214,11 @@ type BrowserVisit struct {
 }
 
 // BrowserReport returns page visits in range, most recent first.
-func (s *Store) BrowserReport(ctx context.Context, employeeID, ownerID string, from, to int64) ([]BrowserVisit, error) {
+func (s *Store) BrowserReport(ctx context.Context, employeeID, businessID string, from, to int64) ([]BrowserVisit, error) {
 	rows, err := s.pool.Query(ctx,
 		`SELECT ts, url, page_title, browser, duration_s FROM browser_visits
-		  WHERE user_id = $1 AND `+ownedFilter+` AND ts >= $3 AND ts < $4
-		  ORDER BY ts DESC`, employeeID, ownerID, from, to)
+		  WHERE user_id = $1 AND business_id = $2 AND ts >= $3 AND ts < $4
+		  ORDER BY ts DESC`, employeeID, businessID, from, to)
 	if err != nil {
 		return nil, err
 	}
@@ -248,11 +246,11 @@ type ScreenshotMeta struct {
 }
 
 // ScreenshotsReport returns paginated screenshot metadata, most recent first.
-func (s *Store) ScreenshotsReport(ctx context.Context, employeeID, ownerID string, from, to int64, limit, offset int) ([]ScreenshotMeta, error) {
+func (s *Store) ScreenshotsReport(ctx context.Context, employeeID, businessID string, from, to int64, limit, offset int) ([]ScreenshotMeta, error) {
 	rows, err := s.pool.Query(ctx,
 		`SELECT client_uuid, ts, byte_size, width, height, display_id FROM screenshots
-		  WHERE user_id = $1 AND `+ownedFilter+` AND ts >= $3 AND ts < $4
-		  ORDER BY ts DESC LIMIT $5 OFFSET $6`, employeeID, ownerID, from, to, limit, offset)
+		  WHERE user_id = $1 AND business_id = $2 AND ts >= $3 AND ts < $4
+		  ORDER BY ts DESC LIMIT $5 OFFSET $6`, employeeID, businessID, from, to, limit, offset)
 	if err != nil {
 		return nil, err
 	}
