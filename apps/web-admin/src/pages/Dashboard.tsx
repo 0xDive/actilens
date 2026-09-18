@@ -97,9 +97,13 @@ function fmtClock(seconds: number): string {
   return `${hours}:${String(minutes).padStart(2, "0")}`;
 }
 
-type Status = "active" | "idle" | "offline";
+type Status = "active" | "idle" | "offline" | "blocked";
 
-function memberStatus(lastSeen: number | null | undefined): Status {
+function memberStatus(
+  lastSeen: number | null | undefined,
+  membershipStatus?: string,
+): Status {
+  if (membershipStatus === "blocked") return "blocked";
   if (!lastSeen) return "offline";
   const age = Date.now() / 1000 - lastSeen;
   if (age < 5 * 60) return "active";
@@ -265,10 +269,10 @@ export function Dashboard() {
 
     const statuses = rows.reduce(
       (acc, employee) => {
-        acc[memberStatus(employee.last_seen)] += 1;
+        acc[memberStatus(employee.last_seen, employee.status)] += 1;
         return acc;
       },
-      { active: 0, idle: 0, offline: 0 } as Record<Status, number>,
+      { active: 0, idle: 0, offline: 0, blocked: 0 } as Record<Status, number>,
     );
 
     return {
@@ -297,9 +301,9 @@ export function Dashboard() {
   const currentApps = useMemo(() => {
     const counts = new Map<string, number>();
     for (const employee of liveEmployees) {
-      const status = memberStatus(employee.last_seen);
+      const status = memberStatus(employee.last_seen, employee.status);
       const app = employee.current_app?.trim();
-      if (!app || status === "offline") continue;
+      if (!app || status === "offline" || status === "blocked") continue;
       counts.set(app, (counts.get(app) || 0) + 1);
     }
     return [...counts.entries()]
@@ -441,7 +445,7 @@ export function Dashboard() {
                 </div>
               </div>
               <div className="dashboard-status-list">
-                {(["active", "idle", "offline"] as Status[]).map((status) => (
+                {(["active", "idle", "offline", "blocked"] as Status[]).map((status) => (
                   <div className="dashboard-status-row" key={status}>
                     <span
                       className={`dashboard-status-dot dashboard-status-dot--${status}`}
