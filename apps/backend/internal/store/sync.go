@@ -167,7 +167,7 @@ func (s *Store) SyncBatch(ctx context.Context, userID, businessID, deviceID stri
 	if err := ensureMembershipCollectableTx(ctx, tx, userID, businessID); err != nil {
 		return err
 	}
-	if err := touchDeviceTx(ctx, tx, userID, deviceID, meta); err != nil {
+	if err := touchDeviceTx(ctx, tx, userID, businessID, deviceID, meta); err != nil {
 		return err
 	}
 
