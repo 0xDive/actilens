@@ -1,136 +1,200 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Trans, useTranslation } from "react-i18next";
-import { reportEmployees } from "../api/endpoints";
-import type { ReportEmployee } from "../api/types";
-import { Empty, Notice, Spinner } from "../components/ui";
-import { Sparkline } from "../components/Sparkline";
+import { listBusinessEmployees, reportEmployees } from "../api/endpoints";
+import type { Employee, ReportEmployee } from "../api/types";
+import { Alert, Card, EmptyState, PageHeader, Skeleton } from "../components/ds";
 import { fmtRelative } from "../format";
 import { useBusinesses } from "../useBusinesses";
 import { memberTerms } from "../terms";
 import { useAuth } from "../auth/AuthContext";
+import "../theme/dashboard-v1.css";
 
-// ── display-only helpers ─────────────────────────────────────────────
-/** Duration as H:MM for the dashboard cards/rows (design uses "7:27", not "7h 27m").
- *  Local & display-only — the shared fmtDuration is left untouched. */
+function Icon({
+  children,
+  size = 18,
+}: {
+  children: ReactNode;
+  size?: number;
+}) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      {children}
+    </svg>
+  );
+}
+
+const ClockIcon = () => (
+  <Icon>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 2" />
+  </Icon>
+);
+
+const UsersIcon = () => (
+  <Icon>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M18 8a3 3 0 0 1 0 6" />
+  </Icon>
+);
+
+const TargetIcon = () => (
+  <Icon>
+    <circle cx="12" cy="12" r="9" />
+    <circle cx="12" cy="12" r="5" />
+    <circle cx="12" cy="12" r="1.5" />
+  </Icon>
+);
+
+const CameraIcon = () => (
+  <Icon>
+    <path d="M7 7h2l1.2-2h3.6L15 7h2a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-6a3 3 0 0 1 3-3Z" />
+    <circle cx="12" cy="13" r="3" />
+  </Icon>
+);
+
+const ArrowUpIcon = () => (
+  <Icon size={13}>
+    <path d="m7 14 5-5 5 5" />
+  </Icon>
+);
+
+const ArrowDownIcon = () => (
+  <Icon size={13}>
+    <path d="m7 10 5 5 5-5" />
+  </Icon>
+);
+
+const ArrowRightIcon = () => (
+  <Icon size={15}>
+    <path d="M5 12h14" />
+    <path d="m14 7 5 5-5 5" />
+  </Icon>
+);
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "?";
+  if (parts.length === 1) return parts[0][0]?.toUpperCase() || "?";
+  return `${parts[0][0] || ""}${parts[parts.length - 1][0] || ""}`.toUpperCase();
+}
+
 function fmtClock(seconds: number): string {
-  const s = Math.max(0, seconds | 0);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  return `${h}:${String(m).padStart(2, "0")}`;
+  const value = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(value / 3600);
+  const minutes = Math.floor((value % 3600) / 60);
+  return `${hours}:${String(minutes).padStart(2, "0")}`;
 }
 
 type Status = "active" | "idle" | "offline";
-function memberStatus(lastSeen: number | null): Status {
+
+function memberStatus(lastSeen: number | null | undefined): Status {
   if (!lastSeen) return "offline";
-  const ageS = Date.now() / 1000 - lastSeen;
-  if (ageS < 5 * 60) return "active";
-  if (ageS < 30 * 60) return "idle";
+  const age = Date.now() / 1000 - lastSeen;
+  if (age < 5 * 60) return "active";
+  if (age < 30 * 60) return "idle";
   return "offline";
 }
 
-/** Deterministic pseudo-random series in [0,1] from a string seed (stable across
- *  renders, no flicker). Used only for PLACEHOLDER sparklines until the backend
- *  exposes real trend data. */
-function seededSeries(seed: string, n = 8): number[] {
-  let h = 2166136261;
-  for (let i = 0; i < seed.length; i++) {
-    h ^= seed.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  const out: number[] = [];
-  for (let i = 0; i < n; i++) {
-    h = Math.imul(h ^ (h >>> 15), 2246822519);
-    out.push(((h >>> 0) % 1000) / 1000);
-  }
-  return out;
-}
+type Delta = { text: string; positive: boolean } | null;
 
-const AVATAR_PALETTE = [
-  { bg: "var(--info-soft)", fg: "var(--info)" },
-  { bg: "var(--positive-soft)", fg: "var(--positive)" },
-  { bg: "color-mix(in srgb, var(--data-rose) 18%, transparent)", fg: "var(--data-rose)" },
-  { bg: "color-mix(in srgb, var(--data-amber) 22%, transparent)", fg: "var(--data-amber)" },
-];
-const initials = (name: string) =>
-  name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
-
-function focusColor(pct: number): string {
-  if (pct >= 75) return "var(--positive)";
-  if (pct >= 60) return "var(--data-amber)";
-  return "var(--negative)";
-}
-
-// ── inline icons (no icon dependency in web-admin) ───────────────────
-const svg = (children: ReactNode) => (
-  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-    {children}
-  </svg>
-);
-const IconClock = svg(<><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></>);
-const IconUsers = svg(<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><path d="M16 3.128a4 4 0 0 1 0 7.744" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><circle cx="9" cy="7" r="4" /></>);
-const IconTarget = svg(<><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></>);
-const IconCamera = svg(<><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z" /><circle cx="12" cy="13" r="3" /></>);
-const IconArrowRight = svg(<><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></>);
-const TrendUp = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
-    <path d="M7 17 17 7M9 7h8v8" />
-  </svg>
-);
-const TrendDown = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
-    <path d="M7 7 17 17M17 9v8H9" />
-  </svg>
-);
-
-/** Real vs-yesterday delta, or null to hide the badge (no data to compare). */
-type Delta = { text: string; up: boolean } | null;
-
-/** Percent change today vs yesterday; hidden when there was nothing yesterday. */
-function pctDelta(today: number, yesterday: number): Delta {
+function percentDelta(today: number, yesterday: number): Delta {
   if (yesterday <= 0) return null;
-  const pct = Math.round(((today - yesterday) / yesterday) * 100);
-  return { text: `${Math.abs(pct)}%`, up: pct >= 0 };
+  const value = Math.round(((today - yesterday) / yesterday) * 100);
+  return { text: `${Math.abs(value)}%`, positive: value >= 0 };
 }
 
-/** Absolute-count change today vs yesterday; hidden when unchanged. */
 function countDelta(today: number, yesterday: number): Delta {
-  const diff = today - yesterday;
-  if (diff === 0) return null;
-  return { text: `${diff > 0 ? "+" : "−"}${Math.abs(diff)}`, up: diff > 0 };
+  const value = today - yesterday;
+  if (value === 0) return null;
+  return {
+    text: `${value > 0 ? "+" : "−"}${Math.abs(value)}`,
+    positive: value > 0,
+  };
 }
 
-// ── stat card ────────────────────────────────────────────────────────
-function StatCard(props: {
+function KpiCard({
+  icon,
+  label,
+  value,
+  unit,
+  delta,
+  note,
+}: {
   icon: ReactNode;
   label: string;
   value: ReactNode;
-  focal?: boolean;
+  unit?: string;
   delta?: Delta;
-  sub?: string;
-  spark: { data: number[]; color: string };
+  note?: string;
 }) {
-  const { icon, label, value, focal, delta, sub, spark } = props;
   return (
-    <div className={`actilens-card ${focal ? "actilens-card--focal" : "actilens-card--default"} ad-cardpad`}>
-      <div className={`actilens-stat${focal ? " actilens-stat--focal" : ""}`}>
-        <div className="actilens-stat__top">
-          <div className="actilens-stat__icon">{icon}</div>
-          <div className="actilens-stat__label">{label}</div>
+    <Card className="dashboard-kpi">
+      <div>
+        <div className="dashboard-kpi__top">
+          <span className="dashboard-kpi__label">{label}</span>
+          <span className="dashboard-kpi__icon">{icon}</span>
         </div>
-        <div className="actilens-stat__value">{value}</div>
-        <div className="actilens-stat__foot">
-          {delta && (
-            <span className={`actilens-stat__delta actilens-stat__delta--${delta.up ? "up" : "down"}`}>
-              {delta.up ? TrendUp : TrendDown}
-              {delta.text}
-            </span>
-          )}
-          {sub && <span className="actilens-stat__sub">{sub}</span>}
-          <span style={{ marginLeft: "auto" }}>
-            <Sparkline data={spark.data} color={spark.color} />
+        <div className="dashboard-kpi__value ds-num">
+          {value}
+          {unit && <span className="dashboard-kpi__unit">{unit}</span>}
+        </div>
+      </div>
+      <div className="dashboard-kpi__foot">
+        {delta && (
+          <span
+            className={`dashboard-delta dashboard-delta--${delta.positive ? "positive" : "negative"}`}
+          >
+            {delta.positive ? <ArrowUpIcon /> : <ArrowDownIcon />}
+            {delta.text}
           </span>
-        </div>
+        )}
+        {note && <span>{note}</span>}
+      </div>
+    </Card>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="dashboard-loading" aria-hidden>
+      <div className="dashboard-loading__kpis">
+        {Array.from({ length: 4 }, (_, index) => (
+          <Card className="dashboard-kpi" key={index}>
+            <Skeleton width="56%" height={16} />
+            <Skeleton width="42%" height={34} />
+            <Skeleton width="68%" height={13} />
+          </Card>
+        ))}
+      </div>
+      <div className="dashboard-grid">
+        <Card className="dashboard-panel dashboard-panel--activity">
+          <Skeleton width={180} height={20} />
+          <div className="dashboard-skeleton-list">
+            {Array.from({ length: 5 }, (_, index) => (
+              <Skeleton key={index} width="100%" height={20} />
+            ))}
+          </div>
+        </Card>
+        <Card className="dashboard-panel dashboard-panel--status">
+          <Skeleton width={140} height={20} />
+          <div className="dashboard-skeleton-list dashboard-skeleton-list--compact">
+            {Array.from({ length: 3 }, (_, index) => (
+              <Skeleton key={index} width="100%" height={42} />
+            ))}
+          </div>
+        </Card>
       </div>
     </div>
   );
@@ -140,162 +204,389 @@ export function Dashboard() {
   const { t } = useTranslation("dashboard");
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { businesses, selected, selectedId, loading: bizLoading } = useBusinesses();
+  const { businesses, selected, selectedId, loading: businessLoading } = useBusinesses();
   const terms = memberTerms(selected?.kind);
+
   const [rows, setRows] = useState<ReportEmployee[]>([]);
+  const [liveEmployees, setLiveEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!selectedId) {
       setRows([]);
+      setLiveEmployees([]);
       return;
     }
+
     let cancelled = false;
     setLoading(true);
     setError(null);
-    reportEmployees(selectedId)
-      .then((r) => !cancelled && setRows(r.employees))
-      .catch(() => !cancelled && setError(t("dashboard.errorRoster")))
-      .finally(() => !cancelled && setLoading(false));
+
+    Promise.all([reportEmployees(selectedId), listBusinessEmployees(selectedId)])
+      .then(([report, live]) => {
+        if (cancelled) return;
+        setRows(report.employees);
+        setLiveEmployees(live.employees);
+      })
+      .catch(() => {
+        if (!cancelled) setError(t("dashboard.errorRoster"));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
     return () => {
       cancelled = true;
     };
   }, [selectedId]);
 
-  // ── derived metrics for the stat cards ──
-  const totalRecordedS = rows.reduce((s, e) => s + (e.active_today_s || 0), 0);
-  const totalYesterdayS = rows.reduce((s, e) => s + (e.active_yesterday_s || 0), 0);
-  const activeCount = rows.filter((e) => memberStatus(e.last_seen) !== "offline").length;
-  const focusVals = rows.map((e) => e.focus_pct_today).filter((v): v is number => v != null);
-  const avgFocus = focusVals.length
-    ? Math.round(focusVals.reduce((a, b) => a + b, 0) / focusVals.length)
-    : null;
-  const screenshotCount = rows.reduce((s, e) => s + (e.screenshots_today || 0), 0);
-  const screenshotsYday = rows.reduce((s, e) => s + (e.screenshots_yesterday || 0), 0);
+  const metrics = useMemo(() => {
+    const totalToday = rows.reduce((sum, employee) => sum + (employee.active_today_s || 0), 0);
+    const totalYesterday = rows.reduce(
+      (sum, employee) => sum + (employee.active_yesterday_s || 0),
+      0,
+    );
+    const screenshotsToday = rows.reduce(
+      (sum, employee) => sum + (employee.screenshots_today || 0),
+      0,
+    );
+    const screenshotsYesterday = rows.reduce(
+      (sum, employee) => sum + (employee.screenshots_yesterday || 0),
+      0,
+    );
+
+    const focusValues = rows
+      .map((employee) => employee.focus_pct_today)
+      .filter((value): value is number => value !== null);
+    const averageFocus = focusValues.length
+      ? Math.round(focusValues.reduce((sum, value) => sum + value, 0) / focusValues.length)
+      : null;
+
+    const statuses = rows.reduce(
+      (acc, employee) => {
+        acc[memberStatus(employee.last_seen)] += 1;
+        return acc;
+      },
+      { active: 0, idle: 0, offline: 0 } as Record<Status, number>,
+    );
+
+    return {
+      totalToday,
+      totalYesterday,
+      screenshotsToday,
+      screenshotsYesterday,
+      averageFocus,
+      statuses,
+    };
+  }, [rows]);
+
+  const activityRanking = useMemo(
+    () =>
+      [...rows]
+        .sort((a, b) => b.active_today_s - a.active_today_s)
+        .slice(0, 7),
+    [rows],
+  );
+
+  const maxActivity = Math.max(
+    1,
+    ...activityRanking.map((employee) => employee.active_today_s),
+  );
+
+  const currentApps = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const employee of liveEmployees) {
+      const status = memberStatus(employee.last_seen);
+      const app = employee.current_app?.trim();
+      if (!app || status === "offline") continue;
+      counts.set(app, (counts.get(app) || 0) + 1);
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 6);
+  }, [liveEmployees]);
+
+  const recentMembers = useMemo(
+    () =>
+      [...rows]
+        .filter((employee) => employee.last_seen)
+        .sort((a, b) => (b.last_seen || 0) - (a.last_seen || 0))
+        .slice(0, 6),
+    [rows],
+  );
 
   return (
-    <div className="ad-wrap" style={{ paddingBottom: 32 }}>
-      <div className="ad-pagehead">
-        <div className="ad-pagehead__main">
-          <h1 className="ad-h1">{t("dashboard.title")}</h1>
-          {selected && (
-            <p className="ad-sub">
-              {selected.name} · {rows.length} {terms.many}
-            </p>
-          )}
-        </div>
-      </div>
+    <div className="dashboard-v1">
+      <PageHeader
+        title={t("dashboard.title")}
+        subtitle={
+          selected
+            ? `${selected.name} · ${t("dashboard.v1.totalMembers", { count: rows.length })}`
+            : undefined
+        }
+      />
 
-      {bizLoading && <Spinner label={t("dashboard.loadingBusinesses")} />}
+      {(businessLoading || loading) && <DashboardSkeleton />}
 
-      {!bizLoading && businesses.length === 0 && (
-        <Empty>
-          <Trans
-            i18nKey="dashboard.noBusinesses"
-            t={t}
-            values={{ members: terms.many, member: terms.lowerOne }}
-            components={[<Link to="/employees" />]}
-          />
-        </Empty>
+      {!businessLoading && businesses.length === 0 && (
+        <EmptyState
+          title={t("dashboard.v1.noOrganizationTitle")}
+          description={
+            <Trans
+              i18nKey="dashboard.noBusinesses"
+              t={t}
+              values={{ members: terms.many, member: terms.lowerOne }}
+              components={[<Link to="/employees" />]}
+            />
+          }
+        />
       )}
 
-      {error && <Notice kind="danger">{error}</Notice>}
-      {loading && <Spinner label={t("dashboard.loadingRoster")} />}
+      {error && <Alert tone="danger">{error}</Alert>}
 
       {!loading && !error && selectedId && rows.length === 0 && (
-        <Empty>{t("dashboard.noActivity", { members: terms.lowerMany })}</Empty>
+        <EmptyState
+          title={t("dashboard.v1.noActivityTitle")}
+          description={t("dashboard.noActivity", { members: terms.lowerMany })}
+        />
       )}
 
-      {rows.length > 0 && (
+      {!loading && rows.length > 0 && (
         <>
-          <div className="ad-stats">
-            <StatCard
-              focal
-              icon={IconClock}
-              label={t("dashboard.statRecorded")}
-              value={fmtClock(totalRecordedS)}
-              delta={pctDelta(totalRecordedS, totalYesterdayS)}
-              sub={totalYesterdayS > 0 ? t("dashboard.vsYesterday") : t("dashboard.todayLabel")}
-              spark={{ data: seededSeries("recorded"), color: "var(--violet)" }}
+          <div className="dashboard-kpis">
+            <KpiCard
+              icon={<UsersIcon />}
+              label={t("dashboard.v1.activeNow")}
+              value={metrics.statuses.active}
+              note={t("dashboard.v1.ofTotal", { count: rows.length })}
             />
-            <StatCard
-              icon={IconUsers}
-              label={t("dashboard.statActive")}
-              value={`${activeCount} / ${rows.length}`}
-              sub={t("dashboard.ofMembers", { count: rows.length, members: terms.many })}
-              spark={{ data: seededSeries("active"), color: "var(--data-sky)" }}
+            <KpiCard
+              icon={<ClockIcon />}
+              label={t("dashboard.v1.recordedToday")}
+              value={fmtClock(metrics.totalToday)}
+              delta={percentDelta(metrics.totalToday, metrics.totalYesterday)}
+              note={
+                metrics.totalYesterday > 0
+                  ? t("dashboard.vsYesterday")
+                  : t("dashboard.todayLabel")
+              }
             />
-            <StatCard
-              icon={IconTarget}
-              label={t("dashboard.statFocus")}
-              value={avgFocus == null ? "—" : <>{avgFocus}<span className="actilens-stat__unit">%</span></>}
-              sub={t("dashboard.todayLabel")}
-              spark={{ data: seededSeries("focus"), color: "var(--positive)" }}
+            <KpiCard
+              icon={<TargetIcon />}
+              label={t("dashboard.v1.averageFocus")}
+              value={metrics.averageFocus ?? "—"}
+              unit={metrics.averageFocus === null ? undefined : "%"}
+              note={t("dashboard.todayLabel")}
             />
-            <StatCard
-              icon={IconCamera}
-              label={t("dashboard.statScreenshots")}
-              value={screenshotCount}
-              delta={countDelta(screenshotCount, screenshotsYday)}
-              sub={t("dashboard.todayLabel")}
-              spark={{ data: seededSeries("shots"), color: "var(--data-mint)" }}
+            <KpiCard
+              icon={<CameraIcon />}
+              label={t("dashboard.v1.screenshotsToday")}
+              value={metrics.screenshotsToday}
+              delta={countDelta(
+                metrics.screenshotsToday,
+                metrics.screenshotsYesterday,
+              )}
+              note={t("dashboard.todayLabel")}
             />
           </div>
 
-          <div className="actilens-card actilens-card--default ad-tablecard">
-            <table className="ad-table">
+          <div className="dashboard-grid">
+            <Card className="dashboard-panel dashboard-panel--activity">
+              <div className="dashboard-panel__head">
+                <div>
+                  <h2 className="dashboard-panel__title">
+                    {t("dashboard.v1.activityTitle")}
+                  </h2>
+                  <p className="dashboard-panel__subtitle">
+                    {t("dashboard.v1.activitySubtitle")}
+                  </p>
+                </div>
+              </div>
+
+              <div className="dashboard-activity-list">
+                {activityRanking.map((employee) => (
+                  <div className="dashboard-activity-row" key={employee.id}>
+                    <span className="dashboard-activity-name">
+                      {employee.display_name}
+                    </span>
+                    <span className="dashboard-activity-track">
+                      <span
+                        className="dashboard-activity-fill"
+                        style={{
+                          width: `${Math.max(
+                            2,
+                            (employee.active_today_s / maxActivity) * 100,
+                          )}%`,
+                        }}
+                      />
+                    </span>
+                    <span className="dashboard-activity-value ds-num">
+                      {fmtClock(employee.active_today_s)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Card className="dashboard-panel dashboard-panel--status">
+              <div className="dashboard-panel__head">
+                <div>
+                  <h2 className="dashboard-panel__title">
+                    {t("dashboard.v1.statusTitle")}
+                  </h2>
+                  <p className="dashboard-panel__subtitle">
+                    {t("dashboard.v1.statusSubtitle")}
+                  </p>
+                </div>
+              </div>
+              <div className="dashboard-status-list">
+                {(["active", "idle", "offline"] as Status[]).map((status) => (
+                  <div className="dashboard-status-row" key={status}>
+                    <span
+                      className={`dashboard-status-dot dashboard-status-dot--${status}`}
+                    />
+                    <span className="dashboard-status-label">
+                      {t(`dashboard.v1.status.${status}`)}
+                    </span>
+                    <span className="dashboard-status-count">
+                      {metrics.statuses[status]}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Card className="dashboard-panel dashboard-panel--apps">
+              <div className="dashboard-panel__head">
+                <div>
+                  <h2 className="dashboard-panel__title">
+                    {t("dashboard.v1.appsTitle")}
+                  </h2>
+                  <p className="dashboard-panel__subtitle">
+                    {t("dashboard.v1.appsSubtitle")}
+                  </p>
+                </div>
+              </div>
+              {currentApps.length > 0 ? (
+                <div className="dashboard-app-list">
+                  {currentApps.map(([app, count]) => (
+                    <div className="dashboard-app-row" key={app}>
+                      <span className="dashboard-app-mark">
+                        {app.slice(0, 1).toUpperCase()}
+                      </span>
+                      <span className="dashboard-app-name">{app}</span>
+                      <span className="dashboard-app-count">
+                        {t("dashboard.v1.peopleCount", { count })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="dashboard-empty-inline">
+                  {t("dashboard.v1.appsEmpty")}
+                </div>
+              )}
+            </Card>
+
+            <Card className="dashboard-panel dashboard-panel--recent">
+              <div className="dashboard-panel__head">
+                <div>
+                  <h2 className="dashboard-panel__title">
+                    {t("dashboard.v1.recentTitle")}
+                  </h2>
+                  <p className="dashboard-panel__subtitle">
+                    {t("dashboard.v1.recentSubtitle")}
+                  </p>
+                </div>
+              </div>
+              <div className="dashboard-recent-list">
+                {recentMembers.map((employee) => (
+                  <button
+                    type="button"
+                    className="dashboard-recent-row dashboard-recent-button"
+                    key={employee.id}
+                    onClick={() =>
+                      navigate(`/employees/${employee.id}?business=${selectedId}`)
+                    }
+                  >
+                    <span className="dashboard-recent-avatar">
+                      {initials(employee.display_name)}
+                    </span>
+                    <span className="dashboard-recent-name">
+                      {employee.display_name}
+                    </span>
+                    <span className="dashboard-recent-time">
+                      {fmtRelative(employee.last_seen)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </Card>
+          </div>
+
+          <div className="ds-table-wrap">
+            <table className="ds-table">
               <thead>
                 <tr>
                   <th>{t("dashboard.table.name")}</th>
                   <th>{t("dashboard.table.login")}</th>
                   <th>{t("dashboard.table.lastSeen")}</th>
-                  <th className="r">{t("dashboard.table.activeToday")}</th>
-                  <th className="r">{t("dashboard.table.focus")}</th>
-                  <th></th>
+                  <th>{t("dashboard.table.activeToday")}</th>
+                  <th>{t("dashboard.table.focus")}</th>
+                  <th>{t("dashboard.v1.screenshots")}</th>
+                  <th aria-label={t("dashboard.view")} />
                 </tr>
               </thead>
               <tbody>
-                {rows.map((e, i) => {
-                  const isSelf = e.role === "owner" || e.id === user?.id;
-                  const status = memberStatus(e.last_seen);
-                  const pal = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
-                  const focus = e.focus_pct_today;
-                  const col = focus == null ? "var(--text-muted)" : focusColor(focus);
+                {rows.map((employee) => {
+                  const isSelf = employee.role === "owner" || employee.id === user?.id;
+                  const focus = employee.focus_pct_today;
+                  const focusClass =
+                    focus === null
+                      ? ""
+                      : focus >= 75
+                        ? "dashboard-focus--good"
+                        : focus >= 60
+                          ? "dashboard-focus--warn"
+                          : "dashboard-focus--low";
+
                   return (
-                    <tr key={e.id}>
+                    <tr
+                      key={employee.id}
+                      className="dashboard-team-row"
+                      onClick={() =>
+                        navigate(
+                          `/employees/${employee.id}?business=${selectedId}`,
+                        )
+                      }
+                    >
                       <td>
-                        <div className="ad-name">
-                          <span className="actilens-avatar" style={{ ["--_s" as string]: "34px" }}>
-                            <span className="actilens-avatar__img" aria-label={e.display_name} style={{ background: pal.bg, color: pal.fg }}>
-                              {initials(e.display_name)}
-                            </span>
-                            <span className={`actilens-avatar__dot actilens-avatar__dot--${status}`} />
+                        <div className="dashboard-table-person">
+                          <span className="dashboard-table-person__avatar">
+                            {initials(employee.display_name)}
                           </span>
-                          <span className="ad-name__txt">
-                            {e.display_name}
-                            {isSelf && <span className="ad-self">{t("dashboard.selfBadge")}</span>}
+                          <span className="dashboard-table-person__name">
+                            {employee.display_name}
+                            {isSelf && (
+                              <span className="dashboard-self-badge">
+                                {t("dashboard.selfBadge")}
+                              </span>
+                            )}
                           </span>
                         </div>
                       </td>
-                      <td className="ad-login">{e.email || e.username}</td>
-                      <td className="ad-relt">{fmtRelative(e.last_seen)}</td>
-                      <td className="r ad-dur">{fmtClock(e.active_today_s)}</td>
-                      <td className="r">
-                        <span className="ad-rowprod">
-                          <Sparkline data={seededSeries(e.id)} color={col} width={56} height={20} />
-                          <span className="ad-rowprod__pct">{focus == null ? "—" : `${focus}%`}</span>
-                        </span>
+                      <td>{employee.email || employee.username || "—"}</td>
+                      <td>{fmtRelative(employee.last_seen)}</td>
+                      <td className="ds-num">{fmtClock(employee.active_today_s)}</td>
+                      <td className={`dashboard-focus ${focusClass}`}>
+                        {focus === null ? "—" : `${focus}%`}
                       </td>
-                      <td className="r">
-                        <button
-                          type="button"
-                          className="ad-viewlink"
-                          onClick={() => navigate(`/employees/${e.id}?business=${selectedId}`)}
-                        >
-                          {t("dashboard.view")}
-                          {IconArrowRight}
-                        </button>
+                      <td className="ds-num">{employee.screenshots_today}</td>
+                      <td>
+                        <span className="dashboard-row-arrow">
+                          <ArrowRightIcon />
+                        </span>
                       </td>
                     </tr>
                   );
