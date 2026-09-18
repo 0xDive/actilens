@@ -132,9 +132,32 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			return
 		}
 		if !member {
-			c.JSON(http.StatusForbidden, gin.H{"error": "not a member of that business"})
+			forbidden(c, "not a member of that organization")
 			return
 		}
+	}
+
+	mfaState, err := h.store.MFAState(c.Request.Context(), u.ID)
+	if err != nil {
+		serverError(c, err)
+		return
+	}
+	if mfaState.Enabled {
+		_, version, err := h.store.UserSecurity(c.Request.Context(), u.ID)
+		if err != nil {
+			serverError(c, err)
+			return
+		}
+		challenge, err := h.tok.IssueMFAChallenge(u.ID, version)
+		if err != nil {
+			serverError(c, err)
+			return
+		}
+		c.Header("Cache-Control", "no-store")
+		apiError(c, http.StatusUnauthorized, ErrCodeMFARequired, "multi-factor authentication required", gin.H{
+			"challenge_token": challenge,
+		})
+		return
 	}
 	h.issue(c, http.StatusOK, u, req.ClientType, req.ClientLabel)
 }
