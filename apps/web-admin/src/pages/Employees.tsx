@@ -13,6 +13,7 @@ import { ApiError, type BusinessKind, type Employee } from "../api/types";
 import { Empty, Modal, Notice, Spinner } from "../components/ui";
 import { MemberRoleControl } from "../components/employee/MemberRoleControl";
 import { MemberMonitoringControl } from "../components/employee/MemberMonitoringControl";
+import { PermanentDeleteControl } from "../components/employee/PermanentDeleteControl";
 import { useBusinesses } from "../useBusinesses";
 import { memberTerms, type MemberTerms } from "../terms";
 import { useAuth } from "../auth/AuthContext";
@@ -260,6 +261,12 @@ export function Employees() {
                             <button className="actilens-btn actilens-btn--ghost" onClick={() => toggleEmployeeActive(e)}>
                               {t(e.active ? "employees.actions.archive" : "employees.actions.restore")}
                             </button>
+                            <PermanentDeleteControl
+                              employee={e}
+                              businessId={selectedId!}
+                              canDelete={mayManageRoles}
+                              onDeleted={() => selectedId && loadEmployees(selectedId)}
+                            />
                           </>
                         )}
                       </div>
