@@ -20,16 +20,28 @@ type updateDeviceReq struct {
 // ListEmployeeDevices returns every ActiLens installation seen for an employee
 // the current user may manage.
 func (h *OwnerHandler) ListEmployeeDevices(c *gin.Context) {
-	actorID, _ := auth.UserID(c)
 	businessID := strings.TrimSpace(c.Query("business_id"))
-	devices, err := h.store.ListEmployeeDevices(c.Request.Context(), actorID, c.Param("id"), businessID)
+	if businessID == "" {
+		badRequest(c, "business_id is required")
+		return
+	}
+	h.listMemberDevices(c, businessID, c.Param("id"))
+}
+
+func (h *OwnerHandler) ListMemberDevices(c *gin.Context) {
+	h.listMemberDevices(c, c.Param("id"), c.Param("user_id"))
+}
+
+func (h *OwnerHandler) listMemberDevices(c *gin.Context, businessID, userID string) {
+	actorID, _ := auth.UserID(c)
+	devices, err := h.store.ListEmployeeDevices(c.Request.Context(), actorID, userID, businessID)
 	switch {
 	case err == nil:
 		c.JSON(http.StatusOK, gin.H{"devices": devices})
 	case errors.Is(err, store.ErrNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"error": "member not found"})
+		notFound(c, "member not found")
 	case errors.Is(err, store.ErrForbidden):
-		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permission"})
+		forbidden(c, "insufficient permission")
 	default:
 		serverError(c, err)
 	}
@@ -37,6 +49,19 @@ func (h *OwnerHandler) ListEmployeeDevices(c *gin.Context) {
 
 // UpdateDevice renames, revokes or restores an employee device.
 func (h *OwnerHandler) UpdateDevice(c *gin.Context) {
+	businessID := strings.TrimSpace(c.Query("business_id"))
+	if businessID == "" {
+		badRequest(c, "business_id is required")
+		return
+	}
+	h.updateOrganizationDevice(c, businessID, c.Param("id"))
+}
+
+func (h *OwnerHandler) UpdateOrganizationDevice(c *gin.Context) {
+	h.updateOrganizationDevice(c, c.Param("id"), c.Param("device_id"))
+}
+
+func (h *OwnerHandler) updateOrganizationDevice(c *gin.Context, businessID, deviceID string) {
 	actorID, _ := auth.UserID(c)
 	var req updateDeviceReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -56,15 +81,16 @@ func (h *OwnerHandler) UpdateDevice(c *gin.Context) {
 		req.Label = &v
 	}
 
-	businessID := strings.TrimSpace(c.Query("business_id"))
-	device, err := h.store.UpdateDevice(c.Request.Context(), actorID, c.Param("id"), req.Label, req.Revoked, businessID)
+	device, err := h.store.UpdateDevice(c.Request.Context(), actorID, deviceID, req.Label, req.Revoked, businessID)
 	switch {
 	case err == nil:
 		c.JSON(http.StatusOK, gin.H{"device": device})
 	case errors.Is(err, store.ErrNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"error": "device not found"})
+		notFound(c, "device not found")
+	case errors.Is(err, store.ErrDeviceLimitReached):
+		apiError(c, http.StatusConflict, ErrCodeDeviceLimitReached, "device limit reached", nil)
 	case errors.Is(err, store.ErrForbidden):
-		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permission"})
+		forbidden(c, "insufficient permission")
 	default:
 		serverError(c, err)
 	}
