@@ -453,6 +453,7 @@ function EmployeeActionsMenu({
           </p>
           {dialogError && <Alert tone="danger">{dialogError}</Alert>}
         </Dialog>
+      )}
 
       {removeOpen && (
         <Dialog
@@ -479,8 +480,6 @@ function EmployeeActionsMenu({
             {dialogError && <Alert tone="danger">{dialogError}</Alert>}
           </div>
         </Dialog>
-      )}
-
       )}
     </div>
   );
