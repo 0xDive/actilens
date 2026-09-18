@@ -13,7 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// ReportsHandler serves the owner read path (roster, per-employee data, images).
+// ReportsHandler serves organization-scoped report reads.
 type ReportsHandler struct {
 	store *store.Store
 	files *filestore.Store
@@ -24,16 +24,16 @@ func NewReportsHandler(s *store.Store, files *filestore.Store) *ReportsHandler {
 	return &ReportsHandler{store: s, files: files}
 }
 
-// Roster returns the employee roster for a business the caller owns.
+// Roster returns the employee roster for a business the caller can report on.
 // Query: business_id (required).
 func (h *ReportsHandler) Roster(c *gin.Context) {
-	ownerID, _ := auth.UserID(c)
+	viewerID, _ := auth.UserID(c)
 	businessID := c.Query("business_id")
 	if businessID == "" {
 		badRequest(c, "business_id is required")
 		return
 	}
-	allowed, err := h.store.HasBusinessPermission(c.Request.Context(), ownerID, businessID, store.PermissionReports)
+	allowed, err := h.store.HasBusinessPermission(c.Request.Context(), viewerID, businessID, store.PermissionReports)
 	if err != nil {
 		serverError(c, err)
 		return
@@ -54,13 +54,13 @@ func (h *ReportsHandler) Roster(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"employees": roster})
 }
 
-// Activity returns the timeline + app breakdown for an employee.
+// Activity returns the timeline + app breakdown for one employee in one business.
 func (h *ReportsHandler) Activity(c *gin.Context) {
-	ownerID, empID, from, to, ok := h.scope(c)
+	_, businessID, empID, from, to, ok := h.scope(c)
 	if !ok {
 		return
 	}
-	samples, breakdown, err := h.store.ActivityReport(c.Request.Context(), empID, ownerID, from, to)
+	samples, breakdown, err := h.store.ActivityReport(c.Request.Context(), empID, businessID, from, to)
 	if err != nil {
 		serverError(c, err)
 		return
@@ -68,13 +68,13 @@ func (h *ReportsHandler) Activity(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"samples": samples, "breakdown": breakdown})
 }
 
-// Keystrokes returns count buckets for an employee.
+// Keystrokes returns count buckets for one employee in one business.
 func (h *ReportsHandler) Keystrokes(c *gin.Context) {
-	ownerID, empID, from, to, ok := h.scope(c)
+	_, businessID, empID, from, to, ok := h.scope(c)
 	if !ok {
 		return
 	}
-	buckets, err := h.store.KeystrokesReport(c.Request.Context(), empID, ownerID, from, to)
+	buckets, err := h.store.KeystrokesReport(c.Request.Context(), empID, businessID, from, to)
 	if err != nil {
 		serverError(c, err)
 		return
@@ -82,13 +82,13 @@ func (h *ReportsHandler) Keystrokes(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"buckets": buckets})
 }
 
-// Browser returns page visits for an employee.
+// Browser returns page visits for one employee in one business.
 func (h *ReportsHandler) Browser(c *gin.Context) {
-	ownerID, empID, from, to, ok := h.scope(c)
+	_, businessID, empID, from, to, ok := h.scope(c)
 	if !ok {
 		return
 	}
-	visits, err := h.store.BrowserReport(c.Request.Context(), empID, ownerID, from, to)
+	visits, err := h.store.BrowserReport(c.Request.Context(), empID, businessID, from, to)
 	if err != nil {
 		serverError(c, err)
 		return
@@ -96,15 +96,15 @@ func (h *ReportsHandler) Browser(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"visits": visits})
 }
 
-// Screenshots returns paginated screenshot metadata for an employee.
+// Screenshots returns paginated screenshot metadata for one employee in one business.
 func (h *ReportsHandler) Screenshots(c *gin.Context) {
-	ownerID, empID, from, to, ok := h.scope(c)
+	_, businessID, empID, from, to, ok := h.scope(c)
 	if !ok {
 		return
 	}
 	limit := clampInt(c.Query("limit"), 50, 1, 200)
 	offset := clampInt(c.Query("offset"), 0, 0, 1<<31)
-	shots, err := h.store.ScreenshotsReport(c.Request.Context(), empID, ownerID, from, to, limit, offset)
+	shots, err := h.store.ScreenshotsReport(c.Request.Context(), empID, businessID, from, to, limit, offset)
 	if err != nil {
 		serverError(c, err)
 		return
@@ -112,13 +112,13 @@ func (h *ReportsHandler) Screenshots(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"screenshots": shots, "limit": limit, "offset": offset})
 }
 
-// ScreenshotImage streams a stored screenshot if the caller owns the business it
-// belongs to.
+// ScreenshotImage streams a stored screenshot if the caller has report permission
+// for the business it belongs to.
 func (h *ReportsHandler) ScreenshotImage(c *gin.Context) {
-	ownerID, _ := auth.UserID(c)
+	viewerID, _ := auth.UserID(c)
 	clientUUID := c.Param("client_uuid")
 
-	relPath, err := h.store.ScreenshotPathForOwner(c.Request.Context(), ownerID, clientUUID)
+	relPath, err := h.store.ScreenshotPathForOwner(c.Request.Context(), viewerID, clientUUID)
 	if errors.Is(err, store.ErrNotFound) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
@@ -129,7 +129,6 @@ func (h *ReportsHandler) ScreenshotImage(c *gin.Context) {
 	}
 	f, err := h.files.Open(relPath)
 	if err != nil {
-		// Metadata exists but the file is gone (e.g. cleaned up) — treat as missing.
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
@@ -142,25 +141,37 @@ func (h *ReportsHandler) ScreenshotImage(c *gin.Context) {
 	c.DataFromReader(http.StatusOK, fi.Size(), "image/webp", f, nil)
 }
 
-// scope authenticates, validates the :id employee is one the caller owns, and parses
-// the from/to window. It writes the error response and returns ok=false on failure.
-func (h *ReportsHandler) scope(c *gin.Context) (ownerID, empID string, from, to int64, ok bool) {
-	ownerID, _ = auth.UserID(c)
+// scope resolves the explicit organization, verifies both report permission and
+// target membership in that same organization, and parses the requested time range.
+// Requiring business_id prevents data from multiple shared organizations being
+// silently mixed into one employee report.
+func (h *ReportsHandler) scope(c *gin.Context) (viewerID, businessID, empID string, from, to int64, ok bool) {
+	viewerID, _ = auth.UserID(c)
+	businessID = c.Query("business_id")
 	empID = c.Param("id")
 
-	owns, err := h.store.CanViewEmployeeReports(c.Request.Context(), ownerID, empID)
+	if businessID == "" {
+		badRequest(c, "business_id is required")
+		return
+	}
+
+	allowed, err := h.store.CanViewEmployeeReports(c.Request.Context(), viewerID, businessID, empID)
 	if err != nil {
 		serverError(c, err)
 		return
 	}
-	if !owns {
+	if !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permission"})
 		return
 	}
 
 	from = parseInt64(c.Query("from"), 0)
 	to = parseInt64(c.Query("to"), time.Now().Unix()+1)
-	return ownerID, empID, from, to, true
+	if from > to {
+		badRequest(c, "from must not be after to")
+		return
+	}
+	return viewerID, businessID, empID, from, to, true
 }
 
 func parseInt64(s string, def int64) int64 {
