@@ -8,10 +8,10 @@ import {
   listBusinessEmployees,
   listFormerMembers,
   removeMember,
-  resetEmployeePassword,
+  resetManagedMemberPassword,
   restoreMember,
   unblockMember,
-  updateEmployee,
+  updateManagedMemberIdentity,
 } from "../api/endpoints";
 import { ApiError, type BusinessKind, type Employee } from "../api/types";
 import {
@@ -187,7 +187,7 @@ function EmployeeActionsMenu({
       const patch = login.includes("@")
         ? { display_name: name, email: login, username: "" }
         : { display_name: name, username: login.toLowerCase(), email: "" };
-      await updateEmployee(employee.id, patch);
+      await updateManagedMemberIdentity(businessId, employee.id, patch);
       setEditOpen(false);
       setOpen(false);
       onChanged();
@@ -204,7 +204,7 @@ function EmployeeActionsMenu({
     setBusy(true);
     setDialogError(null);
     try {
-      await resetEmployeePassword(employee.id, password);
+      await resetManagedMemberPassword(businessId, employee.id, password);
       setPasswordOpen(false);
       setOpen(false);
       setPassword("");
