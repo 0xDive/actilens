@@ -32,7 +32,8 @@ type Device struct {
 	Hostname   string `json:"hostname"`
 	Platform   string `json:"platform"`
 	Arch       string `json:"arch"`
-	AppVersion string `json:"app_version"`
+	AppVersion     string `json:"app_version"`
+	VersionStatus  string `json:"version_status"`
 	FirstSeen  int64  `json:"first_seen"`
 	LastSeen   *int64 `json:"last_seen"`
 	RevokedAt  *int64 `json:"revoked_at"`
