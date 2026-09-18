@@ -24,6 +24,7 @@ import {
 } from "../components/ds";
 import { useToast } from "../components/ToastProvider";
 import { AuditLogCard } from "../components/settings/AuditLogCard";
+import { OrganizationSettingsCard } from "../components/settings/OrganizationSettingsCard";
 import { useBusinesses } from "../useBusinesses";
 import { memberTerms } from "../terms";
 import { canManageSettings } from "../rbac";
@@ -387,31 +388,10 @@ export function Settings() {
               title={t("v1.sections.organization")}
               description={t("v1.organization.description")}
             >
-              <Card className="settings-card">
-                <SettingsRow title={t("v1.organization.name")}>
-                  <div className="settings-readonly">
-                    <span className="settings-readonly__value">
-                      {selected.name}
-                    </span>
-                  </div>
-                </SettingsRow>
-                <SettingsRow title={t("v1.organization.type")}>
-                  <div className="settings-readonly">
-                    <span className="settings-readonly__value">
-                      {selected.kind === "family"
-                        ? t("v1.organization.family")
-                        : t("v1.organization.team")}
-                    </span>
-                  </div>
-                </SettingsRow>
-                <SettingsRow title={t("v1.organization.yourRole")}>
-                  <div className="settings-readonly">
-                    <span className="settings-readonly__value">
-                      {t(`v1.roles.${selected.role}`)}
-                    </span>
-                  </div>
-                </SettingsRow>
-              </Card>
+              <OrganizationSettingsCard
+                access={{ business: selected, role: selected.role }}
+                onReload={reload}
+              />
             </SettingsSection>
 
             <SettingsSection
