@@ -23,7 +23,34 @@
     "ofMembers": "of {{count}} {{members}}",
     "todayLabel": "today",
     "newTeam": "New team",
-    "organization": "Organization"
+    "organization": "Organization",
+    "v1": {
+      "totalMembers": "{{count}} members",
+      "noOrganizationTitle": "No organization yet",
+      "noActivityTitle": "No activity yet",
+      "activeNow": "Active now",
+      "recordedToday": "Recorded today",
+      "averageFocus": "Average focus",
+      "screenshotsToday": "Screenshots today",
+      "ofTotal": "of {{count}} members",
+      "activityTitle": "Activity today",
+      "activitySubtitle": "Recorded active time by member",
+      "statusTitle": "Team status",
+      "statusSubtitle": "Current availability based on last activity",
+      "status": {
+        "active": "Active",
+        "idle": "Idle",
+        "offline": "Offline"
+      },
+      "appsTitle": "Current applications",
+      "appsSubtitle": "Applications used by active or idle members now",
+      "appsEmpty": "No current application data yet.",
+      "peopleCount_one": "{{count}} person",
+      "peopleCount_other": "{{count}} people",
+      "recentTitle": "Recently seen",
+      "recentSubtitle": "Members ordered by latest activity",
+      "screenshots": "Screenshots"
+    }
   },
   "employees": {
     "newBusiness": "New business",
