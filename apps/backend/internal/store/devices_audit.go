@@ -304,6 +304,38 @@ func (s *Store) UpdateDevice(ctx context.Context, actorID, deviceID string, labe
 		nextRevoked = *revoked
 	}
 
+	if currentRevoked && !nextRevoked {
+		if access.BusinessID == "" {
+			return Device{}, ErrForbidden
+		}
+		var limit *int
+		if err := tx.QueryRow(ctx, `
+			SELECT device_limit
+			  FROM businesses
+			 WHERE id = $1
+			 FOR UPDATE`, access.BusinessID,
+		).Scan(&limit); err != nil {
+			return Device{}, err
+		}
+		if limit != nil {
+			var count int
+			if err := tx.QueryRow(ctx, `
+				SELECT count(*)
+				  FROM devices
+				 WHERE business_id = $1
+				   AND user_id = $2
+				   AND revoked_at IS NULL
+				   AND id <> $3`,
+				access.BusinessID, employeeID, deviceID,
+			).Scan(&count); err != nil {
+				return Device{}, err
+			}
+			if count >= *limit {
+				return Device{}, ErrDeviceLimitReached
+			}
+		}
+	}
+
 	row := tx.QueryRow(ctx, `UPDATE devices d
 		SET label = NULLIF($1, ''),
 		    revoked_at = CASE WHEN $2 THEN COALESCE(d.revoked_at, now()) ELSE NULL END
