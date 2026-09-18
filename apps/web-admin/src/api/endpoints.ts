@@ -423,29 +423,45 @@ export function reportEmployees(businessId: string) {
   });
 }
 
-export function reportActivity(employeeId: string, from: number, to: number) {
+export function reportActivity(
+  businessId: string,
+  employeeId: string,
+  from: number,
+  to: number,
+) {
   if (isDemo()) return Promise.resolve(demoActivity(employeeId));
   return request<ActivityResponse>(`/v1/reports/employees/${employeeId}/activity`, {
-    query: { from, to },
+    query: { business_id: businessId, from, to },
   });
 }
 
-export function reportKeystrokes(employeeId: string, from: number, to: number) {
+export function reportKeystrokes(
+  businessId: string,
+  employeeId: string,
+  from: number,
+  to: number,
+) {
   if (isDemo()) return Promise.resolve(demoKeystrokes(employeeId));
   return request<{ buckets: KeystrokeBucket[] }>(
     `/v1/reports/employees/${employeeId}/keystrokes`,
-    { query: { from, to } },
+    { query: { business_id: businessId, from, to } },
   );
 }
 
-export function reportBrowser(employeeId: string, from: number, to: number) {
+export function reportBrowser(
+  businessId: string,
+  employeeId: string,
+  from: number,
+  to: number,
+) {
   if (isDemo()) return Promise.resolve(demoBrowser(employeeId));
   return request<{ visits: BrowserVisit[] }>(`/v1/reports/employees/${employeeId}/browser`, {
-    query: { from, to },
+    query: { business_id: businessId, from, to },
   });
 }
 
 export function reportScreenshots(
+  businessId: string,
   employeeId: string,
   from: number,
   to: number,
@@ -454,6 +470,6 @@ export function reportScreenshots(
 ) {
   if (isDemo()) return Promise.resolve(demoScreenshots(employeeId));
   return request<ScreenshotsResponse>(`/v1/reports/employees/${employeeId}/screenshots`, {
-    query: { from, to, limit, offset },
+    query: { business_id: businessId, from, to, limit, offset },
   });
 }
