@@ -135,7 +135,8 @@
       "screenshots": "Screenshots & privacy",
       "storage": "Data storage",
       "audit": "Audit log",
-      "account": "Account"
+      "account": "Account",
+      "devices": "Devices & enrollment"
     },
     "organization": {
       "description": "Organization identity and your access level.",
@@ -165,6 +166,9 @@
     },
     "account": {
       "description": "Your current ActiLens account identity."
+    },
+    "devices": {
+      "description": "Control enrollment-code lifetime and how many active devices each member may use."
     }
   },
   "foundation": {
@@ -206,6 +210,76 @@
       "noMemberChanges": "Member accounts, roles, passwords, monitoring states or devices.",
       "noPolicyReset": "Retention, capture policy, privacy rules or enrollment settings.",
       "typeSaved": "Organization type updated."
+    },
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "monitoring": {
+      "activeIdle": "Active / idle tracking",
+      "activeIdleHelp": "Core managed monitoring signal. It cannot be disabled independently.",
+      "alwaysOn": "Always on",
+      "defaultMember": "Monitoring for new members",
+      "defaultMemberHelp": "Default state applied when a new member is created. Existing members are never changed silently.",
+      "appActivity": "Application activity",
+      "appActivityHelp": "Collect application names and active time. Turning this off also disables window-title collection.",
+      "windowTitles": "Window titles",
+      "windowTitlesHelp": "Collect active window titles. When disabled, clients do not transmit titles to the server.",
+      "browser": "Browser activity",
+      "browserHelp": "Collect active-tab URL/title/time from the managed browser extension and desktop agent.",
+      "keystrokes": "Keystroke counts",
+      "keystrokesHelp": "Collect counts only. Typed content is never captured.",
+      "collectionSaved": "Monitoring policy updated.",
+      "defaultDialogTitle": "Apply monitoring default?",
+      "defaultDialogBody": "The new default will be {{state}}. {{count}} existing active memberships currently differ.",
+      "futureOnly": "Only future members",
+      "applyExisting_one": "Apply to {{count}} existing member",
+      "applyExisting_other": "Apply to {{count}} existing members",
+      "defaultSaved": "Default monitoring state updated for future members.",
+      "defaultApplied_one": "Default updated and applied to {{count}} existing member.",
+      "defaultApplied_other": "Default updated and applied to {{count}} existing members."
+    },
+    "screenshots": {
+      "enabled": "Screenshots",
+      "enabledHelp": "Stops future capture when disabled. Interval, scope and privacy rules are preserved for re-enable.",
+      "scope": "Capture scope",
+      "scopeHelp": "Choose exactly what is captured when screenshots are enabled.",
+      "scopes": {
+        "activeWindow": {
+          "label": "Active window only",
+          "description": "Capture only the active application window."
+        },
+        "activeDisplay": {
+          "label": "Active display",
+          "description": "Capture the display containing the active window."
+        },
+        "allDisplays": {
+          "label": "All displays",
+          "description": "Capture every connected display as separate images in one capture group."
+        }
+      },
+      "intervalHelp": "How often the managed agent may capture screenshots while active.",
+      "privacy": "Privacy exclusions",
+      "privacyHelp": "Prevent capture before an image is created when an application or window-title rule matches.",
+      "saved": "Screenshot policy updated."
+    },
+    "devices": {
+      "limit": "Active-device limit",
+      "limitHelp": "Only non-revoked devices count. Leave empty for unlimited. A revoked device frees its slot immediately.",
+      "limitField": "Devices per member",
+      "unlimited": "Unlimited",
+      "limitInvalid": "Enter a whole number from 1 to 1000, or leave it empty for unlimited.",
+      "limitSaved": "Device limit updated.",
+      "enrollmentTTL": "Install-code lifetime",
+      "enrollmentTTLHelp": "Default lifetime for newly generated one-time enrollment codes.",
+      "ttl": {
+        "1h": "1 hour",
+        "24h": "24 hours",
+        "72h": "72 hours",
+        "7d": "7 days"
+      },
+      "ttlSaved": "Enrollment-code lifetime updated.",
+      "enrollmentBehavior": "New-device enrollment",
+      "enrollmentBehaviorHelp": "A valid one-time enrollment code accepts the device automatically, subject to the active-device limit.",
+      "automaticEnrollment": "Automatic after valid code"
     }
   },
   "accountSecurity": {
