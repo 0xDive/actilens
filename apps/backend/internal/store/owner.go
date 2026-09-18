@@ -57,9 +57,12 @@ type Employee struct {
 	Email             string       `json:"email"`
 	Username          string       `json:"username"`
 	DisplayName       string       `json:"display_name"`
-	Active            bool         `json:"active"`
+	Active            bool         `json:"active"` // global account state
 	Role              BusinessRole `json:"role"`
+	Status            string       `json:"status"`
 	MonitoringEnabled bool         `json:"monitoring_enabled"`
+	BlockedAt         *time.Time   `json:"blocked_at"`
+	RemovedAt         *time.Time   `json:"removed_at"`
 	LastSeen          *int64       `json:"last_seen"`
 	CurrentApp        *string      `json:"current_app"`
 	CurrentWindow     *string      `json:"current_window"`
@@ -211,14 +214,22 @@ func (s *Store) CreateEmployee(ctx context.Context, ownerID string, businessID *
 // ListEmployees returns employee members with real presence/current-app data.
 func (s *Store) ListEmployees(ctx context.Context, businessID string) ([]Employee, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT u.id, COALESCE(u.email, ''), COALESCE(u.username, ''), u.display_name, u.active, m.role, m.monitoring_enabled,
-		       (SELECT extract(epoch FROM max(d.last_seen_at))::bigint FROM devices d WHERE d.user_id = u.id),
-		       (SELECT a.app_name FROM activity_samples a WHERE a.user_id = u.id AND a.business_id = $1 ORDER BY a.ts DESC LIMIT 1),
-		       (SELECT a.window_title FROM activity_samples a WHERE a.user_id = u.id AND a.business_id = $1 ORDER BY a.ts DESC LIMIT 1)
+		SELECT u.id, COALESCE(u.email, ''), COALESCE(u.username, ''), u.display_name, u.active,
+		       m.role, m.status, m.monitoring_enabled, m.blocked_at, m.removed_at,
+		       (SELECT extract(epoch FROM max(d.last_seen_at))::bigint
+		          FROM devices d WHERE d.user_id = u.id AND (d.business_id = $1 OR d.business_id IS NULL)),
+		       (SELECT a.app_name FROM activity_samples a
+		         WHERE a.user_id = u.id AND a.business_id = $1 ORDER BY a.ts DESC LIMIT 1),
+		       (SELECT a.window_title FROM activity_samples a
+		         WHERE a.user_id = u.id AND a.business_id = $1 ORDER BY a.ts DESC LIMIT 1)
 		  FROM memberships m
 		  JOIN users u ON u.id = m.user_id
-		 WHERE m.business_id = $1 AND m.role IN ('admin','manager','employee')
-		 ORDER BY CASE m.role WHEN 'admin' THEN 0 WHEN 'manager' THEN 1 ELSE 2 END, u.active DESC, u.display_name`, businessID)
+		 WHERE m.business_id = $1
+		   AND m.status IN ('active','blocked')
+		   AND m.role IN ('admin','manager','employee')
+		 ORDER BY CASE m.role WHEN 'admin' THEN 0 WHEN 'manager' THEN 1 ELSE 2 END,
+		          CASE m.status WHEN 'active' THEN 0 ELSE 1 END,
+		          u.display_name`, businessID)
 	if err != nil {
 		return nil, err
 	}
@@ -227,8 +238,11 @@ func (s *Store) ListEmployees(ctx context.Context, businessID string) ([]Employe
 	out := []Employee{}
 	for rows.Next() {
 		var e Employee
-		if err := rows.Scan(&e.ID, &e.Email, &e.Username, &e.DisplayName, &e.Active, &e.Role, &e.MonitoringEnabled,
-			&e.LastSeen, &e.CurrentApp, &e.CurrentWindow); err != nil {
+		if err := rows.Scan(
+			&e.ID, &e.Email, &e.Username, &e.DisplayName, &e.Active,
+			&e.Role, &e.Status, &e.MonitoringEnabled, &e.BlockedAt, &e.RemovedAt,
+			&e.LastSeen, &e.CurrentApp, &e.CurrentWindow,
+		); err != nil {
 			return nil, err
 		}
 		out = append(out, e)
