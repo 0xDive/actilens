@@ -10,12 +10,14 @@ export function PermanentDeleteControl({
   canDelete,
   onDeleted,
   triggerVariant = "button",
+  onDialogClose,
 }: {
   employee: Employee;
   businessId: string;
   canDelete: boolean;
   onDeleted: () => void;
   triggerVariant?: "button" | "menu-item";
+  onDialogClose?: () => void;
 }) {
   const { t } = useTranslation("dashboard");
   const [open, setOpen] = useState(false);
@@ -26,6 +28,12 @@ export function PermanentDeleteControl({
   if (!canDelete || employee.role === "owner") return null;
 
   const matches = confirmText.trim() === employee.display_name.trim();
+
+  function close() {
+    if (busy) return;
+    setOpen(false);
+    onDialogClose?.();
+  }
 
   function start() {
     setConfirmText("");
@@ -41,6 +49,7 @@ export function PermanentDeleteControl({
       await permanentlyDeleteMember(businessId, employee.id);
       setOpen(false);
       setConfirmText("");
+      onDialogClose?.();
       onDeleted();
     } catch {
       setError(t("employees.purge.failed"));
@@ -65,11 +74,11 @@ export function PermanentDeleteControl({
         <Dialog
           title={t("employees.purge.title", { name: employee.display_name })}
           size="confirm"
-          onClose={() => !busy && setOpen(false)}
+          onClose={close}
           closeOnBackdrop={!busy}
           footer={
             <>
-              <Button variant="secondary" disabled={busy} onClick={() => setOpen(false)}>
+              <Button variant="secondary" disabled={busy} onClick={close}>
                 {t("employees.purge.cancel")}
               </Button>
               <Button
