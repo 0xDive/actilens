@@ -45,6 +45,14 @@
       "lowerMany": "kids",
       "addCta": "Add kid",
       "org": "family"
+    },
+    "other": {
+      "one": "Member",
+      "many": "Members",
+      "lowerOne": "member",
+      "lowerMany": "members",
+      "addCta": "Add member",
+      "org": "organization"
     }
   },
   "shell": {
