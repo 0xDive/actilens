@@ -23,10 +23,16 @@ func ensureMembershipCollectableTx(ctx context.Context, tx pgx.Tx, userID, busin
 		  FROM memberships
 		 WHERE user_id = $1 AND business_id = $2
 		 FOR SHARE`, userID, businessID).Scan(&enabled)
-	if errors.Is(err, pgx.ErrNoRows) || !enabled {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrMembershipUnavailable
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	if !enabled {
+		return ErrMembershipUnavailable
+	}
+	return nil
 }
 
 // Row types mirror the desktop's local tables. Nullable columns use pointers.
