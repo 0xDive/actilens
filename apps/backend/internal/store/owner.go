@@ -302,6 +302,196 @@ func (s *Store) UpdateBusinessSettings(ctx context.Context, businessID string, f
 	return nil
 }
 
+// UpdateBusinessSettingsAudited applies organization policy changes atomically
+// with an audit event. Values are restricted by settableColumns and contain no secrets.
+func (s *Store) UpdateBusinessSettingsAudited(
+	ctx context.Context,
+	actorID, businessID string,
+	fields map[string]any,
+) error {
+	if len(fields) == 0 {
+		return nil
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := requireBusinessPermissionTx(
+		ctx, tx, actorID, businessID, CapabilitySettingsManage,
+	); err != nil {
+		return err
+	}
+
+	var archivedAt, deletionScheduledAt *time.Time
+	if err := tx.QueryRow(ctx, `
+		SELECT archived_at, deletion_scheduled_at
+		  FROM businesses
+		 WHERE id = $1
+		 FOR UPDATE`, businessID,
+	).Scan(&archivedAt, &deletionScheduledAt); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	}
+	if deletionScheduledAt != nil {
+		return ErrOrganizationDeletionPending
+	}
+	if archivedAt != nil {
+		return ErrOrganizationArchived
+	}
+
+	sets := make([]string, 0, len(fields)+1)
+	args := []any{businessID}
+	fieldNames := make([]string, 0, len(fields))
+	values := map[string]any{}
+	for col, val := range fields {
+		if !settableColumns[col] {
+			return fmt.Errorf("not a settable column: %s", col)
+		}
+		args = append(args, val)
+		sets = append(sets, fmt.Sprintf("%s = $%d", col, len(args)))
+		fieldNames = append(fieldNames, col)
+		values[col] = val
+	}
+	sets = append(sets, "updated_at = now()")
+	q := fmt.Sprintf("UPDATE businesses SET %s WHERE id = $1", strings.Join(sets, ", "))
+	ct, err := tx.Exec(ctx, q, args...)
+	if err != nil {
+		return err
+	}
+	if ct.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+
+	action := "settings.changed"
+	for _, name := range fieldNames {
+		switch name {
+		case "activity_retention_days", "screenshot_retention_days",
+			"browser_retention_days", "keystroke_retention_days", "audit_retention_days":
+			action = "settings.retention_changed"
+		case "device_limit":
+			action = "settings.device_limit_changed"
+		case "enrollment_token_ttl_s":
+			action = "settings.enrollment_changed"
+		case "collect_app_activity", "collect_window_titles", "collect_browser_activity",
+			"collect_keystroke_counts", "default_member_monitoring_enabled":
+			if action == "settings.changed" {
+				action = "settings.collection_changed"
+			}
+		case "collect_screenshots", "screenshot_interval_s", "screenshot_capture_scope",
+			"screenshot_mode", "screenshot_skip_apps":
+			if action == "settings.changed" {
+				action = "settings.screenshot_changed"
+			}
+		}
+	}
+	if err := insertAuditTx(ctx, tx, businessID, actorID, action, "organization", businessID, map[string]any{
+		"fields": fieldNames,
+		"values": values,
+	}); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func (s *Store) DefaultMonitoringImpact(
+	ctx context.Context,
+	actorID, businessID string,
+	enabled bool,
+) (int64, error) {
+	if err := s.BusinessPermissionOrForbidden(
+		ctx, actorID, businessID, CapabilitySettingsManage,
+	); err != nil {
+		return 0, err
+	}
+	var count int64
+	err := s.pool.QueryRow(ctx, `
+		SELECT count(*)
+		  FROM memberships
+		 WHERE business_id = $1
+		   AND status = 'active'
+		   AND role <> 'owner'
+		   AND monitoring_enabled IS DISTINCT FROM $2`,
+		businessID, enabled,
+	).Scan(&count)
+	return count, err
+}
+
+func (s *Store) UpdateDefaultMonitoring(
+	ctx context.Context,
+	actorID, businessID string,
+	enabled, applyExisting bool,
+) (int64, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := requireBusinessPermissionTx(
+		ctx, tx, actorID, businessID, CapabilitySettingsManage,
+	); err != nil {
+		return 0, err
+	}
+	var archivedAt, deletionScheduledAt *time.Time
+	if err := tx.QueryRow(ctx, `
+		SELECT archived_at, deletion_scheduled_at
+		  FROM businesses
+		 WHERE id = $1
+		 FOR UPDATE`, businessID,
+	).Scan(&archivedAt, &deletionScheduledAt); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, ErrNotFound
+		}
+		return 0, err
+	}
+	if deletionScheduledAt != nil {
+		return 0, ErrOrganizationDeletionPending
+	}
+	if archivedAt != nil {
+		return 0, ErrOrganizationArchived
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE businesses
+		   SET default_member_monitoring_enabled = $1, updated_at = now()
+		 WHERE id = $2`,
+		enabled, businessID,
+	); err != nil {
+		return 0, err
+	}
+
+	var affected int64
+	if applyExisting {
+		ct, err := tx.Exec(ctx, `
+			UPDATE memberships
+			   SET monitoring_enabled = $1, updated_at = now()
+			 WHERE business_id = $2
+			   AND status = 'active'
+			   AND role <> 'owner'
+			   AND monitoring_enabled IS DISTINCT FROM $1`,
+			enabled, businessID,
+		)
+		if err != nil {
+			return 0, err
+		}
+		affected = ct.RowsAffected()
+	}
+
+	if err := insertAuditTx(ctx, tx, businessID, actorID, "settings.default_monitoring_changed", "organization", businessID, map[string]any{
+		"enabled":        enabled,
+		"apply_existing": applyExisting,
+		"affected_count": affected,
+	}); err != nil {
+		return 0, err
+	}
+	return affected, tx.Commit(ctx)
+}
+
 // CapturePolicy is the org-controlled capture configuration the desktop applies.
 type CapturePolicy struct {
 	BusinessID                     string   `json:"business_id"`
