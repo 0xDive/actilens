@@ -93,8 +93,19 @@ ON CONFLICT (client_uuid) DO UPDATE SET
 
 // UpsertScreenshot idempotently records screenshot metadata keyed by client_uuid.
 func (s *Store) UpsertScreenshot(ctx context.Context, userID, businessID string, r ScreenshotRow) error {
-	_, err := s.pool.Exec(ctx, screenshotUpsert,
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	if err := ensureMembershipCollectableTx(ctx, tx, userID, businessID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, screenshotUpsert,
 		r.ClientUUID, userID, businessID, r.DeviceID, r.Ts,
-		r.FilePath, r.ByteSize, r.Width, r.Height, r.DisplayID, r.ClientUpdatedAt)
-	return err
+		r.FilePath, r.ByteSize, r.Width, r.Height, r.DisplayID, r.ClientUpdatedAt); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
