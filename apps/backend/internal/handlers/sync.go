@@ -163,12 +163,22 @@ func (h *SyncHandler) Batch(c *gin.Context) {
 	}
 	if err := h.store.SyncBatch(c.Request.Context(), userID, businessID, req.DeviceID, meta, act, keys, brs); err != nil {
 		switch {
+		case errors.Is(err, store.ErrMemberBlocked):
+			apiError(c, http.StatusForbidden, ErrCodeMemberBlocked, "organization access is suspended", nil)
+		case errors.Is(err, store.ErrMemberRemoved):
+			apiError(c, http.StatusForbidden, ErrCodeMemberRemoved, "organization membership was removed", nil)
+		case errors.Is(err, store.ErrOrganizationArchived):
+			apiError(c, http.StatusConflict, ErrCodeOrganizationArchived, "organization is archived", nil)
+		case errors.Is(err, store.ErrOrganizationDeletionPending):
+			apiError(c, http.StatusConflict, ErrCodeOrganizationDeletionPending, "organization deletion is pending", nil)
 		case errors.Is(err, store.ErrMembershipUnavailable):
-			c.JSON(http.StatusForbidden, gin.H{"error": "membership is unavailable or monitoring is disabled"})
+			apiError(c, http.StatusForbidden, ErrCodePermissionDenied, "monitoring is disabled for this membership", nil)
 		case errors.Is(err, store.ErrDeviceRevoked):
-			c.JSON(http.StatusForbidden, gin.H{"error": "this device was revoked by the administrator"})
+			apiError(c, http.StatusForbidden, ErrCodeDeviceRevoked, "this device was revoked by the administrator", nil)
+		case errors.Is(err, store.ErrDeviceLimitReached):
+			apiError(c, http.StatusConflict, ErrCodeDeviceLimitReached, "device limit reached", nil)
 		case errors.Is(err, store.ErrForbidden):
-			c.JSON(http.StatusForbidden, gin.H{"error": "device id belongs to another account"})
+			forbidden(c, "device id belongs to another account or organization")
 		default:
 			serverError(c, err)
 		}
