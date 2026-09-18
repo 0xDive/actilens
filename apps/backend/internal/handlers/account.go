@@ -382,7 +382,7 @@ func (h *AuthHandler) CompleteMFA(c *gin.Context) {
 
 func (h *AuthHandler) ResetMemberMFA(c *gin.Context) {
 	actorID, _ := auth.UserID(c)
-	err := h.store.ResetManagedMemberMFA((
+	err := h.store.ResetManagedMemberMFA(
 		c.Request.Context(), actorID, c.Param("id"), c.Param("user_id"),
 	)
 	switch {
