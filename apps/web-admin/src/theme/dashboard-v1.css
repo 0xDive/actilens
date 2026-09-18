@@ -384,3 +384,37 @@
     grid-column: 1 / -1;
   }
 }
+
+.dashboard-skeleton-list {
+  margin-top: 22px;
+  display: grid;
+  gap: 16px;
+}
+.dashboard-skeleton-list--compact {
+  gap: 10px;
+}
+.dashboard-recent-button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.dashboard-self-badge {
+  margin-left: 7px;
+  color: var(--ds-text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+}
+.dashboard-team-row {
+  cursor: pointer;
+}
+.dashboard-team-row:focus-within,
+.dashboard-team-row:hover {
+  background: var(--ds-bg-hover);
+}
+.dashboard-row-arrow {
+  display: inline-flex;
+  color: var(--ds-text-tertiary);
+}
