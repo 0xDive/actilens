@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "@fontsource-variable/manrope";
-import "./theme/theme.css";
+import "./theme/base.css";
 import "./theme/foundation.css";
 import "./theme/shell.css";
 import "./i18n";
@@ -13,7 +13,7 @@ initSentry();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <Sentry.ErrorBoundary fallback={<p style={{ padding: 24 }}>Something went wrong.</p>}>
+    <Sentry.ErrorBoundary fallback={<p className="app-error-fallback">Something went wrong.</p>}>
       <ToastProvider>
         <App />
       </ToastProvider>
