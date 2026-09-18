@@ -91,6 +91,33 @@ jobs:
           if hits:
               raise SystemExit("Legacy identifiers found:\n" + "\n".join(hits))
           PY
+      - name: Reject legacy web-admin design usage
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path("apps/web-admin/src")
+          forbidden = {
+              "ad-": "legacy ad-* class",
+              "actilens-": "legacy actilens-* class",
+              "components/ui": "legacy UI primitive import",
+              "LanguageSwitcher": "removed legacy language switcher",
+              "BusinessPicker": "removed legacy business picker",
+              "Sparkline": "removed placeholder sparkline component",
+          }
+          hits = []
+          for path in root.rglob("*"):
+              if not path.is_file() or path.suffix not in {".ts", ".tsx", ".css"}:
+                  continue
+              text = path.read_text(encoding="utf-8")
+              for needle, label in forbidden.items():
+                  if needle in text:
+                      hits.append(f"{path}: {label} ({needle})")
+          if hits:
+              raise SystemExit(
+                  "Legacy web-admin design usage found:\n" + "\n".join(hits)
+              )
+          PY
       - name: Validate Linux deployment scripts
         run: |
           bash -n bootstrap-linux.sh
