@@ -23,7 +23,36 @@
     "ofMembers": "из {{count}} {{members}}",
     "todayLabel": "сегодня",
     "newTeam": "Новая команда",
-    "organization": "Организация"
+    "organization": "Организация",
+    "v1": {
+      "totalMembers": "Участников: {{count}}",
+      "noOrganizationTitle": "Организаций пока нет",
+      "noActivityTitle": "Активности пока нет",
+      "activeNow": "Активны сейчас",
+      "recordedToday": "Записано сегодня",
+      "averageFocus": "Средний фокус",
+      "screenshotsToday": "Скриншоты сегодня",
+      "ofTotal": "из {{count}} участников",
+      "activityTitle": "Активность сегодня",
+      "activitySubtitle": "Записанное активное время по сотрудникам",
+      "statusTitle": "Статус команды",
+      "statusSubtitle": "Текущее состояние по последней активности",
+      "status": {
+        "active": "Активны",
+        "idle": "Неактивны",
+        "offline": "Не в сети"
+      },
+      "appsTitle": "Текущие приложения",
+      "appsSubtitle": "Приложения, открытые у активных сотрудников сейчас",
+      "appsEmpty": "Данных о текущих приложениях пока нет.",
+      "peopleCount_one": "{{count}} человек",
+      "peopleCount_few": "{{count}} человека",
+      "peopleCount_many": "{{count}} человек",
+      "peopleCount_other": "{{count}} человека",
+      "recentTitle": "Недавно были в сети",
+      "recentSubtitle": "Сотрудники по времени последней активности",
+      "screenshots": "Скриншоты"
+    }
   },
   "employees": {
     "newBusiness": "Новая организация",
