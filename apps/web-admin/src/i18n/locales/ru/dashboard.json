@@ -22,7 +22,8 @@
     "vsYesterday": "к вчера",
     "ofMembers": "из {{count}} {{members}}",
     "todayLabel": "сегодня",
-    "newTeam": "Новая команда"
+    "newTeam": "Новая команда",
+    "organization": "Организация"
   },
   "employees": {
     "newBusiness": "Новая организация",

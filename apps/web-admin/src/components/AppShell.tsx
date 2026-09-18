@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
@@ -7,44 +13,27 @@ import { useBusinesses } from "../useBusinesses";
 import { memberTerms } from "../terms";
 import { DetailHeaderContext } from "../detailHeader";
 import { canManageSettings } from "../rbac";
-import { LanguageSwitcher } from "./LanguageSwitcher";
+import { LOCALES } from "../i18n";
+import { cx, IconButton } from "./ds";
 
-/** Brand mark — violet gradient tile with the pulse glyph (matches the auth logo). */
-function RailLogo() {
-  return (
-    <span className="ad-rail__logo" aria-label="ActiLens">
-      <svg viewBox="0 0 48 48" role="img" aria-label="ActiLens">
-        <defs>
-          <linearGradient id="actilensRailGrad" x1="6" y1="4" x2="42" y2="46" gradientUnits="userSpaceOnUse">
-            <stop offset="0" stopColor="#a99df8" />
-            <stop offset="1" stopColor="#6c5ce7" />
-          </linearGradient>
-        </defs>
-        <rect x="0" y="0" width="48" height="48" rx="17" fill="url(#actilensRailGrad)" />
-        <path
-          d="M12 24h6l3 8 6-16 3 8h6"
-          fill="none"
-          stroke="#fff"
-          strokeWidth="3"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </span>
-  );
-}
+const SIDEBAR_KEY = "actilens.admin.sidebarCollapsed";
 
-/** Shared lucide-style icon frame (24×24, stroke = currentColor). */
-function RailIcon({ children }: { children: ReactNode }) {
+function Icon({
+  children,
+  size = 18,
+}: {
+  children: ReactNode;
+  size?: number;
+}) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.9"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
@@ -55,70 +44,81 @@ function RailIcon({ children }: { children: ReactNode }) {
 }
 
 const DashboardIcon = () => (
-  <RailIcon>
-    <rect width="7" height="9" x="3" y="3" rx="1" />
-    <rect width="7" height="5" x="14" y="3" rx="1" />
-    <rect width="7" height="9" x="14" y="12" rx="1" />
-    <rect width="7" height="5" x="3" y="16" rx="1" />
-  </RailIcon>
+  <Icon>
+    <rect x="3" y="3" width="7" height="7" rx="1.5" />
+    <rect x="14" y="3" width="7" height="7" rx="1.5" />
+    <rect x="3" y="14" width="7" height="7" rx="1.5" />
+    <rect x="14" y="14" width="7" height="7" rx="1.5" />
+  </Icon>
 );
 
 const MembersIcon = () => (
-  <RailIcon>
+  <Icon>
     <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-    <path d="M16 3.128a4 4 0 0 1 0 7.744" />
-    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
     <circle cx="9" cy="7" r="4" />
-  </RailIcon>
+    <path d="M19 8v6" />
+    <path d="M22 11h-6" />
+  </Icon>
 );
 
 const SettingsIcon = () => (
-  <RailIcon>
-    <path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" />
+  <Icon>
     <circle cx="12" cy="12" r="3" />
-  </RailIcon>
+    <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 8.97 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3v-4h.08A1.7 1.7 0 0 0 4.6 8.97a1.7 1.7 0 0 0-.34-1.88L4.2 7.03 7.03 4.2l.06.06A1.7 1.7 0 0 0 8.97 4.6 1.7 1.7 0 0 0 10 3.04V3h4v.08a1.7 1.7 0 0 0 1.03 1.52 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06a1.7 1.7 0 0 0-.34 1.88A1.7 1.7 0 0 0 20.96 10H21v4h-.08A1.7 1.7 0 0 0 19.4 15Z" />
+  </Icon>
 );
 
-const ChevronsUpDownIcon = () => (
-  <RailIcon>
-    <path d="m7 15 5 5 5-5" />
-    <path d="m7 9 5-5 5 5" />
-  </RailIcon>
+const ChevronDownIcon = () => (
+  <Icon size={16}>
+    <path d="m7 10 5 5 5-5" />
+  </Icon>
+);
+
+const ChevronRightIcon = () => (
+  <Icon size={14}>
+    <path d="m9 18 6-6-6-6" />
+  </Icon>
 );
 
 const CheckIcon = () => (
-  <RailIcon>
-    <path d="M20 6 9 17l-5-5" />
-  </RailIcon>
+  <Icon size={16}>
+    <path d="m5 12 4 4L19 6" />
+  </Icon>
 );
 
 const PlusIcon = () => (
-  <RailIcon>
-    <path d="M5 12h14" />
+  <Icon size={16}>
     <path d="M12 5v14" />
-  </RailIcon>
+    <path d="M5 12h14" />
+  </Icon>
 );
 
 const LogOutIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="20"
-    height="20"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-  >
+  <Icon size={17}>
     <path d="m16 17 5-5-5-5" />
     <path d="M21 12H9" />
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-  </svg>
+  </Icon>
 );
 
-/** Two-letter monogram from a name (falls back to the first two chars). */
+const CollapseIcon = ({ collapsed }: { collapsed: boolean }) => (
+  <Icon size={18}>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <path d="M9 4v16" />
+    <path d={collapsed ? "m13 9 3 3-3 3" : "m16 9-3 3 3 3"} />
+  </Icon>
+);
+
+function BrandMark() {
+  return (
+    <span className="ds-brand-mark" aria-hidden>
+      <Icon size={20}>
+        <path d="M4 12h4l2-5 4 10 2-5h4" />
+      </Icon>
+    </span>
+  );
+}
+
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
@@ -126,31 +126,29 @@ function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-/** Closes `open` on outside-click / Escape. */
 function useDismiss(open: boolean, close: () => void) {
   const ref = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!open) return;
-    function onDoc(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) close();
+    function onPointerDown(event: MouseEvent) {
+      if (ref.current && !ref.current.contains(event.target as Node)) close();
     }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") close();
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") close();
     }
-    document.addEventListener("mousedown", onDoc);
-    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
     return () => {
-      document.removeEventListener("mousedown", onDoc);
-      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
     };
   }, [open, close]);
+
   return ref;
 }
 
-/** Topbar business switcher — a pill showing the current business name. Clicking opens
- *  a menu listing every business (✓ on the active one) plus a "new business" action.
- *  Backed by the shared business context. */
-function BizPicker() {
+function OrganizationPicker() {
   const { t } = useTranslation("dashboard");
   const navigate = useNavigate();
   const { businesses, selected, selectedId, setSelectedId } = useBusinesses();
@@ -160,51 +158,59 @@ function BizPicker() {
   if (!selected) return null;
 
   return (
-    <div className="ad-bizpick" ref={ref}>
+    <div className="ds-org-picker" ref={ref}>
       <button
         type="button"
-        className="ad-bizpick__btn"
+        className="ds-org-picker__trigger"
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen((value) => !value)}
       >
-        <span className="ad-bizpick__ic">{initials(selected.name)}</span>
-        <span className="ad-bizpick__name">{selected.name}</span>
-        <ChevronsUpDownIcon />
+        <span className="ds-org-picker__mark">{initials(selected.name)}</span>
+        <span className="ds-org-picker__copy">
+          <span className="ds-org-picker__eyebrow">{t("dashboard.organization", { defaultValue: "Workspace" })}</span>
+          <span className="ds-org-picker__name">{selected.name}</span>
+        </span>
+        <span className="ds-org-picker__chevron">
+          <ChevronDownIcon />
+        </span>
       </button>
+
       {open && (
-        <div className="ad-menu ad-menu--left" role="menu">
-          {businesses.map((b) => (
+        <div className="ds-shell-popover ds-org-picker__menu" role="menu">
+          {businesses.map((business) => (
             <button
-              key={b.id}
+              key={business.id}
               type="button"
               role="menuitemradio"
-              aria-checked={b.id === selectedId}
-              className={`ad-menu__opt${b.id === selectedId ? " on" : ""}`}
+              aria-checked={business.id === selectedId}
+              className="ds-menu__item"
               onClick={() => {
-                setSelectedId(b.id);
+                setSelectedId(business.id);
                 setOpen(false);
               }}
             >
-              <span className="ad-bizpick__ic">{initials(b.name)}</span>
-              <span className="ad-menu__label">{b.name}</span>
-              {b.id === selectedId && <CheckIcon />}
+              <span className="ds-org-option__mark">{initials(business.name)}</span>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{business.name}</span>
+              {business.id === selectedId && (
+                <span className="ds-org-option__check">
+                  <CheckIcon />
+                </span>
+              )}
             </button>
           ))}
-          <div className="ad-menu__sep" />
+          <div className="ds-menu__separator" />
           <button
             type="button"
+            className="ds-menu__item"
             role="menuitem"
-            className="ad-menu__opt ad-menu__action"
             onClick={() => {
               setOpen(false);
               navigate("/employees?new=1");
             }}
           >
-            <span className="ad-menu__plus">
-              <PlusIcon />
-            </span>
-            <span className="ad-menu__label">{t("dashboard.newTeam")}</span>
+            <PlusIcon />
+            {t("dashboard.newTeam")}
           </button>
         </div>
       )}
@@ -212,48 +218,100 @@ function BizPicker() {
   );
 }
 
-/** Topbar account button — avatar that opens a small menu with sign out. */
 function AccountMenu() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, logout } = useAuth();
+  const { mode, setMode } = useTheme();
   const [open, setOpen] = useState(false);
   const ref = useDismiss(open, () => setOpen(false));
-  const displayName = user?.display_name ?? user?.email ?? "";
-  const email = user?.email ?? user?.username ?? "";
+
+  const displayName = user?.display_name || user?.email || user?.username || "Account";
+  const identifier = user?.email || user?.username || "";
+  const locale =
+    LOCALES.find((item) => item.code === i18n.resolvedLanguage)?.code ?? "en";
 
   return (
-    <div className="ad-acct" ref={ref}>
+    <div className="ds-account" ref={ref}>
       <button
         type="button"
-        className="ad-acct-btn"
-        aria-label={displayName}
-        aria-haspopup="menu"
+        className="ds-account-trigger"
+        aria-haspopup="dialog"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen((value) => !value)}
       >
-        <span className="actilens-avatar actilens-avatar--sm">
-          <span className="actilens-avatar__img">{initials(displayName)}</span>
-          <span className="actilens-avatar__dot actilens-avatar__dot--active" />
+        <span className="ds-account-avatar">{initials(displayName)}</span>
+        <span className="ds-account-copy">
+          <span className="ds-account-name">{displayName}</span>
+          <span className="ds-account-id">{identifier}</span>
+        </span>
+        <span className="ds-account-caret">
+          <ChevronDownIcon />
         </span>
       </button>
+
       {open && (
-        <div className="ad-menu ad-menu--right" role="menu" style={{ minWidth: 200 }}>
-          <div style={{ padding: "8px 10px 10px" }}>
-            <div style={{ fontSize: "13.5px", fontWeight: 800 }} title={displayName}>
-              {displayName}
-            </div>
-            <div style={{ fontSize: "12px", color: "#9aa1b4", marginTop: 3 }}>{email}</div>
+        <div
+          className="ds-shell-popover ds-account-menu"
+          role="dialog"
+          aria-label={displayName}
+        >
+          <div className="ds-account-menu__identity">
+            <div className="ds-account-menu__name">{displayName}</div>
+            <div className="ds-account-menu__id">{identifier}</div>
           </div>
-          <div className="ad-menu__sep" />
+
+          <div className="ds-menu__separator" />
+
+          <div className="ds-account-menu__section">
+            <div className="ds-account-menu__label">{t("shell.appearance")}</div>
+            <div className="ds-theme-choice">
+              {(["light", "dark", "system"] as ThemeMode[]).map((themeMode) => (
+                <button
+                  key={themeMode}
+                  type="button"
+                  className={cx(
+                    "ds-theme-choice__option",
+                    themeMode === mode && "is-active",
+                  )}
+                  aria-pressed={themeMode === mode}
+                  onClick={() => setMode(themeMode)}
+                >
+                  {themeMode === "light"
+                    ? t("theme.light")
+                    : themeMode === "dark"
+                      ? t("theme.dark")
+                      : t("theme.auto")}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="ds-account-menu__section">
+            <label className="ds-account-menu__label" htmlFor="shell-language">
+              {t("language")}
+            </label>
+            <select
+              id="shell-language"
+              className="ds-language-select"
+              value={locale}
+              onChange={(event) => i18n.changeLanguage(event.currentTarget.value)}
+            >
+              {LOCALES.map((item) => (
+                <option key={item.code} value={item.code}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="ds-menu__separator" />
+
           <button
-            className="ad-menu__opt"
-            role="menuitem"
+            type="button"
+            className="ds-menu__item ds-menu__item--danger"
             onClick={logout}
-            style={{ color: "#f43f5e", fontSize: "15px" }}
           >
-            <span style={{ display: "inline-flex", lineHeight: 0 }}>
-              <LogOutIcon />
-            </span>
+            <LogOutIcon />
             {t("actions.signOut")}
           </button>
         </div>
@@ -264,13 +322,17 @@ function AccountMenu() {
 
 export function AppShell() {
   const { t } = useTranslation();
-  const { user } = useAuth();
-  const { mode, setMode } = useTheme();
   const { selected } = useBusinesses();
   const terms = memberTerms(selected?.kind);
   const location = useLocation();
 
-  const NAV = [
+  const [collapsed, setCollapsed] = useState(() => {
+    const saved = localStorage.getItem(SIDEBAR_KEY);
+    if (saved !== null) return saved === "1";
+    return window.matchMedia("(max-width: 1179px)").matches;
+  });
+
+  const nav = [
     { to: "/", label: t("nav.dashboard"), end: true, icon: <DashboardIcon /> },
     { to: "/employees", label: terms.many, end: false, icon: <MembersIcon /> },
     ...(canManageSettings(selected?.role)
@@ -278,76 +340,94 @@ export function AppShell() {
       : []),
   ];
 
-  const activeNav = NAV.find((n) =>
-    n.end ? location.pathname === n.to : location.pathname.startsWith(n.to),
+  const activeNav = nav.find((item) =>
+    item.end ? location.pathname === item.to : location.pathname.startsWith(item.to),
   );
-  const baseTitle = activeNav?.label ?? t("nav.dashboard");
 
-  // On a member detail page (/employees/:id) the header shows the member's name
-  // (pushed up from EmployeeDetail) and the business picker is hidden.
-  const isDetail = location.pathname.startsWith("/employees/");
+  const isDetail = /^\/employees\/[^/]+/.test(location.pathname);
   const [detailTitle, setDetailTitle] = useState<string | null>(null);
   const detailHeader = useMemo(() => ({ setTitle: setDetailTitle }), []);
-  const title = isDetail ? detailTitle ?? baseTitle : baseTitle;
 
-  const displayName = user?.display_name ?? user?.email ?? "";
+  function toggleSidebar() {
+    setCollapsed((current) => {
+      const next = !current;
+      localStorage.setItem(SIDEBAR_KEY, next ? "1" : "0");
+      return next;
+    });
+  }
+
+  const breadcrumbCurrent = isDetail
+    ? detailTitle || terms.one
+    : activeNav?.label || t("nav.dashboard");
 
   return (
-    <div className="app">
-      <aside className="ad-rail">
-        <RailLogo />
+    <div className="ds-app-shell" data-sidebar={collapsed ? "collapsed" : "expanded"}>
+      <aside className="ds-sidebar">
+        <div className="ds-sidebar__brand">
+          <NavLink to="/" className="ds-brand-link" aria-label="ActiLens">
+            <BrandMark />
+            <span className="ds-brand-wordmark">ActiLens</span>
+          </NavLink>
+        </div>
 
-        <nav className="ad-rail__nav">
-          {NAV.map((n) => (
+        <OrganizationPicker />
+
+        <nav className="ds-sidebar__nav" aria-label={t("shell.navigation")}>
+          {nav.map((item) => (
             <NavLink
-              key={n.to}
-              to={n.to}
-              end={n.end}
-              aria-label={n.label}
-              className={({ isActive }) => `ad-railbtn${isActive ? " on" : ""}`}
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              title={collapsed ? item.label : undefined}
+              className={({ isActive }) =>
+                cx("ds-sidebar-nav__item", isActive && "is-active")
+              }
             >
-              {n.icon}
-              <span className="ad-railbtn__tip">{n.label}</span>
+              <span className="ds-sidebar-nav__icon">{item.icon}</span>
+              <span className="ds-sidebar-nav__label">{item.label}</span>
             </NavLink>
           ))}
         </nav>
 
-        <div className="ad-rail__foot">
-          <span className="actilens-avatar" aria-label={displayName}>
-            <span className="actilens-avatar__img">{initials(displayName)}</span>
-            <span className="actilens-avatar__dot actilens-avatar__dot--active" />
-          </span>
-        </div>
+        <div className="ds-sidebar__spacer" />
+        <AccountMenu />
       </aside>
 
-      <main className="main">
-        <header className="ad-topbar">
-          <div className="ad-topbar__title">{title}</div>
-          <div className="ad-topbar__right">
-            {!isDetail && <BizPicker />}
-            <LanguageSwitcher />
-            <div className="actilens-seg actilens-seg--sm" role="tablist" aria-label={t("language")}>
-              {(["light", "dark", "system"] as ThemeMode[]).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  role="tab"
-                  aria-selected={m === mode}
-                  className={`actilens-seg__opt${m === mode ? " actilens-seg__opt--on" : ""}`}
-                  onClick={() => setMode(m)}
-                >
-                  {m === "light" ? t("theme.light") : m === "dark" ? t("theme.dark") : t("theme.auto")}
-                </button>
-              ))}
-            </div>
-            <AccountMenu />
+      <main className="ds-shell-main">
+        <header className="ds-shell-topbar">
+          <IconButton
+            label={collapsed ? t("shell.expand") : t("shell.collapse")}
+            className="ds-shell-topbar__toggle"
+            onClick={toggleSidebar}
+          >
+            <CollapseIcon collapsed={collapsed} />
+          </IconButton>
+
+          <div className="ds-shell-breadcrumb" aria-label={t("shell.context")}>
+            {selected && (
+              <>
+                <span className="ds-shell-breadcrumb__segment">{selected.name}</span>
+                <ChevronRightIcon />
+              </>
+            )}
+            {isDetail && (
+              <>
+                <span className="ds-shell-breadcrumb__segment">{terms.many}</span>
+                <ChevronRightIcon />
+              </>
+            )}
+            <span className="ds-shell-breadcrumb__segment ds-shell-breadcrumb__current">
+              {breadcrumbCurrent}
+            </span>
           </div>
         </header>
 
-        <div className={`content${location.pathname === "/" ? " content--flat" : ""}`}>
-          <DetailHeaderContext.Provider value={detailHeader}>
-            <Outlet />
-          </DetailHeaderContext.Provider>
+        <div className="ds-shell-content">
+          <div className="ds-shell-content__inner">
+            <DetailHeaderContext.Provider value={detailHeader}>
+              <Outlet />
+            </DetailHeaderContext.Provider>
+          </div>
         </div>
       </main>
     </div>
