@@ -97,6 +97,7 @@ func New(cfg *config.Config, st *store.Store, files *filestore.Store, ret *reten
 	authed.POST("/businesses/:id/members/:user_id/mfa/reset", authH.ResetMemberMFA)
 	authed.GET("/businesses/:id/members/:user_id/devices", ownerH.ListMemberDevices)
 	authed.PATCH("/businesses/:id/devices/:device_id", ownerH.UpdateOrganizationDevice)
+	authed.GET("/businesses/:id/devices/health", ownerH.DeviceHealthSummary)
 	authed.PATCH("/businesses/:id/members/:user_id/profile", ownerH.UpdateManagedMemberIdentity)
 	authed.POST("/businesses/:id/members/:user_id/reset-password", ownerH.ResetManagedMemberPassword)
 
