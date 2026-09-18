@@ -66,8 +66,11 @@ type RosterEntry struct {
 // Roster returns a business's employees with last-seen, active seconds and
 // screenshot/keystroke rollups for the [dayStart, dayEnd) window plus the
 // preceding day (for the dashboard's vs-yesterday deltas).
-func (s *Store) Roster(ctx context.Context, businessID string, dayStart, dayEnd int64) ([]RosterEntry, error) {
-	ydayStart := dayStart - 86400
+func (s *Store) Roster(
+	ctx context.Context,
+	businessID string,
+	ydayStart, dayStart, dayEnd int64,
+) ([]RosterEntry, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT u.id, COALESCE(u.email, ''), COALESCE(u.username, ''), u.display_name, m.role, m.status,
 		       (SELECT extract(epoch FROM max(last_seen_at))::bigint
