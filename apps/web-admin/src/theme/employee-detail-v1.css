@@ -677,3 +677,15 @@
     justify-content: flex-start;
   }
 }
+
+.employee-detail__alert {
+  margin-bottom: 16px;
+}
+.employee-report-stack {
+  display: grid;
+  gap: 18px;
+}
+.detail-dialog-stack {
+  display: grid;
+  gap: 16px;
+}
