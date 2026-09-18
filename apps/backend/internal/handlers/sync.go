@@ -163,6 +163,8 @@ func (h *SyncHandler) Batch(c *gin.Context) {
 	}
 	if err := h.store.SyncBatch(c.Request.Context(), userID, businessID, req.DeviceID, meta, act, keys, brs); err != nil {
 		switch {
+		case errors.Is(err, store.ErrMembershipUnavailable):
+			c.JSON(http.StatusForbidden, gin.H{"error": "membership is unavailable or monitoring is disabled"})
 		case errors.Is(err, store.ErrDeviceRevoked):
 			c.JSON(http.StatusForbidden, gin.H{"error": "this device was revoked by the administrator"})
 		case errors.Is(err, store.ErrForbidden):
