@@ -48,7 +48,8 @@
       "password": "Change password",
       "archive": "Block",
       "restore": "Unblock",
-      "enrollment": "Install code"
+      "enrollment": "Install code",
+      "purge": "Delete permanently"
     },
     "prompts": {
       "displayName": "New display name",
@@ -96,6 +97,16 @@
       "copyFailed": "Could not copy to the clipboard.",
       "serverUrlLabel": "ActiLens server URL",
       "serverUrlHelp": "If the console is open through localhost, enter the LAN server URL, for example http://192.168.0.249:8081."
+    },
+    "purge": {
+      "title": "Permanently delete {{name}}",
+      "warning": "This action cannot be undone. Activity, browser history, keystroke counts, screenshots and screenshot files for this member in the selected organization will be deleted.",
+      "scope": "Administrative audit history is retained. If the account is used in another organization, that organization's data and access are not affected.",
+      "confirmLabel": "Type “{{name}}” to confirm",
+      "cancel": "Cancel",
+      "delete": "Delete permanently",
+      "deleting": "Deleting…",
+      "failed": "The member could not be fully deleted. Retry the operation; partially removed files are handled safely."
     }
   },
   "newBusinessModal": {
