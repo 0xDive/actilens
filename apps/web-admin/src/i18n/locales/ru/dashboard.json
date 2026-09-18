@@ -52,7 +52,12 @@
       "peopleCount_other": "{{count}} человека",
       "recentTitle": "Недавно были в сети",
       "recentSubtitle": "Сотрудники по времени последней активности",
-      "screenshots": "Скриншоты"
+      "screenshots": "Скриншоты",
+      "deviceHealthWarning_one": "{{count}} устройство требует обновления ActiLens (рекомендуется: {{version}}).",
+      "deviceHealthWarning_few": "{{count}} устройства требуют обновления ActiLens (рекомендуется: {{version}}).",
+      "deviceHealthWarning_many": "{{count}} устройств требуют обновления ActiLens (рекомендуется: {{version}}).",
+      "deviceHealthWarning_other": "{{count}} устройств требуют обновления ActiLens (рекомендуется: {{version}}).",
+      "recommendedRelease": "текущий рекомендуемый релиз"
     }
   },
   "employees": {
