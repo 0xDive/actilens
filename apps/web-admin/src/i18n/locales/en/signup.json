@@ -54,7 +54,11 @@
     "identifierPlaceholder": "you@example.com or a username",
     "password": "Password",
     "passwordPlaceholder": "min 8 characters",
-    "strength": { "weak": "Weak", "medium": "Medium", "strong": "Strong" },
+    "strength": {
+      "weak": "Weak",
+      "medium": "Medium",
+      "strong": "Strong"
+    },
     "creating": "Creating…",
     "continue": "Continue",
     "available": "Available"
@@ -98,5 +102,8 @@
     "finish": "Finish",
     "doneAdding": "Done adding",
     "skip": "Skip for now"
+  },
+  "v1": {
+    "copyFailed": "Could not copy the credentials. Select and copy them manually."
   }
 }
