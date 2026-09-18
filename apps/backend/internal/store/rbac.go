@@ -149,7 +149,10 @@ func (s *Store) MembershipsForUser(ctx context.Context, userID string) ([]Member
 // console. Employees intentionally do not get a console business list.
 func (s *Store) ListBusinessesForConsole(ctx context.Context, userID string) ([]BusinessAccess, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT `+businessCols+`, m.role
+		SELECT b.id, b.name, b.kind, b.owner_user_id,
+		       b.screenshot_retention_days, b.screenshot_interval_s,
+		       b.idle_threshold_s, b.allow_employee_override,
+		       b.screenshot_mode, b.screenshot_skip_apps, m.role
 		  FROM memberships m
 		  JOIN businesses b ON b.id = m.business_id
 		 WHERE m.user_id = $1 AND m.role IN ('owner','admin','manager')
