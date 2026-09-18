@@ -11,8 +11,10 @@ import {
   isDemo,
 } from "./demo";
 import type {
+  AccountResponse,
   AccountType,
   ActivityResponse,
+  AuthSession,
   AuditEvent,
   AuthResponse,
   BrowserVisit,
@@ -25,13 +27,23 @@ import type {
   Employee,
   KeystrokeBucket,
   Membership,
+  MFASetupResponse,
+  MFAState,
+  OrganizationPatch,
   PrivacyAppCategory,
+  RecoveryCodesResponse,
   PublicBusiness,
   ReportEmployee,
   ScreenshotsResponse,
   Tokens,
   User,
 } from "./types";
+
+function webClientLabel(): string {
+  if (typeof navigator === "undefined") return "Web browser";
+  const value = navigator.userAgent || "Web browser";
+  return value.slice(0, 180);
+}
 
 // ---------- public ----------
 export function listPublicBusinesses() {
@@ -45,7 +57,13 @@ export async function login(identifier: string, password: string, business_id?: 
   const res = await request<AuthResponse>("/v1/auth/login", {
     method: "POST",
     auth: false,
-    body: { identifier, password, business_id },
+    body: {
+      identifier,
+      password,
+      business_id,
+      client_type: "web",
+      client_label: webClientLabel(),
+    },
   });
   tokenStore.setSession(res.tokens, res.user);
   return res;
@@ -67,6 +85,8 @@ export async function register(
       password,
       display_name,
       account_type,
+      client_type: "web",
+      client_label: webClientLabel(),
     },
   });
   tokenStore.setSession(res.tokens, res.user);
@@ -81,6 +101,21 @@ export function refresh(refresh_token: string) {
   });
 }
 
+export async function completeMFA(challengeToken: string, code: string) {
+  const res = await request<AuthResponse>("/v1/auth/mfa/complete", {
+    method: "POST",
+    auth: false,
+    body: {
+      challenge_token: challengeToken,
+      code,
+      client_type: "web",
+      client_label: webClientLabel(),
+    },
+  });
+  tokenStore.setSession(res.tokens, res.user);
+  return res;
+}
+
 export function getMe() {
   return request<User>("/v1/me");
 }
@@ -89,9 +124,112 @@ export function listMyMemberships() {
   return request<{ memberships: Membership[] }>("/v1/memberships/mine");
 }
 
+// ---------- account & security ----------
+export function getAccount() {
+  return request<AccountResponse>("/v1/account");
+}
+
+export function updateOwnDisplayName(display_name: string) {
+  return request<{ user: User }>("/v1/account/profile", {
+    method: "PATCH",
+    body: { display_name },
+  });
+}
+
+export function updateOwnLoginIdentifiers(input: {
+  current_password: string;
+  email: string;
+  username: string;
+}) {
+  return request<{ user: User; reauth_required: boolean }>("/v1/account/login-identifiers", {
+    method: "PATCH",
+    body: input,
+  });
+}
+
+export function changeOwnPassword(current_password: string, new_password: string) {
+  return request<{ status: string; reauth_required: boolean }>("/v1/account/password/change", {
+    method: "POST",
+    body: { current_password, new_password },
+  });
+}
+
+export function listAuthSessions() {
+  return request<{ sessions: AuthSession[] }>("/v1/account/sessions");
+}
+
+export function revokeAuthSession(sessionId: string) {
+  return request<{ status: string; reauth_required: boolean }>(
+    `/v1/account/sessions/${sessionId}`,
+    { method: "DELETE" },
+  );
+}
+
+export function revokeOtherAuthSessions() {
+  return request<{ status: string; count: number }>("/v1/account/sessions/revoke-others", {
+    method: "POST",
+  });
+}
+
+export function getMFAState() {
+  return request<MFAState>("/v1/account/mfa");
+}
+
+export function beginMFASetup(current_password: string) {
+  return request<MFASetupResponse>("/v1/account/mfa/totp/setup", {
+    method: "POST",
+    body: { current_password },
+  });
+}
+
+export function confirmMFASetup(code: string) {
+  return request<{ status: string; recovery_codes: string[] }>("/v1/account/mfa/totp/confirm", {
+    method: "POST",
+    body: { code },
+  });
+}
+
+export function regenerateRecoveryCodes(current_password: string, code: string) {
+  return request<RecoveryCodesResponse>("/v1/account/mfa/recovery/regenerate", {
+    method: "POST",
+    body: { current_password, code },
+  });
+}
+
+export function disableMFA(current_password: string, code: string) {
+  return request<{ status: string; reauth_required: boolean }>("/v1/account/mfa/disable", {
+    method: "POST",
+    body: { current_password, code },
+  });
+}
+
+export function resetMemberMFA(businessId: string, userId: string) {
+  return request<{ status: string }>(
+    `/v1/businesses/${businessId}/members/${userId}/mfa/reset`,
+    { method: "POST" },
+  );
+}
+
 // ---------- businesses ----------
-export function createBusiness(name: string) {
-  return request<Business>("/v1/businesses", { method: "POST", body: { name } });
+export function createBusiness(
+  name: string,
+  input: { kind?: Business["kind"]; timezone?: string; week_starts_on?: number | null } = {},
+) {
+  return request<Business>("/v1/businesses", {
+    method: "POST",
+    body: { name, ...input },
+  });
+}
+
+export function getOrganization(id: string) {
+  return request<BusinessAccess>(`/v1/businesses/${id}`);
+}
+
+export function updateOrganization(id: string, patch: OrganizationPatch) {
+  return request<Business>(`/v1/businesses/${id}`, {
+    method: "PATCH",
+    body: patch,
+  });
 }
 
 export function listMyBusinesses() {
