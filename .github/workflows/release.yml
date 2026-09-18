@@ -4,27 +4,56 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (for example v0.2.0)"
+        required: true
+        default: "v0.2.0"
+        type: string
 
 permissions:
   contents: write
   packages: write
 
 jobs:
+  prepare:
+    name: Validate release version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - id: version
+        shell: bash
+        env:
+          CANDIDATE: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$CANDIDATE" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid release version: $CANDIDATE" >&2
+            echo "Expected vMAJOR.MINOR.PATCH, optionally with a prerelease suffix." >&2
+            exit 1
+          fi
+          echo "version=$CANDIDATE" >> "$GITHUB_OUTPUT"
+          echo "Release version: $CANDIDATE"
+
   windows:
     name: Build Windows installers
+    needs: prepare
     runs-on: windows-latest
     env:
       # Public releases are server-agnostic. Deployment selects the backend at
       # runtime via install-windows-agent.ps1 / ACTILENS_BACKEND_URL.
       ACTILENS_BUILD_SERVER_URL: http://127.0.0.1:8081
+      RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Set application version from tag
+      - name: Set application version from release
         shell: pwsh
-        run: python scripts/set-version.py $env:GITHUB_REF_NAME
+        run: python scripts/set-version.py $env:RELEASE_VERSION
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -64,6 +93,7 @@ jobs:
 
   docker:
     name: Publish Docker image
+    needs: prepare
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -81,7 +111,7 @@ jobs:
           images: ghcr.io/0xdive/actilens
           tags: |
             type=raw,value=latest
-            type=ref,event=tag
+            type=raw,value=${{ needs.prepare.outputs.version }}
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -89,7 +119,7 @@ jobs:
           file: deploy/Dockerfile
           push: true
           build-args: |
-            VERSION=${{ github.ref_name }}
+            VERSION=${{ needs.prepare.outputs.version }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -97,7 +127,7 @@ jobs:
 
   release:
     name: GitHub Release
-    needs: [windows, docker]
+    needs: [prepare, windows, docker]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -108,15 +138,15 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ needs.prepare.outputs.version }}
+          target_commitish: ${{ github.sha }}
           generate_release_notes: true
           files: |
             release-assets/ActiLens-x64.msi
             release-assets/ActiLens-x64-setup.exe
             release-assets/install-windows-agent.ps1
-            install-windows-agent.ps1
           body: |
-            ActiLens release.
+            ActiLens ${{ needs.prepare.outputs.version }}.
 
-            Docker image: `ghcr.io/0xdive/actilens:${{ github.ref_name }}`
+            Docker image: `ghcr.io/0xdive/actilens:${{ needs.prepare.outputs.version }}`
             Windows client: server-agnostic; configure it during provisioning with `install-windows-agent.ps1`.
-            Enrollment helper: `install-windows-agent.ps1`
