@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listEmployeeDevices, updateDevice } from "../../api/endpoints";
-import type { Device } from "../../api/types";
+import { ApiError, type Device } from "../../api/types";
 import {
   Alert,
   Badge,
@@ -82,8 +82,12 @@ export function DevicesCard({
         title: t("detail.devices.saved"),
         tone: "success",
       });
-    } catch {
-      setDialogError(t("detail.devices.actionFailed"));
+    } catch (error) {
+      setDialogError(
+        error instanceof ApiError && error.code === "device_limit_reached"
+          ? t("detail.devices.deviceLimitReached")
+          : t("detail.devices.actionFailed"),
+      );
     } finally {
       setBusyID(null);
     }
@@ -110,8 +114,12 @@ export function DevicesCard({
         title: t("detail.devices.saved"),
         tone: "success",
       });
-    } catch {
-      setDialogError(t("detail.devices.actionFailed"));
+    } catch (error) {
+      setDialogError(
+        error instanceof ApiError && error.code === "device_limit_reached"
+          ? t("detail.devices.deviceLimitReached")
+          : t("detail.devices.actionFailed"),
+      );
     } finally {
       setBusyID(null);
     }
@@ -123,6 +131,23 @@ export function DevicesCard({
         <h2 className="report-card__title">{t("detail.devices.title")}</h2>
         <p className="report-card__subtitle">{t("detail.devices.subtitle")}</p>
       </div>
+
+      {!loading &&
+        !error &&
+        devices.some(
+          (device) => !device.revoked_at && device.version_status === "outdated",
+        ) && (
+          <div className="device-health-warning">
+            <Alert tone="warning">
+              {t("detail.devices.outdatedWarning", {
+                count: devices.filter(
+                  (device) =>
+                    !device.revoked_at && device.version_status === "outdated",
+                ).length,
+              })}
+            </Alert>
+          </div>
+        )}
 
       {loading && (
         <div className="devices-v1" aria-hidden>
@@ -165,6 +190,19 @@ export function DevicesCard({
                           : "detail.devices.active",
                       )}
                     </Badge>
+                    {!revoked && (
+                      <Badge
+                        tone={
+                          device.version_status === "current"
+                            ? "success"
+                            : device.version_status === "outdated"
+                              ? "warning"
+                              : "neutral"
+                        }
+                      >
+                        {t(`detail.devices.versionStatus.${device.version_status}`)}
+                      </Badge>
+                    )}
                   </div>
                   <div className="device-row__meta">
                     {platform || shortID(device.id)}
