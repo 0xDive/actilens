@@ -11,6 +11,24 @@ import (
 // the sync request didn't say which one the data is for.
 var ErrAmbiguousBusiness = errors.New("ambiguous business")
 
+// ErrMembershipUnavailable means the requested organization membership no longer
+// exists or collection has been disabled. Sync paths use a shared row lock so an
+// owner purge cannot race a final batch into the organization after deletion.
+var ErrMembershipUnavailable = errors.New("membership unavailable")
+
+func ensureMembershipCollectableTx(ctx context.Context, tx pgx.Tx, userID, businessID string) error {
+	var enabled bool
+	err := tx.QueryRow(ctx, `
+		SELECT monitoring_enabled
+		  FROM memberships
+		 WHERE user_id = $1 AND business_id = $2
+		 FOR SHARE`, userID, businessID).Scan(&enabled)
+	if errors.Is(err, pgx.ErrNoRows) || !enabled {
+		return ErrMembershipUnavailable
+	}
+	return err
+}
+
 // Row types mirror the desktop's local tables. Nullable columns use pointers.
 
 type ActivityRow struct {
@@ -119,6 +137,9 @@ func (s *Store) SyncBatch(ctx context.Context, userID, businessID, deviceID stri
 	}
 	defer tx.Rollback(ctx)
 
+	if err := ensureMembershipCollectableTx(ctx, tx, userID, businessID); err != nil {
+		return err
+	}
 	if err := touchDeviceTx(ctx, tx, userID, deviceID, meta); err != nil {
 		return err
 	}
