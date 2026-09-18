@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"actilens/backend/internal/auth"
@@ -15,12 +16,74 @@ import (
 
 // OwnerHandler serves business + employee management for owners.
 type OwnerHandler struct {
-	store *store.Store
+	store                     *store.Store
+	recommendedDesktopVersion string
 }
 
-// NewOwnerHandler wires the owner handler.
-func NewOwnerHandler(s *store.Store) *OwnerHandler {
-	return &OwnerHandler{store: s}
+// NewOwnerHandler wires the owner handler. The optional recommended version keeps
+// tests and older construction sites source-compatible.
+func NewOwnerHandler(s *store.Store, recommendedVersion ...string) *OwnerHandler {
+	version := ""
+	if len(recommendedVersion) > 0 {
+		version = strings.TrimSpace(recommendedVersion[0])
+	}
+	return &OwnerHandler{store: s, recommendedDesktopVersion: version}
+}
+
+func compareSemver(left, right string) (int, bool) {
+	parse := func(value string) ([3]int, bool) {
+		var out [3]int
+		value = strings.TrimPrefix(strings.TrimSpace(value), "v")
+		if i := strings.IndexAny(value, "-+"); i >= 0 {
+			value = value[:i]
+		}
+		parts := strings.Split(value, ".")
+		if len(parts) < 2 || len(parts) > 3 {
+			return out, false
+		}
+		for i := 0; i < len(parts); i++ {
+			n, err := strconv.Atoi(parts[i])
+			if err != nil || n < 0 {
+				return out, false
+			}
+			out[i] = n
+		}
+		return out, true
+	}
+	a, okA := parse(left)
+	b, okB := parse(right)
+	if !okA || !okB {
+		return 0, false
+	}
+	for i := 0; i < len(a); i++ {
+		if a[i] < b[i] {
+			return -1, true
+		}
+		if a[i] > b[i] {
+			return 1, true
+		}
+	}
+	return 0, true
+}
+
+func (h *OwnerHandler) deviceVersionStatus(version string) string {
+	if h.recommendedDesktopVersion == "" || strings.TrimSpace(version) == "" {
+		return "unknown"
+	}
+	cmp, ok := compareSemver(version, h.recommendedDesktopVersion)
+	if !ok {
+		return "unknown"
+	}
+	if cmp < 0 {
+		return "outdated"
+	}
+	return "current"
+}
+
+func (h *OwnerHandler) annotateDeviceVersions(devices []store.Device) {
+	for i := range devices {
+		devices[i].VersionStatus = h.deviceVersionStatus(devices[i].AppVersion)
+	}
 }
 
 type createBusinessReq struct {
