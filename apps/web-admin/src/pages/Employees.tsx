@@ -2,11 +2,15 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "rea
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Trans, useTranslation } from "react-i18next";
 import {
-  archiveEmployee,
+  blockMember,
   createBusiness,
   createEmployee,
   listBusinessEmployees,
+  listFormerMembers,
+  removeMember,
   resetEmployeePassword,
+  restoreMember,
+  unblockMember,
   updateEmployee,
 } from "../api/endpoints";
 import { ApiError, type BusinessKind, type Employee } from "../api/types";
@@ -88,7 +92,7 @@ function initials(name: string): string {
 type Presence = "active" | "idle" | "offline" | "blocked";
 
 function presence(employee: Employee): Presence {
-  if (!employee.active) return "blocked";
+  if (employee.status === "blocked" || !employee.active) return "blocked";
   if (!employee.last_seen) return "offline";
   const age = Math.max(0, Date.now() / 1000 - employee.last_seen);
   if (age < 420) return "active";
@@ -164,6 +168,7 @@ function EmployeeActionsMenu({
   const [editOpen, setEditOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
+  const [removeOpen, setRemoveOpen] = useState(false);
   const [editName, setEditName] = useState(employee.display_name);
   const [editLogin, setEditLogin] = useState(employee.email || employee.username || "");
   const [password, setPassword] = useState("");
@@ -211,16 +216,35 @@ function EmployeeActionsMenu({
     }
   }
 
-  async function toggleActive() {
+  async function toggleBlocked() {
     setBusy(true);
     setDialogError(null);
     try {
-      if (employee.active) await archiveEmployee(employee.id);
-      else await updateEmployee(employee.id, { active: true });
+      if (employee.status === "blocked") {
+        await unblockMember(businessId, employee.id);
+      } else {
+        await blockMember(businessId, employee.id);
+      }
       setStatusOpen(false);
       setOpen(false);
       onChanged();
       pushToast({ title: t("employees.prompts.saved"), tone: "success" });
+    } catch {
+      setDialogError(t("employees.prompts.failed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeFromOrganization() {
+    setBusy(true);
+    setDialogError(null);
+    try {
+      await removeMember(businessId, employee.id);
+      setRemoveOpen(false);
+      setOpen(false);
+      onChanged();
+      pushToast({ title: t("employees.lifecycle.removedToast"), tone: "success" });
     } catch {
       setDialogError(t("employees.prompts.failed"));
     } finally {
@@ -293,7 +317,18 @@ function EmployeeActionsMenu({
                   setStatusOpen(true);
                 }}
               >
-                {t(employee.active ? "employees.actions.archive" : "employees.actions.restore")}
+                {t(employee.status === "blocked" ? "employees.actions.restore" : "employees.actions.archive")}
+              </button>
+              <button
+                type="button"
+                className="ds-menu__item ds-menu__item--danger"
+                onClick={() => {
+                  setOpen(false);
+                  setDialogError(null);
+                  setRemoveOpen(true);
+                }}
+              >
+                {t("employees.actions.remove")}
               </button>
             </>
           )}
@@ -390,7 +425,7 @@ function EmployeeActionsMenu({
 
       {statusOpen && (
         <Dialog
-          title={t(employee.active ? "employees.actions.archive" : "employees.actions.restore")}
+          title={t(employee.status === "blocked" ? "employees.actions.restore" : "employees.actions.archive")}
           size="confirm"
           onClose={() => !busy && setStatusOpen(false)}
           closeOnBackdrop={!busy}
@@ -400,20 +435,48 @@ function EmployeeActionsMenu({
                 {t("newBusinessModal.cancel")}
               </Button>
               <Button
-                variant={employee.active ? "danger" : "primary"}
+                variant={employee.status === "blocked" ? "primary" : "danger"}
                 loading={busy}
-                onClick={toggleActive}
+                onClick={toggleBlocked}
               >
-                {t(employee.active ? "employees.actions.archive" : "employees.actions.restore")}
+                {t(employee.status === "blocked" ? "employees.actions.restore" : "employees.actions.archive")}
               </Button>
             </>
           }
         >
           <p className="employees-dialog-note">
-            {t(employee.active ? "employees.prompts.confirmArchive" : "employees.prompts.confirmRestore")}
+            {t(employee.status === "blocked" ? "employees.prompts.confirmRestore" : "employees.prompts.confirmArchive")}
           </p>
           {dialogError && <Alert tone="danger">{dialogError}</Alert>}
         </Dialog>
+
+      {removeOpen && (
+        <Dialog
+          title={t("employees.lifecycle.removeTitle", { name: employee.display_name })}
+          size="confirm"
+          onClose={() => !busy && setRemoveOpen(false)}
+          closeOnBackdrop={!busy}
+          footer={
+            <>
+              <Button variant="secondary" disabled={busy} onClick={() => setRemoveOpen(false)}>
+                {t("newBusinessModal.cancel")}
+              </Button>
+              <Button variant="danger" loading={busy} onClick={removeFromOrganization}>
+                {t("employees.actions.remove")}
+              </Button>
+            </>
+          }
+        >
+          <div className="employees-dialog-stack">
+            <Alert tone="warning">{t("employees.lifecycle.removeWarning")}</Alert>
+            <p className="employees-dialog-note">
+              {t("employees.lifecycle.removeScope")}
+            </p>
+            {dialogError && <Alert tone="danger">{dialogError}</Alert>}
+          </div>
+        </Dialog>
+      )}
+
       )}
     </div>
   );
