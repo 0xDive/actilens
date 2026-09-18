@@ -442,3 +442,11 @@
   margin: 6px 0 14px;
   padding-left: 20px;
 }
+
+.settings-device-limit {
+  width: min(100%, 330px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
