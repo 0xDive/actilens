@@ -90,6 +90,10 @@ func (h *ScreenshotHandler) Upload(c *gin.Context) {
 	}
 
 	monitoringEnabled, err := h.store.MembershipMonitoringEnabled(c.Request.Context(), userID, bizID)
+	if errors.Is(err, store.ErrNotFound) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "membership is unavailable"})
+		return
+	}
 	if err != nil {
 		serverError(c, err)
 		return
@@ -112,8 +116,9 @@ func (h *ScreenshotHandler) Upload(c *gin.Context) {
 		return
 	}
 
-	// Write the file first, then record metadata (so a row never points at a
-	// missing file). A failed metadata write leaves a blob that a retry overwrites.
+	// Write the file first, then record metadata so a row never points at a
+	// missing file. If metadata cannot commit, the just-written blob is removed
+	// immediately so purge races cannot leave orphan files behind.
 	relPath, err := h.files.Write(bizID, userID, ts, clientUUID, data)
 	if err != nil {
 		serverError(c, err)
@@ -132,6 +137,14 @@ func (h *ScreenshotHandler) Upload(c *gin.Context) {
 		ClientUpdatedAt: updatedAt,
 	}
 	if err := h.store.UpsertScreenshot(c.Request.Context(), userID, bizID, row); err != nil {
+		if cleanupErr := h.files.Remove(relPath); cleanupErr != nil {
+			serverError(c, cleanupErr)
+			return
+		}
+		if errors.Is(err, store.ErrMembershipUnavailable) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "membership is unavailable or monitoring is disabled"})
+			return
+		}
 		serverError(c, err)
 		return
 	}
