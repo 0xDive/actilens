@@ -146,6 +146,9 @@ func (m *Manager) parse(token, wantKind string) (string, int, string, error) {
 	return c.Subject, c.Version, c.SessionID, nil
 }
 
+func AccessTTL() time.Duration { return accessTTL }
+func RefreshTTL() time.Duration { return refreshTTL }
+
 func HashToken(token string) string {
 	sum := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(sum[:])
