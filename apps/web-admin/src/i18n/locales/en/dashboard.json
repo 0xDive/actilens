@@ -50,7 +50,10 @@
       "peopleCount_other": "{{count}} people",
       "recentTitle": "Recently seen",
       "recentSubtitle": "Members ordered by latest activity",
-      "screenshots": "Screenshots"
+      "screenshots": "Screenshots",
+      "deviceHealthWarning_one": "{{count}} device needs an ActiLens update (recommended: {{version}}).",
+      "deviceHealthWarning_other": "{{count}} devices need an ActiLens update (recommended: {{version}}).",
+      "recommendedRelease": "current recommended release"
     }
   },
   "employees": {
