@@ -1,36 +1,53 @@
-# actilens — UI mockups (React)
+# ActiLens design fixtures
 
-Runnable, static mockups of the actilens app + browser-extension popup. Pure visual
-design (mock data, no real tracking), using the semantic tokens from
-[../docs/07-ui-design.md](../docs/07-ui-design.md). Flat, low-color, dark + light.
+This package is the runnable fixture gallery for **ActiLens Design System v1**.
+
+It is not a second product implementation and does not contain mocked versions of
+the dashboard or desktop application. Its purpose is to keep the shared visual
+language reviewable and buildable in isolation.
+
+## What it covers
+
+The gallery currently exercises:
+
+- semantic light/dark color tokens;
+- primary, secondary, ghost, danger and disabled buttons;
+- semantic badges/statuses;
+- fields and validation states;
+- switches;
+- compact employee-table density;
+- destructive confirmation flow.
+
+The product specification lives in the repository root:
+
+```text
+DESIGN_SPEC_V1.md
+```
 
 ## Run
 
+From the repository root:
+
 ```bash
-cd design
-npm install
-npm run dev
+corepack enable
+pnpm install
+pnpm --filter @actilens/design dev
 ```
 
-Open the printed localhost URL. Use the **sidebar** to switch screens and the
-**Light / Dark / System** toggle in the header to preview both themes.
+Build/typecheck:
 
-## What's here
+```bash
+pnpm --filter @actilens/design typecheck
+pnpm --filter @actilens/design build
+```
 
-| Screen | File | Notes |
-|---|---|---|
-| App shell (sidebar + header + theme toggle) | `src/App.tsx` | Token-driven theming, live System mode |
-| Design tokens | `src/theme.css` | Single source of truth — all colors via CSS vars |
-| Dashboard | `src/screens/Dashboard.tsx` | Stat cards, active-time timeline (idle hatched), app breakdown |
-| Activity (keyboard) | `src/screens/Activity.tsx` | Counts-only chart + privacy caption |
-| Screenshots | `src/screens/Screenshots.tsx` | Thumbnail gallery grouped by time |
-| Browser | `src/screens/Browser.tsx` | Top sites + page-visit table |
-| Permissions | `src/screens/Permissions.tsx` | Status rows (icon+text), Open Settings / Quit & Reopen |
-| Settings | `src/screens/Settings.tsx` | Theme, intervals, idle, retention, privacy, export |
-| Extension popup | `src/extension/Popup.tsx` | MV3 toolbar popup (~340px), connected/paused states |
+Both commands are part of CI so the design fixture cannot silently drift into a
+broken state.
 
-## Notes
+## Rules
 
-- All data is mocked inline; replace with Tauri command queries when wiring the real app.
-- No hardcoded hex in components — colors come from `theme.css` tokens only.
-- This folder is a **design artifact**, separate from the eventual Tauri app.
+- Fixtures describe the current v1 system, not legacy mockups.
+- New web-admin work uses the production `ds-*` primitives and semantic tokens.
+- The fixture package may use simplified local fixture components, but its colors,
+  geometry and states must match `DESIGN_SPEC_V1.md`.
+- Do not add fake analytics or product behavior to this package.
