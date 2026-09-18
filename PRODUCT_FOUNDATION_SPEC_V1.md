@@ -1313,3 +1313,197 @@ The dependency-first order is:
    - RU/EN and error-state acceptance;
    - desktop/web multi-org tests;
    - destructive-operation recovery tests.
+
+
+---
+
+## 22. Approved clarification round 2
+
+These decisions are approved.
+
+### Organization kinds and terminology
+
+- Built-in organization kinds for the current product model are:
+  - `team`;
+  - `family`;
+  - `other`.
+- `other` uses neutral organization/member terminology.
+- The schema/API must allow adding more kinds later without redesigning the organization model.
+- Custom administrator-defined member nouns are not part of v1.
+
+### Time and reporting boundaries
+
+- A new organization defaults its timezone from the creator's browser/device timezone.
+- The organization timezone is editable.
+- Stored event timestamps are never rewritten when timezone changes.
+- Day/report grouping is recalculated using the current organization timezone, so historical day boundaries may be displayed differently after a timezone change.
+- Week start defaults to locale behavior but can be explicitly overridden to a chosen day in settings.
+
+### Archive and deletion lifecycle
+
+Archived organization behavior:
+
+- new sync is rejected;
+- new enrollment is rejected;
+- managed collection stops;
+- historical reports remain available to Owner/Admin in read-only mode;
+- organization can be restored.
+
+Permanent organization deletion:
+
+- requires the organization to enter the archive/deletion flow first;
+- uses a **7-day cancellation window** before hard deletion;
+- export/full backup is offered before scheduling deletion but is not mandatory;
+- a user may explicitly proceed without exporting.
+
+Ownership transfer:
+
+- target must be an active existing Admin;
+- target becomes Owner;
+- previous Owner becomes Admin;
+- transfer is a strong security operation and is audited.
+
+### Former members
+
+- Removed members appear in a dedicated **Former members** view.
+- Historical organization-scoped reports remain read-only until retention/purge removes them.
+- A removed member may be restored to the organization using the same user/account identity.
+- Blocking is organization-scoped membership state, not global user state.
+- Blocking a user in organization A does not block that account in organization B.
+
+### Manager and RBAC
+
+- Manager is read-only for administrative purposes:
+  - may view Dashboard;
+  - may view roster;
+  - may view permitted reports;
+  - may not change members, devices, monitoring or settings.
+- Product-facing roles remain exactly Owner/Admin/Manager/Employee.
+- Backend authorization should evolve to capability-based checks behind those role presets.
+- Custom roles are not exposed in v1, but the internal permission model should not prevent them later.
+
+### Managed desktop control
+
+- Managed employees cannot pause monitoring or change organization-controlled collection policy from the desktop app.
+- Desktop must clearly show that monitoring is managed by the organization and what categories are enabled.
+- Local-only mode remains locally controllable.
+- ActiLens must not claim it can prevent a Windows administrator from uninstalling or stopping software; instead product health/offline/device state makes this visible to admins.
+
+### Screenshot model
+
+Capture scope is explicitly separated from privacy rules.
+
+Approved scopes:
+
+- active window only;
+- active display;
+- all displays.
+
+Privacy exclusions apply independently of capture scope.
+Window-title exclusion rules initially use simple **contains** matching; regex is not required in v1.
+
+### Retention defaults
+
+Approved defaults:
+
+| Data class | Default |
+|---|---:|
+| Activity / app / window / active-idle | 180 days |
+| Screenshots | 30 days |
+| Browser activity | 90 days |
+| Keystroke counts | 90 days |
+| Audit log | keep indefinitely |
+
+Where appropriate, retention supports an explicit indefinite option.
+Reducing retention requires preview + destructive confirmation.
+
+### Export
+
+- Structured monitoring data export supports CSV/JSON where appropriate.
+- Screenshots export supports archive + manifest.
+- Full organization export should be offered before organization deletion.
+- Export is not mandatory to proceed with deletion.
+
+### Enrollment and devices
+
+- Device limits count active/non-revoked devices.
+- Device limit is configurable per organization; `null` means unlimited.
+- When the limit is reached, enrollment fails with stable error `device_limit_reached` and explains that an admin must revoke a device or raise the limit.
+- Agent version health states are:
+  - Current;
+  - Outdated;
+  - Unknown.
+- Version status is advisory only for now; no enforced minimum desktop version yet.
+
+### Profile and login identity
+
+- Owner/Admin may manage employee display names where permitted.
+- Owner may change their own display name.
+- Ordinary managed employees do not edit their own display name in v1.
+- A user may change their own login identifier through secure account settings.
+- Login-identifier changes require current-password reauthentication, server-side uniqueness validation, security-version/session invalidation as designed, and audit/security events.
+
+### Password changes
+
+- Successful password change revokes **all sessions including the current session**.
+- User must sign in again with the new password.
+
+### MFA / 2FA
+
+Initial MFA implementation:
+
+- TOTP authenticator support;
+- one-time recovery codes;
+- no SMTP/SMS dependency required.
+
+MFA is voluntary per account in v1.
+If MFA is enabled for an account, critical operations require a fresh MFA challenge in addition to password reauthentication where applicable, including:
+
+- ownership transfer;
+- organization deletion;
+- personal-account deletion.
+
+Organization-wide mandatory MFA enforcement is not required in v1.
+
+### Sessions
+
+Session management page shows:
+
+- Web/Desktop client type;
+- browser/device descriptor where available;
+- creation time;
+- last-used time;
+- current-session marker.
+
+Raw/approximate IP is not shown to the user in v1.
+Actions:
+
+- revoke one session;
+- revoke all other sessions.
+
+### Personal-account deletion
+
+- Personal-account deletion is immediate after required eligibility checks, reauthentication and typed confirmation.
+- There is no personal-account deletion grace period.
+- A user cannot delete their personal account while they still own an organization; ownership must be transferred or the organization lifecycle completed first.
+
+### Local-only to managed enrollment
+
+- Existing local-only history is **not** uploaded automatically when the installation becomes managed.
+- Server collection starts only after explicit organization enrollment.
+- This is a privacy invariant.
+
+### Device organization binding
+
+- A managed device is bound to one organization.
+- Moving that installation to a different organization requires explicit unenroll/re-enroll.
+- There is no automatic organization dropdown switch for one managed device.
+
+### Applying changed defaults
+
+When an organization changes a new-member default such as monitoring enabled:
+
+- UI asks whether the change applies only to future members or also to existing memberships;
+- if applying to existing members, backend provides/uses an affected-member count;
+- UI confirms the count before bulk mutation;
+- bulk mutation is audited.
