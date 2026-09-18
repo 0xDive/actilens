@@ -303,6 +303,43 @@ export function listBusinessEmployees(businessId: string) {
   return request<{ employees: Employee[] }>(`/v1/businesses/${businessId}/employees`);
 }
 
+export function listFormerMembers(businessId: string) {
+  if (isDemo()) return Promise.resolve({ employees: [] as Employee[] });
+  return request<{ employees: Employee[] }>(`/v1/businesses/${businessId}/members/former`);
+}
+
+export function blockMember(businessId: string, userId: string) {
+  return request<{ status: string }>(
+    `/v1/businesses/${businessId}/members/${userId}/block`,
+    { method: "POST" },
+  );
+}
+
+export function unblockMember(businessId: string, userId: string) {
+  return request<{ status: string }>(
+    `/v1/businesses/${businessId}/members/${userId}/unblock`,
+    { method: "POST" },
+  );
+}
+
+export function removeMember(businessId: string, userId: string) {
+  return request<{ status: string }>(
+    `/v1/businesses/${businessId}/members/${userId}/remove`,
+    { method: "POST" },
+  );
+}
+
+export function restoreMember(
+  businessId: string,
+  userId: string,
+  monitoringEnabled: boolean,
+) {
+  return request<{ status: string }>(
+    `/v1/businesses/${businessId}/members/${userId}/restore`,
+    { method: "POST", body: { monitoring_enabled: monitoringEnabled } },
+  );
+}
+
 export function updateEmployee(id: string, patch: {
   email?: string;
   username?: string;
