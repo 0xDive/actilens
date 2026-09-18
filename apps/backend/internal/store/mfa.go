@@ -183,7 +183,7 @@ func (s *Store) DisableMFA(ctx context.Context, userID, actorUserID string) erro
 	return tx.Commit(ctx)
 }
 
-func (s *Store) ResetManagedMemberMFA((ctx context.Context, actorID, businessID, targetUserID string) error {
+func (s *Store) ResetManagedMemberMFA(ctx context.Context, actorID, businessID, targetUserID string) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return err
