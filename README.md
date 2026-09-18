@@ -85,6 +85,11 @@ For Internet/WAN deployments, use an HTTPS URL such as
 CI/release fallback builds use `http://127.0.0.1:8081` only when no runtime
 server has been provisioned.
 
+To publish a release without creating a tag locally, open
+**Actions → ActiLens Release → Run workflow**, enter a semantic version such as
+`v0.2.0`, and run it. The workflow validates the version, publishes the Docker
+image, builds the Windows installers and creates the GitHub Release/tag.
+
 ## Employee enrollment
 
 In **Admin → Employees**, choose **Install code / Код установки** for an active

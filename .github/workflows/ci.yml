@@ -15,6 +15,48 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect changed areas
+    runs-on: ubuntu-latest
+    outputs:
+      windows: ${{ steps.detect.outputs.windows }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: detect
+        name: Detect whether Windows build is required
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+          CURRENT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "windows=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            git diff --name-only "$BASE_SHA" "$HEAD_SHA" > /tmp/changed.txt
+          elif [ -z "${BEFORE_SHA:-}" ] || printf '%s' "$BEFORE_SHA" | grep -Eq '^0+$'; then
+            git diff-tree --no-commit-id --name-only -r "$CURRENT_SHA" > /tmp/changed.txt
+          else
+            git diff --name-only "$BEFORE_SHA" "$CURRENT_SHA" > /tmp/changed.txt
+          fi
+
+          echo "Changed files:"
+          cat /tmp/changed.txt
+
+          if grep -Eq '^(apps/desktop/|packages/|build-windows-client\.ps1$|install-windows-agent\.ps1$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|package\.json$|scripts/set-version\.py$|\.github/workflows/(ci|release|windows-build)\.yml$)' /tmp/changed.txt; then
+            echo "windows=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "windows=false" >> "$GITHUB_OUTPUT"
+          fi
+
   validate:
     name: Backend + web + deploy checks
     runs-on: ubuntu-latest
@@ -99,6 +141,8 @@ jobs:
 
   windows:
     name: Windows installer
+    needs: changes
+    if: needs.changes.outputs.windows == 'true'
     runs-on: windows-latest
     # PR/CI artifacts must never be pointed at a real production server by accident.
     # Production/custom installers are built by release.yml or windows-build.yml.
