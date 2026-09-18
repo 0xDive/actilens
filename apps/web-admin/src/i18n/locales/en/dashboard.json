@@ -40,7 +40,8 @@
       "status": {
         "active": "Active",
         "idle": "Idle",
-        "offline": "Offline"
+        "offline": "Offline",
+        "blocked": "Blocked"
       },
       "appsTitle": "Current applications",
       "appsSubtitle": "Applications used by active or idle members now",
