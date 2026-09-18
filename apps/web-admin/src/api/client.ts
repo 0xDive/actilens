@@ -88,12 +88,33 @@ async function parseBody(res: Response): Promise<unknown> {
 function errorMessage(body: unknown, fallback: string): string {
   if (body && typeof body === "object") {
     const b = body as Record<string, unknown>;
+    if (typeof b.error === "object" && b.error) {
+      const nested = b.error as Record<string, unknown>;
+      if (typeof nested.message === "string") return nested.message;
+    }
     for (const key of ["error", "message", "detail"]) {
       if (typeof b[key] === "string") return b[key] as string;
     }
   }
   if (typeof body === "string" && body.trim()) return body;
   return fallback;
+}
+
+function errorCode(body: unknown): string | null {
+  if (!body || typeof body !== "object") return null;
+  const b = body as Record<string, unknown>;
+  if (typeof b.code === "string") return b.code;
+  if (typeof b.error === "object" && b.error) {
+    const nested = b.error as Record<string, unknown>;
+    if (typeof nested.code === "string") return nested.code;
+  }
+  return null;
+}
+
+function errorDetails(body: unknown): unknown {
+  if (!body || typeof body !== "object") return null;
+  const b = body as Record<string, unknown>;
+  return b.details ?? null;
 }
 
 export async function request<T>(path: string, opts: RequestOpts = {}): Promise<T> {
@@ -132,12 +153,18 @@ export async function request<T>(path: string, opts: RequestOpts = {}): Promise<
       return request<T>(path, { ...opts, _retried: true });
     }
     emitLogout();
-    throw new ApiError(401, "Session expired. Please sign in again.", null);
+    throw new ApiError(401, "Session expired. Please sign in again.", null, "session_revoked");
   }
 
   if (!res.ok) {
     const errBody = await parseBody(res);
-    const apiErr = new ApiError(res.status, errorMessage(errBody, `Request failed (${res.status})`), errBody);
+    const apiErr = new ApiError(
+      res.status,
+      errorMessage(errBody, `Request failed (${res.status})`),
+      errBody,
+      errorCode(errBody),
+      errorDetails(errBody),
+    );
     // Report server-side failures only; 4xx are expected/handled by the UI.
     if (res.status >= 500) {
       Sentry.captureException(apiErr, { tags: { method, path } });
@@ -160,7 +187,7 @@ export async function fetchImageObjectUrl(clientUuid: string): Promise<string> {
     const ok = await refreshOnce();
     if (ok) return fetchImageObjectUrl(clientUuid);
     emitLogout();
-    throw new ApiError(401, "Session expired.", null);
+    throw new ApiError(401, "Session expired.", null, "session_revoked");
   }
   if (!res.ok) throw new ApiError(res.status, `Image failed (${res.status})`, null);
   const blob = await res.blob();
