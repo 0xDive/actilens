@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { updateOrganization } from "../../api/endpoints";
 import type { BusinessAccess, BusinessKind } from "../../api/types";
-import { Alert, Button, Dialog, TextField } from "../ds";
+import { Alert, Button, Dialog } from "../ds";
 import { useToast } from "../ToastProvider";
 
 function timezones(current: string): string[] {
