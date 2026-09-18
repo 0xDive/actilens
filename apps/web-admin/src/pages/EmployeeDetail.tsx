@@ -352,7 +352,7 @@ export function EmployeeDetail() {
           </section>
 
           {error && (
-            <div style={{ marginBottom: 16 }}>
+            <div className="employee-detail__alert">
               <Alert tone="danger">{error}</Alert>
             </div>
           )}
@@ -521,7 +521,7 @@ export function EmployeeDetail() {
               )}
 
               {tab === "activity" && (
-                <div style={{ display: "grid", gap: 18 }}>
+                <div className="employee-report-stack">
                   {activity ? (
                     <ActivityPanel data={activity} />
                   ) : (
