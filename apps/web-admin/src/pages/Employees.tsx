@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Trans, useTranslation } from "react-i18next";
 import {
@@ -34,7 +34,7 @@ function Icon({
   children,
   size = 16,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   size?: number;
 }) {
   return (
@@ -437,7 +437,7 @@ function NewBusinessDialog({
   const isFamily = kind === "family";
   const orgCap = terms.org.charAt(0).toUpperCase() + terms.org.slice(1);
 
-  async function submit(event: React.FormEvent) {
+  async function submit(event: FormEvent) {
     event.preventDefault();
     if (!name.trim()) return;
     setBusy(true);
@@ -513,7 +513,7 @@ function NewEmployeeDialog({
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ login?: string; password?: string }>({});
 
-  async function submit(event: React.FormEvent) {
+  async function submit(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
     setError(null);
