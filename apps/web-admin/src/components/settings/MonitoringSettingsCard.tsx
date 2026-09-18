@@ -110,6 +110,37 @@ export function MonitoringSettingsCard({
         </Row>
 
         <Row
+          title={t("idleThreshold.title")}
+          description={t("idleThreshold.desc")}
+        >
+          <div className="settings-segmented" role="group">
+            {[
+              { value: 60, minutes: 1 },
+              { value: 180, minutes: 3 },
+              { value: 300, minutes: 5 },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={`settings-segmented__option${
+                  business.idle_threshold_s === option.value ? " is-active" : ""
+                }`}
+                disabled={saving}
+                aria-pressed={business.idle_threshold_s === option.value}
+                onClick={() =>
+                  patch(
+                    { idle_threshold_s: option.value },
+                    t("foundation.monitoring.collectionSaved"),
+                  )
+                }
+              >
+                {t("presets.min", { count: option.minutes })}
+              </button>
+            ))}
+          </div>
+        </Row>
+
+        <Row
           title={t("foundation.monitoring.defaultMember")}
           description={t("foundation.monitoring.defaultMemberHelp")}
         >
