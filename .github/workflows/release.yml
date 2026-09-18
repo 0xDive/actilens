@@ -66,6 +66,7 @@ jobs:
           New-Item -ItemType Directory -Force 'release-windows' | Out-Null
           Copy-Item -LiteralPath $msi.FullName -Destination 'release-windows/ActiLens-x64.msi'
           Copy-Item -LiteralPath $exe.FullName -Destination 'release-windows/ActiLens-x64-setup.exe'
+          Copy-Item -LiteralPath 'install-windows-agent.ps1' -Destination 'release-windows/install-windows-agent.ps1'
           Get-ChildItem 'release-windows' | Format-Table Name,Length
       - uses: actions/upload-artifact@v4
         with:
@@ -123,6 +124,7 @@ jobs:
           files: |
             release-assets/ActiLens-x64.msi
             release-assets/ActiLens-x64-setup.exe
+            release-assets/install-windows-agent.ps1
             install-windows-agent.ps1
           body: |
             ActiLens release.
