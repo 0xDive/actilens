@@ -244,7 +244,15 @@
       "saved": "Device updated.",
       "v1": {
         "emptyDescription": "The device will appear here after the ActiLens agent syncs for the first time."
-      }
+      },
+      "versionStatus": {
+        "current": "Current",
+        "outdated": "Outdated",
+        "unknown": "Unknown version"
+      },
+      "outdatedWarning_one": "{{count}} active device is running an outdated ActiLens agent. Update it to the recommended release.",
+      "outdatedWarning_other": "{{count}} active devices are running an outdated ActiLens agent. Update them to the recommended release.",
+      "deviceLimitReached": "This device cannot be restored because the member's active-device limit is already reached. Revoke another device or increase the organization limit."
     },
     "errorIdentity": "Could not load this employee.",
     "v1": {
