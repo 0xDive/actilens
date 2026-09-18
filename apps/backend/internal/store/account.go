@@ -361,3 +361,57 @@ func (s *Store) ListSecurityEvents(ctx context.Context, userID string, limit int
 	}
 	return out, rows.Err()
 }
+
+
+func (s *Store) ResetManagedMemberPassword(
+	ctx context.Context,
+	actorID, businessID, targetUserID, passwordHash string,
+) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	access, err := memberAccessInBusiness(
+		ctx, tx, actorID, targetUserID, businessID, CapabilityMembersManage,
+	)
+	if err != nil {
+		return err
+	}
+
+	ct, err := tx.Exec(ctx, `
+		UPDATE users
+		   SET password_hash = $1,
+		       auth_version = auth_version + 1
+		 WHERE id = $2`,
+		passwordHash, targetUserID,
+	)
+	if err != nil {
+		return err
+	}
+	if ct.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE auth_sessions
+		   SET revoked_at = COALESCE(revoked_at, now())
+		 WHERE user_id = $1 AND revoked_at IS NULL`,
+		targetUserID,
+	); err != nil {
+		return err
+	}
+	if err := insertSecurityEventTx(
+		ctx, tx, targetUserID, actorID, "security.password_reset",
+		map[string]any{"business_id": businessID},
+	); err != nil {
+		return err
+	}
+	if err := insertAuditTx(
+		ctx, tx, businessID, actorID, "employee.password_reset", "member", targetUserID,
+		map[string]any{"role": string(access.TargetRole)},
+	); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
