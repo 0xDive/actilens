@@ -220,10 +220,7 @@ jobs:
       - name: Test desktop Rust core
         shell: pwsh
         working-directory: apps/desktop/src-tauri
-        run: cargo test --lib --target x86_64-pc-windows-msvc
-      - name: Show Cargo.lock drift
-        shell: pwsh
-        run: git diff -- apps/desktop/src-tauri/Cargo.lock
+        run: cargo test --locked --lib --target x86_64-pc-windows-msvc
       - name: Build Windows MSI and EXE
         shell: pwsh
         run: pnpm --filter @actilens/desktop tauri build --target x86_64-pc-windows-msvc
