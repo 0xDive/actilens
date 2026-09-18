@@ -268,6 +268,27 @@ export function updateBusinessSettings(id: string, patch: BusinessSettingsPatch)
   });
 }
 
+export function defaultMonitoringImpact(id: string, enabled: boolean) {
+  return request<{ affected_count: number }>(
+    `/v1/businesses/${id}/settings/default-monitoring-impact`,
+    { query: { enabled } },
+  );
+}
+
+export function updateDefaultMonitoring(
+  id: string,
+  enabled: boolean,
+  applyExisting: boolean,
+) {
+  return request<{ status: string; affected_count: number }>(
+    `/v1/businesses/${id}/settings/default-monitoring`,
+    {
+      method: "POST",
+      body: { enabled, apply_existing: applyExisting },
+    },
+  );
+}
+
 export function getPrivacyApps() {
   return request<{ categories: PrivacyAppCategory[] }>("/v1/public/screenshot-privacy-apps");
 }
