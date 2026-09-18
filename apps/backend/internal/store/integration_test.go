@@ -65,6 +65,14 @@ func TestIntegrationManagedMemberLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create business: %v", err)
 	}
+
+	consoleBusinesses, err := st.ListBusinessesForConsole(ctx, owner.ID)
+	if err != nil {
+		t.Fatalf("list console businesses: %v", err)
+	}
+	if len(consoleBusinesses) != 1 || consoleBusinesses[0].Business.ID != biz.ID || consoleBusinesses[0].Role != RoleOwner {
+		t.Fatalf("unexpected console businesses: %+v", consoleBusinesses)
+	}
 	employee, _, err := st.CreateEmployee(ctx, owner.ID, &biz.ID, "", "alice", "hash", "Alice")
 	if err != nil {
 		t.Fatalf("create employee: %v", err)
