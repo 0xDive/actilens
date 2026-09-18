@@ -108,6 +108,9 @@
       "employee": "employee",
       "device": "device",
       "member": "member"
+    },
+    "v1": {
+      "emptyDescription": "Administrative changes will appear here as they happen."
     }
   },
   "saveError": "Could not save settings.",
@@ -121,5 +124,47 @@
     "email": "Email",
     "displayName": "Display name"
   },
-  "roleDenied": "Your role can view reports, but organization settings require owner or admin access."
+  "roleDenied": "Your role can view reports, but organization settings require owner or admin access.",
+  "v1": {
+    "subtitle": "Organization preferences for {{name}}",
+    "noBusinessDescription": "Create or select an organization before configuring monitoring.",
+    "sectionNavigation": "Settings sections",
+    "sections": {
+      "organization": "Organization",
+      "monitoring": "Monitoring",
+      "screenshots": "Screenshots & privacy",
+      "storage": "Data storage",
+      "audit": "Audit log",
+      "account": "Account"
+    },
+    "organization": {
+      "description": "Organization identity and your access level.",
+      "name": "Organization name",
+      "type": "Organization type",
+      "team": "Team",
+      "family": "Family",
+      "yourRole": "Your role"
+    },
+    "roles": {
+      "owner": "Owner",
+      "admin": "Admin",
+      "manager": "Manager",
+      "employee": "Employee"
+    },
+    "monitoring": {
+      "description": "Control how workstation activity and idle time are managed."
+    },
+    "screenshots": {
+      "description": "Configure screenshot capture frequency and privacy exclusions."
+    },
+    "storage": {
+      "description": "Retention and manual cleanup of uploaded screenshot data."
+    },
+    "audit": {
+      "description": "Administrative activity for this organization."
+    },
+    "account": {
+      "description": "Your current ActiLens account identity."
+    }
+  }
 }

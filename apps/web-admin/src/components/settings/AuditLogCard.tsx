@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listAuditEvents } from "../../api/endpoints";
 import type { AuditEvent } from "../../api/types";
-import { Notice, Spinner } from "../ui";
+import { Alert, Button, Card, EmptyState, Skeleton } from "../ds";
 
 const ACTION_KEYS: Record<string, string> = {
   "employee.created": "employeeCreated",
@@ -20,8 +20,8 @@ const ACTION_KEYS: Record<string, string> = {
   "member.enrollment_redeemed": "memberEnrollmentRedeemed",
 };
 
-function formatTime(ts: number): string {
-  return new Date(ts * 1000).toLocaleString();
+function formatTime(timestamp: number): string {
+  return new Date(timestamp * 1000).toLocaleString();
 }
 
 function shortId(id: string): string {
@@ -41,7 +41,9 @@ function detailsText(event: AuditEvent): string | null {
     return `${details.from} → ${details.to}`;
   }
   if (Array.isArray(details.fields) && details.fields.length > 0) {
-    return details.fields.filter((v): v is string => typeof v === "string").join(", ");
+    return details.fields
+      .filter((value): value is string => typeof value === "string")
+      .join(", ");
   }
   return null;
 }
@@ -56,8 +58,8 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await listAuditEvents(businessId, 50);
-      setEvents(res.events);
+      const response = await listAuditEvents(businessId, 50);
+      setEvents(response.events);
     } catch {
       setError(t("audit.loadFailed"));
     } finally {
@@ -70,67 +72,71 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
   }, [load]);
 
   const rows = useMemo(
-    () => events.map((event) => ({
-      event,
-      title: t(`audit.actions.${ACTION_KEYS[event.action] ?? "unknown"}`),
-      details: detailsText(event),
-    })),
+    () =>
+      events.map((event) => ({
+        event,
+        title: t(`audit.actions.${ACTION_KEYS[event.action] ?? "unknown"}`),
+        details: detailsText(event),
+      })),
     [events, t],
   );
 
   return (
-    <div className="set-group">
-      <div className="set-row" style={{ alignItems: "flex-start" }}>
+    <Card>
+      <div className="settings-audit-head">
         <div>
-          <div className="set-title">{t("audit.title")}</div>
-          <div className="set-desc">{t("audit.desc")}</div>
+          <h2 className="report-card__title">{t("audit.title")}</h2>
+          <p className="report-card__subtitle">{t("audit.desc")}</p>
         </div>
-        <button
-          type="button"
-          className="actilens-btn actilens-btn--secondary actilens-btn--sm"
-          disabled={loading}
-          onClick={load}
-        >
+        <Button variant="secondary" size="sm" disabled={loading} onClick={load}>
           {t("audit.refresh")}
-        </button>
+        </Button>
       </div>
 
-      <div style={{ padding: "0 18px 16px" }}>
-        {loading && <Spinner label={t("audit.loading")} />}
-        {error && <Notice kind="danger">{error}</Notice>}
-        {!loading && !error && rows.length === 0 && (
-          <div className="muted" style={{ padding: "12px 0" }}>{t("audit.empty")}</div>
-        )}
-        {!loading && !error && rows.length > 0 && (
-          <div style={{ display: "grid", gap: 8 }}>
-            {rows.map(({ event, title, details }) => (
-              <div
-                key={event.id}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "minmax(0,1fr) auto",
-                  gap: 12,
-                  alignItems: "start",
-                  borderTop: "1px solid var(--border)",
-                  paddingTop: 10,
-                }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 650, fontSize: 13.5 }}>{title}</div>
-                  <div className="muted" style={{ marginTop: 3, fontSize: 12, overflowWrap: "anywhere" }}>
-                    {details ? `${details} · ` : ""}
-                    {t(`audit.targets.${event.target_type}`, { defaultValue: event.target_type })}
-                    {event.target_id ? ` ${shortId(event.target_id)}` : ""}
-                  </div>
+      {loading && (
+        <div className="settings-audit-list" aria-hidden>
+          {Array.from({ length: 4 }, (_, index) => (
+            <div className="settings-audit-row" key={index}>
+              <div>
+                <Skeleton width="52%" height={14} />
+                <div className="settings-audit-skeleton-gap">
+                  <Skeleton width="72%" height={12} />
                 </div>
-                <time className="muted" style={{ whiteSpace: "nowrap", fontSize: 12 }}>
-                  {formatTime(event.created_at)}
-                </time>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+              <Skeleton width={112} height={12} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {error && <Alert tone="danger">{error}</Alert>}
+
+      {!loading && !error && rows.length === 0 && (
+        <EmptyState
+          title={t("audit.empty")}
+          description={t("audit.v1.emptyDescription")}
+        />
+      )}
+
+      {!loading && !error && rows.length > 0 && (
+        <div className="settings-audit-list">
+          {rows.map(({ event, title, details }) => (
+            <div className="settings-audit-row" key={event.id}>
+              <div>
+                <div className="settings-audit-row__title">{title}</div>
+                <div className="settings-audit-row__meta">
+                  {details ? `${details} · ` : ""}
+                  {t(`audit.targets.${event.target_type}`, {
+                    defaultValue: event.target_type,
+                  })}
+                  {event.target_id ? ` ${shortId(event.target_id)}` : ""}
+                </div>
+              </div>
+              <time>{formatTime(event.created_at)}</time>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }
