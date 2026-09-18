@@ -1,108 +1,121 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { KeystrokeBucket } from "../../api/types";
-import { Empty } from "../ui";
+import { Card, EmptyState } from "../ds";
 
-// chart geometry
-const BW = 24;
-const STEP = 40;
-const PAD = 20;
-const H = 240;
-const TOP = 14;
-const BOT = 210;
-const CHART_H = BOT - TOP;
+const BAR_WIDTH = 22;
+const STEP = 36;
+const PAD = 18;
+const HEIGHT = 220;
+const TOP = 18;
+const BOTTOM = 184;
+const CHART_HEIGHT = BOTTOM - TOP;
 
-// Counts only — never the keys themselves (privacy). The caption keeps that
-// explicit. Bar chart across the day; click a bar/chip to inspect a bucket.
 export function KeystrokePanel({ buckets }: { buckets: KeystrokeBucket[] }) {
   const { t } = useTranslation("reports");
-  const [sel, setSel] = useState<number | null>(null);
+  const [selected, setSelected] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  // Default = the latest bucket. Selecting an hour shows the running total up to
-  // that hour; later bars are dimmed ("shown up to that time").
-  const active = sel ?? buckets.length - 1;
+  const active = selected ?? buckets.length - 1;
 
-  // Keep the selected bar in view (scroll to it — e.g. the latest one on open).
   useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || buckets.length === 0) return;
-    const barCenter = PAD + active * STEP + BW / 2;
-    el.scrollTo({ left: Math.max(0, barCenter - el.clientWidth / 2), behavior: "smooth" });
+    const container = scrollRef.current;
+    if (!container || buckets.length === 0) return;
+    const center = PAD + active * STEP + BAR_WIDTH / 2;
+    container.scrollTo({
+      left: Math.max(0, center - container.clientWidth / 2),
+      behavior: "smooth",
+    });
   }, [active, buckets.length]);
 
-  if (buckets.length === 0) return <Empty>{t("keystrokes.empty")}</Empty>;
+  if (buckets.length === 0) {
+    return (
+      <EmptyState
+        title={t("keystrokes.empty")}
+        description={t("keystrokes.privacyNote")}
+      />
+    );
+  }
 
-  const max = Math.max(...buckets.map((b) => b.count), 1);
-  const shownTotal = buckets.slice(0, active + 1).reduce((s, b) => s + b.count, 0);
-  const chartH = CHART_H;
-  const svgW = PAD + buckets.length * STEP;
+  const max = Math.max(...buckets.map((bucket) => bucket.count), 1);
+  const total = buckets.reduce((sum, bucket) => sum + bucket.count, 0);
+  const svgWidth = PAD + buckets.length * STEP + PAD;
 
-  const hh = (ts: number) => String(new Date(ts * 1000).getHours()).padStart(2, "0");
-  const hhmm = (ts: number) => {
-    const d = new Date(ts * 1000);
-    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const hour = (timestamp: number) =>
+    String(new Date(timestamp * 1000).getHours()).padStart(2, "0");
+
+  const time = (timestamp: number) => {
+    const date = new Date(timestamp * 1000);
+    return `${String(date.getHours()).padStart(2, "0")}:${String(
+      date.getMinutes(),
+    ).padStart(2, "0")}`;
   };
 
   return (
-    <div>
-      <div className="ad-panelhead">
-        <div className="ad-paneltitle">{t("keystrokes.title")}</div>
+    <Card>
+      <div className="report-card__head">
+        <h2 className="report-card__title">{t("keystrokes.title")}</h2>
+        <p className="report-card__subtitle">{t("keystrokes.v1.subtitle")}</p>
       </div>
 
-      <div className="ad-act-total">
-        <span className="ad-act-num">{shownTotal.toLocaleString()}</span>
-        <span className="ad-act-lbl">{t("keystrokes.keypresses")}</span>
+      <div className="report-keystroke-total">
+        <span className="report-keystroke-total__number ds-num">
+          {total.toLocaleString()}
+        </span>
+        <span className="report-keystroke-total__label">
+          {t("keystrokes.keypresses")}
+        </span>
       </div>
 
-      <div className="ad-chartscroll" ref={scrollRef}>
-        <svg width={svgW} height={H} viewBox={`0 0 ${svgW} ${H}`} style={{ overflow: "visible" }}>
-          {buckets.map((b, i) => {
-            const h = (b.count / max) * chartH;
-            const x = PAD + i * STEP;
-            const y = BOT - h;
-            const cx = x + BW / 2;
-            const on = i === active;
+      <div className="report-keystroke-chart" ref={scrollRef}>
+        <svg width={svgWidth} height={HEIGHT} aria-label={t("keystrokes.title")}>
+          <line
+            x1={PAD}
+            y1={BOTTOM}
+            x2={svgWidth - PAD}
+            y2={BOTTOM}
+            stroke="var(--ds-border-subtle)"
+          />
+          {buckets.map((bucket, index) => {
+            const barHeight = Math.max(2, (bucket.count / max) * CHART_HEIGHT);
+            const x = PAD + index * STEP;
+            const y = BOTTOM - barHeight;
+            const isActive = index === active;
             return (
-              <g key={b.ts_bucket}>
+              <g key={bucket.ts_bucket}>
                 <rect
                   x={x}
                   y={y}
-                  width={BW}
-                  height={h}
-                  rx={7}
-                  fill={on ? "var(--brand-500)" : "var(--data-sky)"}
-                  opacity={i > active ? 0.18 : 1}
+                  width={BAR_WIDTH}
+                  height={barHeight}
+                  rx={5}
+                  fill={isActive ? "var(--ds-brand)" : "var(--ds-info)"}
+                  opacity={selected !== null && index !== active ? 0.42 : 1}
                   style={{ cursor: "pointer" }}
-                  onClick={() => setSel(i)}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={t("keystrokes.tooltip", {
+                    time: time(bucket.ts_bucket),
+                    count: bucket.count,
+                  })}
+                  onClick={() => setSelected(index)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelected(index);
+                    }
+                  }}
                 />
-                {i % 3 === 0 && (
+                {index % 3 === 0 && (
                   <text
-                    x={cx}
-                    y={238}
+                    x={x + BAR_WIDTH / 2}
+                    y={207}
                     textAnchor="middle"
-                    fontSize={11}
-                    fontWeight={600}
-                    fill="var(--text-muted)"
-                    fontFamily="var(--font-sans)"
+                    fontSize="10"
+                    fill="var(--ds-text-tertiary)"
+                    fontFamily="var(--ds-font-sans)"
                   >
-                    {hh(b.ts_bucket)}
+                    {hour(bucket.ts_bucket)}
                   </text>
-                )}
-                {on && (
-                  <g transform={`translate(${cx}, ${y})`}>
-                    <rect x={-27} y={-30} width={54} height={24} rx={8} fill="var(--ink)" />
-                    <text
-                      x={0}
-                      y={-13}
-                      textAnchor="middle"
-                      fontSize={12}
-                      fontWeight={700}
-                      fill="#fff"
-                      fontFamily="var(--font-sans)"
-                    >
-                      {b.count.toLocaleString()}
-                    </text>
-                  </g>
                 )}
               </g>
             );
@@ -110,17 +123,15 @@ export function KeystrokePanel({ buckets }: { buckets: KeystrokeBucket[] }) {
         </svg>
       </div>
 
-      <div className="ad-timechips">
-        {buckets.map((b, i) => (
-          <button
-            key={b.ts_bucket}
-            className={`ad-timechip${i === active ? " ad-timechip--on" : ""}`}
-            onClick={() => setSel(i)}
-          >
-            {hhmm(b.ts_bucket)}
-          </button>
-        ))}
-      </div>
-    </div>
+      {buckets[active] && (
+        <p className="report-privacy-note">
+          {t("keystrokes.v1.selected", {
+            time: time(buckets[active].ts_bucket),
+            count: buckets[active].count,
+          })}
+        </p>
+      )}
+      <p className="report-privacy-note">{t("keystrokes.privacyNote")}</p>
+    </Card>
   );
 }

@@ -190,10 +190,11 @@
       "screenshots": "Screenshots"
     },
     "tabs": {
+      "overview": "Overview",
       "activity": "Activity",
-      "keystrokes": "Keystrokes",
+      "screenshots": "Screenshots",
       "browser": "Browser",
-      "screenshots": "Screenshots"
+      "devices": "Devices"
     },
     "singleDay": "Single day",
     "dateRange": "Date range",
@@ -216,7 +217,30 @@
       "renamePrompt": "Device name",
       "confirmRevoke": "Revoke this device? It will no longer be able to sync activity or screenshots until restored.",
       "confirmRestore": "Restore this device?",
-      "actionFailed": "Could not update the device."
+      "actionFailed": "Could not update the device.",
+      "saved": "Device updated.",
+      "v1": {
+        "emptyDescription": "The device will appear here after the ActiLens agent syncs for the first time."
+      }
+    },
+    "errorIdentity": "Could not load this employee.",
+    "v1": {
+      "owner": "Owner",
+      "currentApplication": "Current application",
+      "currentWindow": "Current window",
+      "notFound": "Employee not found",
+      "notFoundDescription": "The employee is no longer available in this organization.",
+      "shareOfTime": "{{value}}% of active time",
+      "noShare": "No active-time share yet",
+      "countsOnly": "Counts only — typed content is never stored",
+      "currentState": "Current state",
+      "status": "Status",
+      "lastSeen": "Last seen",
+      "periodSummary": "Selected period",
+      "noActivityData": "No activity data for this period",
+      "noKeyboardData": "No keyboard-count data for this period",
+      "noScreenshotData": "No screenshots for this period",
+      "noBrowserData": "No browser data for this period"
     }
   }
 }
