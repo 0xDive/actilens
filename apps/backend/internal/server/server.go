@@ -65,9 +65,22 @@ func New(cfg *config.Config, st *store.Store, files *filestore.Store, ret *reten
 	a.POST("/login", authH.Login)
 	a.POST("/enroll", authH.Enroll)
 	a.POST("/refresh", authH.Refresh)
+	a.POST("/mfa/complete", authH.CompleteMFA)
 
 	authed := v1.Group("", tok.Required(), accountGuard(st))
 	authed.GET("/me", authH.Me)
+	authed.GET("/account", authH.Account)
+	authed.PATCH("/account/profile", authH.UpdateOwnDisplayName)
+	authed.PATCH("/account/login-identifiers", authH.UpdateOwnLoginIdentifiers)
+	authed.POST("/account/password/change", authH.ChangeOwnPassword)
+	authed.GET("/account/sessions", authH.ListSessions)
+	authed.DELETE("/account/sessions/:session_id", authH.RevokeSession)
+	authed.POST("/account/sessions/revoke-others", authH.RevokeOtherSessions)
+	authed.GET("/account/mfa", authH.MFAState)
+	authed.POST("/account/mfa/totp/setup", authH.BeginMFASetup)
+	authed.POST("/account/mfa/totp/confirm", authH.ConfirmMFASetup)
+	authed.POST("/account/mfa/recovery/regenerate", authH.RegenerateRecoveryCodes)
+	authed.POST("/account/mfa/disable", authH.DisableMFA)
 
 	// Membership / RBAC discovery and membership controls.
 	authed.GET("/memberships/mine", ownerH.ListMyMemberships)
@@ -76,6 +89,7 @@ func New(cfg *config.Config, st *store.Store, files *filestore.Store, ret *reten
 	authed.PATCH("/businesses/:id/members/:user_id/monitoring", ownerH.UpdateMemberMonitoring)
 	authed.DELETE("/businesses/:id/members/:user_id/purge", purgeH.Purge)
 	authed.POST("/businesses/:id/members/:user_id/enrollment-token", ownerH.CreateEnrollmentToken)
+	authed.POST("/businesses/:id/members/:user_id/mfa/reset", authH.ResetMemberMFA)
 
 	// Business, employee, device and audit management.
 	authed.POST("/businesses", ownerH.CreateOrganization)
