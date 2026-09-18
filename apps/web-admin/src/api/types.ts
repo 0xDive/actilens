@@ -129,6 +129,7 @@ export interface Device {
   platform: string;
   arch: string;
   app_version: string;
+  version_status: "current" | "outdated" | "unknown";
   first_seen: number;
   last_seen: number | null;
   revoked_at: number | null;
