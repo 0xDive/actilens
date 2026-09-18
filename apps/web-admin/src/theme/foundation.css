@@ -330,6 +330,36 @@ textarea {
   background: var(--ds-info-soft);
 }
 
+
+/* alerts */
+.ds-alert {
+  padding: 11px 13px;
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-md);
+  font-size: var(--ds-text-sm);
+  line-height: 19px;
+}
+.ds-alert--info {
+  color: var(--ds-info);
+  border-color: color-mix(in srgb, var(--ds-info) 24%, transparent);
+  background: var(--ds-info-soft);
+}
+.ds-alert--success {
+  color: var(--ds-success);
+  border-color: color-mix(in srgb, var(--ds-success) 24%, transparent);
+  background: var(--ds-success-soft);
+}
+.ds-alert--warning {
+  color: var(--ds-warning);
+  border-color: color-mix(in srgb, var(--ds-warning) 24%, transparent);
+  background: var(--ds-warning-soft);
+}
+.ds-alert--danger {
+  color: var(--ds-danger);
+  border-color: color-mix(in srgb, var(--ds-danger) 24%, transparent);
+  background: var(--ds-danger-soft);
+}
+
 /* form fields */
 .ds-field {
   display: grid;
