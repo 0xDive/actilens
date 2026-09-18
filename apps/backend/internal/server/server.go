@@ -78,8 +78,10 @@ func New(cfg *config.Config, st *store.Store, files *filestore.Store, ret *reten
 	authed.POST("/businesses/:id/members/:user_id/enrollment-token", ownerH.CreateEnrollmentToken)
 
 	// Business, employee, device and audit management.
-	authed.POST("/businesses", ownerH.CreateBusiness)
+	authed.POST("/businesses", ownerH.CreateOrganization)
 	authed.GET("/businesses/mine", ownerH.ListMine)
+	authed.GET("/businesses/:id", ownerH.GetOrganization)
+	authed.PATCH("/businesses/:id", ownerH.UpdateOrganization)
 	authed.GET("/businesses/:id/employees", ownerH.ListEmployees)
 	authed.GET("/businesses/:id/audit", ownerH.ListAuditEvents)
 	authed.PATCH("/businesses/:id/settings", ownerH.UpdateSettings)
