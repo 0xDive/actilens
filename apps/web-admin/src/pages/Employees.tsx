@@ -1,321 +1,422 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Trans, useTranslation } from "react-i18next";
 import {
+  archiveEmployee,
   createBusiness,
   createEmployee,
   listBusinessEmployees,
-  updateEmployee,
   resetEmployeePassword,
-  archiveEmployee,
+  updateEmployee,
 } from "../api/endpoints";
 import { ApiError, type BusinessKind, type Employee } from "../api/types";
-import { Empty, Modal, Notice, Spinner } from "../components/ui";
+import {
+  Alert,
+  Button,
+  Dialog,
+  EmptyState,
+  IconButton,
+  PageHeader,
+  Skeleton,
+  TextField,
+} from "../components/ds";
+import { useToast } from "../components/ToastProvider";
 import { MemberRoleControl } from "../components/employee/MemberRoleControl";
 import { MemberMonitoringControl } from "../components/employee/MemberMonitoringControl";
+import { EnrollmentTokenControl } from "../components/employee/EnrollmentTokenControl";
 import { PermanentDeleteControl } from "../components/employee/PermanentDeleteControl";
 import { useBusinesses } from "../useBusinesses";
 import { memberTerms, type MemberTerms } from "../terms";
-import { useAuth } from "../auth/AuthContext";
 import { canManageMembers, canManageRoles } from "../rbac";
+import "../theme/employees.css";
 
-// ── display-only helpers (mirror the Dashboard roster look) ──────────
-const svg = (children: ReactNode) => (
-  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-    {children}
-  </svg>
-);
-const IconPlus = svg(<><path d="M5 12h14" /><path d="M12 5v14" /></>);
-const IconUserPlus = svg(<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><line x1="19" x2="19" y1="8" y2="14" /><line x1="22" x2="16" y1="11" y2="11" /></>);
-const IconArrowRight = svg(<><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></>);
-const IconBuilding = svg(<><path d="M10 12h4" /><path d="M10 8h4" /><path d="M14 21v-3a2 2 0 0 0-4 0v3" /><path d="M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2" /><path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16" /></>);
-const IconClose = svg(<><path d="M18 6 6 18M6 6l12 12" /></>);
-const IconHouse = svg(<><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></>);
-const IconDices = svg(<><rect width="12" height="12" x="2" y="10" rx="2" ry="2" /><path d="m17.92 14 3.5-3.5a2.24 2.24 0 0 0 0-3l-5-4.92a2.24 2.24 0 0 0-3 0L10 6" /><path d="M6 18h.01" /><path d="M10 14h.01" /><path d="M15 6h.01" /><path d="M18 9h.01" /></>);
-
-/** Local strong temp-password generator (mirrors the wizard's). */
-function genTempPassword(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-  let out = "";
-  for (let i = 0; i < 10; i++) out += chars[Math.floor(Math.random() * chars.length)];
-  return out;
+function Icon({
+  children,
+  size = 16,
+}: {
+  children: React.ReactNode;
+  size?: number;
+}) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      {children}
+    </svg>
+  );
 }
 
-const AVATAR_PALETTE = [
-  { bg: "var(--info-soft)", fg: "var(--info)" },
-  { bg: "var(--positive-soft)", fg: "var(--positive)" },
-  { bg: "color-mix(in srgb, var(--data-rose) 18%, transparent)", fg: "var(--data-rose)" },
-  { bg: "color-mix(in srgb, var(--data-amber) 22%, transparent)", fg: "var(--data-amber)" },
-];
-const initials = (name: string) =>
-  name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
+const PlusIcon = () => (
+  <Icon>
+    <path d="M12 5v14" />
+    <path d="M5 12h14" />
+  </Icon>
+);
 
-function employeeStatus(e: Employee): "active" | "idle" | "offline" {
-  if (!e.active || !e.last_seen) return "offline";
-  const age = Math.max(0, Date.now() / 1000 - e.last_seen);
+const MoreIcon = () => (
+  <Icon size={18}>
+    <circle cx="5" cy="12" r="1" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+    <circle cx="19" cy="12" r="1" fill="currentColor" stroke="none" />
+  </Icon>
+);
+
+const DiceIcon = () => (
+  <Icon>
+    <rect x="3" y="3" width="18" height="18" rx="4" />
+    <circle cx="8" cy="8" r="1" fill="currentColor" stroke="none" />
+    <circle cx="16" cy="16" r="1" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+  </Icon>
+);
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "?";
+  if (parts.length === 1) return parts[0][0]?.toUpperCase() || "?";
+  return `${parts[0][0] || ""}${parts[parts.length - 1][0] || ""}`.toUpperCase();
+}
+
+type Presence = "active" | "idle" | "offline" | "blocked";
+
+function presence(employee: Employee): Presence {
+  if (!employee.active) return "blocked";
+  if (!employee.last_seen) return "offline";
+  const age = Math.max(0, Date.now() / 1000 - employee.last_seen);
   if (age < 420) return "active";
   if (age < 1200) return "idle";
   return "offline";
 }
 
-export function Employees() {
+function genTempPassword(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  let out = "";
+  for (let i = 0; i < 12; i++) {
+    out += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return out;
+}
+
+function useDismiss(open: boolean, close: () => void) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event: MouseEvent) {
+      if (ref.current && !ref.current.contains(event.target as Node)) close();
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") close();
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open, close]);
+
+  return ref;
+}
+
+function EmployeesSkeleton() {
+  return (
+    <div className="employees-loading-card" aria-hidden>
+      {Array.from({ length: 4 }, (_, index) => (
+        <div className="employees-loading-row" key={index}>
+          <Skeleton width="72%" height={16} />
+          <Skeleton width="68%" height={14} />
+          <Skeleton width={92} height={26} />
+          <Skeleton width={112} height={24} />
+          <Skeleton width="70%" height={14} />
+          <Skeleton width={86} height={14} />
+          <Skeleton width={30} height={30} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EmployeeActionsMenu({
+  employee,
+  businessId,
+  canManage,
+  canDelete,
+  onChanged,
+}: {
+  employee: Employee;
+  businessId: string;
+  canManage: boolean;
+  canDelete: boolean;
+  onChanged: () => void;
+}) {
   const { t } = useTranslation("dashboard");
-  const { user } = useAuth();
-  const {
-    businesses,
-    selected,
-    selectedId,
-    setSelectedId,
-    loading: bizLoading,
-    reload: reloadBiz,
-  } = useBusinesses();
+  const { pushToast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [editName, setEditName] = useState(employee.display_name);
+  const [editLogin, setEditLogin] = useState(employee.email || employee.username || "");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [dialogError, setDialogError] = useState<string | null>(null);
+  const ref = useDismiss(open, () => setOpen(false));
 
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [listError, setListError] = useState<string | null>(null);
+  async function saveEdit() {
+    const name = editName.trim();
+    const login = editLogin.trim();
+    if (!name || !login) return;
 
-  const [showBiz, setShowBiz] = useState(false);
-  const [showEmp, setShowEmp] = useState(false);
-  const [autoCreatedNote, setAutoCreatedNote] = useState<string | null>(null);
-
-  const terms = memberTerms(selected?.kind);
-  const mayManageMembers = canManageMembers(selected?.role);
-  const mayManageRoles = canManageRoles(selected?.role);
-
-  function loadEmployees(id: string) {
-    setLoading(true);
-    setListError(null);
-    listBusinessEmployees(id)
-      .then((r) => setEmployees(r.employees))
-      .catch(() => setListError(t("employees.errorLoadMembers", { members: terms.lowerMany })))
-      .finally(() => setLoading(false));
+    setBusy(true);
+    setDialogError(null);
+    try {
+      const patch = login.includes("@")
+        ? { display_name: name, email: login, username: "" }
+        : { display_name: name, username: login.toLowerCase(), email: "" };
+      await updateEmployee(employee.id, patch);
+      setEditOpen(false);
+      setOpen(false);
+      onChanged();
+      pushToast({ title: t("employees.prompts.saved"), tone: "success" });
+    } catch {
+      setDialogError(t("employees.prompts.failed"));
+    } finally {
+      setBusy(false);
+    }
   }
 
-  useEffect(() => {
-    if (selectedId) loadEmployees(selectedId);
-    else setEmployees([]);
-  }, [selectedId]);
-
-  // Open the "new business" modal when arrived here via the topbar picker (?new=1).
-  const [searchParams, setSearchParams] = useSearchParams();
-  useEffect(() => {
-    if (searchParams.get("new") === null) return;
-    setShowBiz(true);
-    searchParams.delete("new");
-    setSearchParams(searchParams, { replace: true });
-  }, [searchParams, setSearchParams]);
-
-  const hasBusiness = businesses.length > 0;
-
-  async function editEmployeeAccount(e: Employee) {
-    const displayName = window.prompt(t("employees.prompts.displayName"), e.display_name);
-    if (displayName === null) return;
-    const login = window.prompt(t("employees.prompts.login"), e.email || e.username || "");
-    if (login === null) return;
-    const v = login.trim();
-    const patch = v.includes("@")
-      ? { display_name: displayName.trim(), email: v, username: "" }
-      : { display_name: displayName.trim(), username: v.toLowerCase(), email: "" };
+  async function savePassword() {
+    if (password.length < 8) return;
+    setBusy(true);
+    setDialogError(null);
     try {
-      await updateEmployee(e.id, patch);
-      if (selectedId) loadEmployees(selectedId);
-    } catch { window.alert(t("employees.prompts.failed")); }
+      await resetEmployeePassword(employee.id, password);
+      setPasswordOpen(false);
+      setOpen(false);
+      setPassword("");
+      pushToast({ title: t("employees.prompts.passwordSaved"), tone: "success" });
+    } catch {
+      setDialogError(t("employees.prompts.failed"));
+    } finally {
+      setBusy(false);
+    }
   }
 
-  async function changeEmployeePassword(e: Employee) {
-    const password = window.prompt(t("employees.prompts.password"));
-    if (!password) return;
-    if (password.length < 8) { window.alert(t("employees.prompts.password")); return; }
+  async function toggleActive() {
+    setBusy(true);
+    setDialogError(null);
     try {
-      await resetEmployeePassword(e.id, password);
-      window.alert(t("employees.prompts.passwordSaved"));
-    } catch { window.alert(t("employees.prompts.failed")); }
-  }
-
-  async function toggleEmployeeActive(e: Employee) {
-    const ok = window.confirm(t(e.active ? "employees.prompts.confirmArchive" : "employees.prompts.confirmRestore"));
-    if (!ok) return;
-    try {
-      if (e.active) await archiveEmployee(e.id);
-      else await updateEmployee(e.id, { active: true });
-      if (selectedId) loadEmployees(selectedId);
-    } catch { window.alert(t("employees.prompts.failed")); }
+      if (employee.active) await archiveEmployee(employee.id);
+      else await updateEmployee(employee.id, { active: true });
+      setStatusOpen(false);
+      setOpen(false);
+      onChanged();
+      pushToast({ title: t("employees.prompts.saved"), tone: "success" });
+    } catch {
+      setDialogError(t("employees.prompts.failed"));
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <div className="ad-wrap" style={{ paddingBottom: 32 }}>
-      <div className="ad-pagehead">
-        <div className="ad-pagehead__main">
-          <h1 className="ad-h1">{terms.many}</h1>
-          {selected && (
-            <p className="ad-sub">
-              {selected.name} · {employees.length} {terms.many}
-            </p>
-          )}
-        </div>
-        <div className="ad-pagehead__actions">
-          <button className="actilens-btn actilens-btn--secondary" onClick={() => setShowBiz(true)}>
-            <span style={{ display: "inline-flex", lineHeight: 0 }}>{IconPlus}</span>
-            <span>{t("employees.newOrg", { org: terms.org })}</span>
-          </button>
-          {mayManageMembers && (
-            <button className="actilens-btn actilens-btn--primary" onClick={() => setShowEmp(true)}>
-              <span style={{ display: "inline-flex", lineHeight: 0 }}>{IconUserPlus}</span>
-              <span>{terms.addCta}</span>
-            </button>
-          )}
-        </div>
-      </div>
+    <div className="employees-actions" ref={ref}>
+      <IconButton
+        label={t("employees.actions.more")}
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen((current) => !current);
+        }}
+      >
+        <MoreIcon />
+      </IconButton>
 
-      {!hasBusiness && !bizLoading && (
-        <div style={{ marginBottom: 16 }}>
-          <Notice kind="info">
-            <Trans
-              i18nKey="employees.noBusinessNotice"
-              t={t}
-              values={{ member: terms.lowerOne }}
-              components={{ 1: <em /> }}
+      {open && (
+        <div className="ds-shell-popover employees-actions__menu" role="menu">
+          <Link
+            className="ds-menu__item"
+            to={`/employees/${employee.id}?business=${businessId}`}
+            onClick={() => setOpen(false)}
+          >
+            {t("employees.actions.openProfile")}
+          </Link>
+
+          {canManage && (
+            <>
+              <EnrollmentTokenControl
+                employee={employee}
+                businessId={businessId}
+                canChange={canManage}
+                triggerVariant="menu-item"
+                onDialogClose={() => setOpen(false)}
+              />
+              <button
+                type="button"
+                className="ds-menu__item"
+                onClick={() => {
+                  setEditName(employee.display_name);
+                  setEditLogin(employee.email || employee.username || "");
+                  setDialogError(null);
+                  setEditOpen(true);
+                }}
+              >
+                {t("employees.actions.edit")}
+              </button>
+              <button
+                type="button"
+                className="ds-menu__item"
+                onClick={() => {
+                  setPassword("");
+                  setDialogError(null);
+                  setPasswordOpen(true);
+                }}
+              >
+                {t("employees.actions.password")}
+              </button>
+              <button
+                type="button"
+                className="ds-menu__item"
+                onClick={() => {
+                  setDialogError(null);
+                  setStatusOpen(true);
+                }}
+              >
+                {t(employee.active ? "employees.actions.archive" : "employees.actions.restore")}
+              </button>
+            </>
+          )}
+
+          {canDelete && (
+            <>
+              <div className="ds-menu__separator" />
+              <PermanentDeleteControl
+                employee={employee}
+                businessId={businessId}
+                canDelete={canDelete}
+                onDeleted={onChanged}
+                triggerVariant="menu-item"
+                onDialogClose={() => setOpen(false)}
+              />
+            </>
+          )}
+        </div>
+      )}
+
+      {editOpen && (
+        <Dialog
+          title={t("employees.actions.edit")}
+          onClose={() => !busy && setEditOpen(false)}
+          closeOnBackdrop={!busy}
+          footer={
+            <>
+              <Button variant="secondary" disabled={busy} onClick={() => setEditOpen(false)}>
+                {t("newBusinessModal.cancel")}
+              </Button>
+              <Button variant="primary" loading={busy} onClick={saveEdit}>
+                {t("common:actions.save")}
+              </Button>
+            </>
+          }
+        >
+          <div className="employees-form">
+            <TextField
+              id={`edit-name-${employee.id}`}
+              label={t("employees.prompts.displayName")}
+              value={editName}
+              onChange={(event) => setEditName(event.target.value)}
+              disabled={busy}
             />
-          </Notice>
-        </div>
+            <TextField
+              id={`edit-login-${employee.id}`}
+              label={t("employees.prompts.login")}
+              value={editLogin}
+              onChange={(event) => setEditLogin(event.target.value)}
+              disabled={busy}
+              autoCapitalize="none"
+              spellCheck={false}
+            />
+            {dialogError && <Alert tone="danger">{dialogError}</Alert>}
+          </div>
+        </Dialog>
       )}
 
-      {autoCreatedNote && (
-        <div style={{ marginBottom: 16 }}>
-          <Notice kind="success">{autoCreatedNote}</Notice>
-        </div>
+      {passwordOpen && (
+        <Dialog
+          title={t("employees.actions.password")}
+          onClose={() => !busy && setPasswordOpen(false)}
+          closeOnBackdrop={!busy}
+          footer={
+            <>
+              <Button variant="secondary" disabled={busy} onClick={() => setPasswordOpen(false)}>
+                {t("newBusinessModal.cancel")}
+              </Button>
+              <Button
+                variant="primary"
+                loading={busy}
+                disabled={password.length < 8}
+                onClick={savePassword}
+              >
+                {t("common:actions.save")}
+              </Button>
+            </>
+          }
+        >
+          <div className="employees-form">
+            <TextField
+              id={`password-${employee.id}`}
+              label={t("employees.prompts.password")}
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              disabled={busy}
+              autoComplete="new-password"
+            />
+            {dialogError && <Alert tone="danger">{dialogError}</Alert>}
+          </div>
+        </Dialog>
       )}
 
-      {bizLoading && <Spinner label={t("employees.loading")} />}
-
-      {listError && <Notice kind="danger">{listError}</Notice>}
-      {loading && <Spinner label={t("employees.loadingMembers", { members: terms.lowerMany })} />}
-
-      {!loading && selectedId && employees.length === 0 && !listError && (
-        <Empty>{t("employees.noMembersYet", { members: terms.lowerMany })}</Empty>
-      )}
-
-      {employees.length > 0 && (
-        <div className="actilens-card actilens-card--default ad-tablecard">
-          <table className="ad-table ad-table--roster">
-            <thead>
-              <tr>
-                <th>{t("employees.table.name")}</th>
-                <th>{t("employees.table.login")}</th>
-                <th>{t("employees.table.role")}</th>
-                <th>{t("employees.table.monitoring")}</th>
-                <th>{t("employees.table.currentApp")}</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {employees.map((e, i) => {
-                const pal = AVATAR_PALETTE[i % AVATAR_PALETTE.length];
-                const isSelf = e.id === user?.id;
-                const status = employeeStatus(e);
-                const mayManageThis = mayManageMembers && !(selected?.role === "admin" && e.role === "admin");
-                return (
-                  <tr key={e.id}>
-                    <td>
-                      <div className="ad-name">
-                        <span className="actilens-avatar" style={{ ["--_s" as string]: "34px" }}>
-                          <span className="actilens-avatar__img" aria-label={e.display_name} style={{ background: pal.bg, color: pal.fg }}>
-                            {initials(e.display_name)}
-                          </span>
-                          <span className={`actilens-avatar__dot actilens-avatar__dot--${status}`} />
-                        </span>
-                        <span className="ad-name__txt">
-                          {e.display_name}
-                          {isSelf && <span className="ad-self">{t("dashboard.selfBadge")}</span>}
-                          {!e.active && <span className="ad-self">{t("employees.blocked")}</span>}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="ad-login">{e.email || e.username}</td>
-                    <td>
-                      <MemberRoleControl
-                        employee={e}
-                        businessId={selectedId!}
-                        canChange={mayManageRoles}
-                        onChanged={() => selectedId && loadEmployees(selectedId)}
-                      />
-                    </td>
-                    <td>
-                      <MemberMonitoringControl
-                        employee={e}
-                        businessId={selectedId!}
-                        canChange={mayManageThis}
-                        onChanged={() => selectedId && loadEmployees(selectedId)}
-                      />
-                    </td>
-                    <td className="ad-login">{status === "offline" ? "—" : (e.current_app || "—")}</td>
-                    <td className="r">
-                      <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", alignItems: "center", flexWrap: "wrap" }}>
-                        <Link className="ad-viewlink" to={`/employees/${e.id}?business=${selectedId}`}>
-                          {t("employees.viewReports")}{IconArrowRight}
-                        </Link>
-                        {mayManageThis && (
-                          <>
-                            <button className="actilens-btn actilens-btn--ghost" onClick={() => editEmployeeAccount(e)}>{t("employees.actions.edit")}</button>
-                            <button className="actilens-btn actilens-btn--ghost" onClick={() => changeEmployeePassword(e)}>{t("employees.actions.password")}</button>
-                            <button className="actilens-btn actilens-btn--ghost" onClick={() => toggleEmployeeActive(e)}>
-                              {t(e.active ? "employees.actions.archive" : "employees.actions.restore")}
-                            </button>
-                            <PermanentDeleteControl
-                              employee={e}
-                              businessId={selectedId!}
-                              canDelete={mayManageRoles}
-                              onDeleted={() => selectedId && loadEmployees(selectedId)}
-                            />
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {showBiz && (
-        <NewBusinessModal
-          terms={terms}
-          kind={selected?.kind}
-          onClose={() => setShowBiz(false)}
-          onCreated={async (id) => {
-            setShowBiz(false);
-            await reloadBiz();
-            setSelectedId(id);
-          }}
-        />
-      )}
-
-      {showEmp && mayManageMembers && (
-        <NewEmployeeModal
-          businessId={selectedId}
-          terms={terms}
-          onClose={() => setShowEmp(false)}
-          onCreated={async (newBusinessId, wasAutoCreated) => {
-            setShowEmp(false);
-            if (wasAutoCreated) {
-              await reloadBiz();
-              setSelectedId(newBusinessId);
-              setAutoCreatedNote(
-                t("employees.autoCreatedNote", { member: terms.lowerOne }),
-              );
-            } else if (selectedId) {
-              loadEmployees(selectedId);
-            }
-          }}
-        />
+      {statusOpen && (
+        <Dialog
+          title={t(employee.active ? "employees.actions.archive" : "employees.actions.restore")}
+          size="confirm"
+          onClose={() => !busy && setStatusOpen(false)}
+          closeOnBackdrop={!busy}
+          footer={
+            <>
+              <Button variant="secondary" disabled={busy} onClick={() => setStatusOpen(false)}>
+                {t("newBusinessModal.cancel")}
+              </Button>
+              <Button
+                variant={employee.active ? "danger" : "primary"}
+                loading={busy}
+                onClick={toggleActive}
+              >
+                {t(employee.active ? "employees.actions.archive" : "employees.actions.restore")}
+              </Button>
+            </>
+          }
+        >
+          <p className="employees-dialog-note">
+            {t(employee.active ? "employees.prompts.confirmArchive" : "employees.prompts.confirmRestore")}
+          </p>
+          {dialogError && <Alert tone="danger">{dialogError}</Alert>}
+        </Dialog>
       )}
     </div>
   );
 }
 
-function NewBusinessModal({
+function NewBusinessDialog({
   terms,
   kind,
   onClose,
@@ -327,19 +428,20 @@ function NewBusinessModal({
   onCreated: (id: string) => void;
 }) {
   const { t } = useTranslation("dashboard");
-  const isFamily = kind === "family";
-  const orgCap = terms.org.charAt(0).toUpperCase() + terms.org.slice(1);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isFamily = kind === "family";
+  const orgCap = terms.org.charAt(0).toUpperCase() + terms.org.slice(1);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!name.trim()) return;
     setBusy(true);
     setError(null);
     try {
-      const biz = await createBusiness(name.trim());
-      onCreated(biz.id);
+      const business = await createBusiness(name.trim());
+      onCreated(business.id);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("newBusinessModal.errorCreate"));
     } finally {
@@ -348,57 +450,48 @@ function NewBusinessModal({
   }
 
   return (
-    <Modal wide onClose={onClose}>
-      <div className="actilens-dlg actilens-dlg--org" role="dialog" aria-modal="true">
-        <div className="actilens-dlg__head">
-          <div className="actilens-dlg__icon">
-            <span style={{ display: "inline-flex", lineHeight: 0 }}>{isFamily ? IconHouse : IconBuilding}</span>
-          </div>
-          <div className="actilens-dlg__title">{t("employees.newOrg", { org: terms.org })}</div>
-          <button
-            type="button"
-            className="actilens-dlg__close"
-            aria-label={t("newBusinessModal.cancel")}
-            onClick={onClose}
+    <Dialog
+      title={t("employees.newOrg", { org: terms.org })}
+      onClose={() => !busy && onClose()}
+      closeOnBackdrop={!busy}
+      footer={
+        <>
+          <Button variant="secondary" disabled={busy} onClick={onClose}>
+            {t("newBusinessModal.cancel")}
+          </Button>
+          <Button
+            type="submit"
+            form="new-business-form"
+            variant="primary"
+            loading={busy}
+            disabled={!name.trim()}
           >
-            {IconClose}
-          </button>
-        </div>
-        <form onSubmit={submit}>
-          <div className="actilens-dlg__body">
-            {error && (
-              <div style={{ marginBottom: 12 }}>
-                <Notice kind="danger">{error}</Notice>
-              </div>
-            )}
-            <label className="actilens-field">
-              <span className="actilens-field__lbl">{t("newBusinessModal.orgNameLabel", { org: orgCap })}</span>
-              <span className="actilens-input">
-                <input
-                  placeholder={t(isFamily ? "newBusinessModal.namePlaceholderFamily" : "newBusinessModal.namePlaceholder")}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  autoFocus
-                />
-              </span>
-            </label>
-          </div>
-          <div className="actilens-dlg__foot">
-            <button type="button" className="actilens-btn actilens-btn--ghost" onClick={onClose}>
-              {t("newBusinessModal.cancel")}
-            </button>
-            <button className="actilens-btn actilens-btn--primary" disabled={busy || !name.trim()}>
-              {busy ? t("newBusinessModal.creating") : t("newBusinessModal.create")}
-            </button>
-          </div>
-        </form>
-      </div>
-    </Modal>
+            {t("newBusinessModal.create")}
+          </Button>
+        </>
+      }
+    >
+      <form id="new-business-form" className="employees-form" onSubmit={submit}>
+        {error && <Alert tone="danger">{error}</Alert>}
+        <TextField
+          id="new-business-name"
+          label={t("newBusinessModal.orgNameLabel", { org: orgCap })}
+          placeholder={t(
+            isFamily
+              ? "newBusinessModal.namePlaceholderFamily"
+              : "newBusinessModal.namePlaceholder",
+          )}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          disabled={busy}
+          autoFocus
+        />
+      </form>
+    </Dialog>
   );
 }
 
-function NewEmployeeModal({
+function NewEmployeeDialog({
   businessId,
   terms,
   onClose,
@@ -417,26 +510,26 @@ function NewEmployeeModal({
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ login?: string; password?: string }>({});
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
     setBusy(true);
     setError(null);
     setFieldErrors({});
+
     const value = login.trim();
     const isEmail = value.includes("@");
+
     try {
-      const res = await createEmployee({
+      const result = await createEmployee({
         email: isEmail ? value : undefined,
         username: isEmail ? undefined : value.toLowerCase(),
         display_name: displayName.trim(),
         password,
-        // Omit business_id when none is selected: backend auto-creates one.
         business_id: businessId ?? undefined,
       });
-      onCreated(res.business.id, businessId === null);
+      onCreated(result.business.id, businessId === null);
     } catch (err) {
       if (err instanceof ApiError) {
-        // Map well-known validation cases inline; otherwise show a banner.
         if (err.status === 409) {
           setFieldErrors({ login: t("newEmployeeModal.errorTaken") });
         } else if (/password/i.test(err.message)) {
@@ -455,104 +548,344 @@ function NewEmployeeModal({
   }
 
   return (
-    <Modal wide onClose={onClose}>
-      <div className="actilens-dlg" role="dialog" aria-modal="true" style={{ ["--_w" as string]: "460px" }}>
-        <div className="actilens-dlg__head">
-          <div className="actilens-dlg__icon">
-            <span style={{ display: "inline-flex", lineHeight: 0 }}>{IconUserPlus}</span>
-          </div>
-          <div className="actilens-dlg__title">{terms.addCta}</div>
-          <button
-            type="button"
-            className="actilens-dlg__close"
-            aria-label={t("newEmployeeModal.cancel")}
-            onClick={onClose}
+    <Dialog
+      title={terms.addCta}
+      onClose={() => !busy && onClose()}
+      closeOnBackdrop={!busy}
+      footer={
+        <>
+          <Button variant="secondary" disabled={busy} onClick={onClose}>
+            {t("newEmployeeModal.cancel")}
+          </Button>
+          <Button
+            type="submit"
+            form="new-employee-form"
+            variant="primary"
+            loading={busy}
+            disabled={!displayName.trim() || !login.trim() || password.length < 8}
           >
-            {IconClose}
-          </button>
+            {t("newEmployeeModal.adding").replace("…", "")}
+          </Button>
+        </>
+      }
+    >
+      <form id="new-employee-form" className="employees-form" onSubmit={submit}>
+        {!businessId && (
+          <Alert tone="info">
+            {t("newEmployeeModal.noBusinessSelected", { member: terms.lowerOne })}
+          </Alert>
+        )}
+        {error && <Alert tone="danger">{error}</Alert>}
+
+        <TextField
+          id="new-employee-name"
+          label={t("newEmployeeModal.displayName")}
+          value={displayName}
+          onChange={(event) => setDisplayName(event.target.value)}
+          disabled={busy}
+          autoFocus
+        />
+
+        <TextField
+          id="new-employee-login"
+          label={t("newEmployeeModal.usernameOrEmail")}
+          value={login}
+          onChange={(event) => setLogin(event.target.value)}
+          disabled={busy}
+          error={fieldErrors.login}
+          autoCapitalize="none"
+          spellCheck={false}
+          autoComplete="off"
+        />
+
+        <div className="employees-password-row">
+          <TextField
+            id="new-employee-password"
+            label={t("newEmployeeModal.temporaryPassword")}
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            disabled={busy}
+            error={fieldErrors.password}
+            autoComplete="new-password"
+          />
+          <Button
+            variant="secondary"
+            leadingIcon={<DiceIcon />}
+            disabled={busy}
+            onClick={() => setPassword(genTempPassword())}
+          >
+            {t("newEmployeeModal.generate")}
+          </Button>
         </div>
-        <form onSubmit={submit}>
-          <div className="actilens-dlg__body">
-            {!businessId && (
-              <div style={{ marginBottom: 12 }}>
-                <Notice kind="info">
-                  {t("newEmployeeModal.noBusinessSelected", { member: terms.lowerOne })}
-                </Notice>
-              </div>
-            )}
-            {error && (
-              <div style={{ marginBottom: 12 }}>
-                <Notice kind="danger">{error}</Notice>
-              </div>
-            )}
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <label className="actilens-field">
-                <span className="actilens-field__lbl">{t("newEmployeeModal.displayName")}</span>
-                <span className="actilens-input">
-                  <input
-                    placeholder="Mia"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    required
-                    autoFocus
-                  />
-                </span>
-              </label>
-              <label className="actilens-field">
-                <span className="actilens-field__lbl">{t("newEmployeeModal.usernameOrEmail")}</span>
-                <span className="actilens-input">
-                  <input
-                    type="text"
-                    placeholder="mia_home"
-                    value={login}
-                    onChange={(e) => setLogin(e.target.value)}
-                    autoComplete="off"
-                    required
-                  />
-                </span>
-                {fieldErrors.login && <div className="error-text">{fieldErrors.login}</div>}
-              </label>
-              <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-                <div style={{ flex: "1 1 0%" }}>
-                  <label className="actilens-field">
-                    <span className="actilens-field__lbl">{t("newEmployeeModal.temporaryPassword")}</span>
-                    <span className="actilens-input actilens-input--dots">
-                      <input
-                        type="text"
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                      />
-                    </span>
-                    {fieldErrors.password && <div className="error-text">{fieldErrors.password}</div>}
-                  </label>
-                </div>
-                <button
-                  type="button"
-                  className="actilens-btn actilens-btn--secondary"
-                  title={t("newEmployeeModal.generate")}
-                  onClick={() => setPassword(genTempPassword())}
-                >
-                  <span style={{ display: "inline-flex", lineHeight: 0 }}>{IconDices}</span>
-                  <span>{t("newEmployeeModal.generate")}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-          <div className="actilens-dlg__foot">
-            <button type="button" className="actilens-btn actilens-btn--ghost" onClick={onClose}>
-              {t("newEmployeeModal.cancel")}
-            </button>
-            <button
-              className="actilens-btn actilens-btn--primary"
-              disabled={busy || !displayName.trim() || !login.trim() || !password}
+
+        <p className="employees-dialog-note">
+          {t("newEmployeeModal.shareCredentials", { member: terms.lowerOne })}
+        </p>
+      </form>
+    </Dialog>
+  );
+}
+
+export function Employees() {
+  const { t } = useTranslation("dashboard");
+  const { t: tCommon } = useTranslation("common");
+  const navigate = useNavigate();
+  const { pushToast } = useToast();
+  const {
+    businesses,
+    selected,
+    selectedId,
+    setSelectedId,
+    loading: businessLoading,
+    reload: reloadBusinesses,
+  } = useBusinesses();
+
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [listError, setListError] = useState<string | null>(null);
+  const [showBusiness, setShowBusiness] = useState(false);
+  const [showEmployee, setShowEmployee] = useState(false);
+
+  const terms = memberTerms(selected?.kind);
+  const mayManageMembers = canManageMembers(selected?.role);
+  const mayManageRoles = canManageRoles(selected?.role);
+
+  function loadEmployees(id: string) {
+    setLoading(true);
+    setListError(null);
+    listBusinessEmployees(id)
+      .then((result) => setEmployees(result.employees))
+      .catch(() =>
+        setListError(t("employees.errorLoadMembers", { members: terms.lowerMany })),
+      )
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    if (selectedId) loadEmployees(selectedId);
+    else setEmployees([]);
+  }, [selectedId]);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("new") === null) return;
+    setShowBusiness(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete("new");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  function relativeTime(timestamp?: number | null): string {
+    if (!timestamp) return t("employees.status.never");
+    const seconds = Math.max(0, Math.floor(Date.now() / 1000 - timestamp));
+    if (seconds < 60) return tCommon("time.justNow");
+    if (seconds < 3600) return tCommon("time.minutesAgo", { count: Math.floor(seconds / 60) });
+    if (seconds < 86400) return tCommon("time.hoursAgo", { count: Math.floor(seconds / 3600) });
+    return tCommon("time.daysAgo", { count: Math.floor(seconds / 86400) });
+  }
+
+  return (
+    <div className="employees-page">
+      <PageHeader
+        title={terms.many}
+        subtitle={
+          selected
+            ? `${selected.name} · ${t("employees.total", { count: employees.length })}`
+            : undefined
+        }
+        actions={
+          mayManageMembers ? (
+            <Button
+              variant="primary"
+              leadingIcon={<PlusIcon />}
+              onClick={() => setShowEmployee(true)}
             >
-              {busy ? t("newEmployeeModal.adding") : terms.addCta}
-            </button>
-          </div>
-        </form>
-      </div>
-    </Modal>
+              {terms.addCta}
+            </Button>
+          ) : undefined
+        }
+      />
+
+      {!businessLoading && businesses.length === 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <Alert tone="info">
+            <Trans
+              t={t}
+              i18nKey="employees.noBusinessNotice"
+              values={{ member: terms.lowerOne }}
+              components={{ 1: <em /> }}
+            />
+          </Alert>
+        </div>
+      )}
+
+      {listError && (
+        <div style={{ marginBottom: 16 }}>
+          <Alert tone="danger">{listError}</Alert>
+        </div>
+      )}
+
+      {(businessLoading || loading) && <EmployeesSkeleton />}
+
+      {!businessLoading && !loading && selectedId && employees.length === 0 && !listError && (
+        <EmptyState
+          title={t("employees.noMembersYet", { members: terms.lowerMany })}
+          action={
+            mayManageMembers ? (
+              <Button variant="primary" onClick={() => setShowEmployee(true)}>
+                {terms.addCta}
+              </Button>
+            ) : undefined
+          }
+        />
+      )}
+
+      {!loading && employees.length > 0 && selectedId && (
+        <div className="ds-table-wrap employees-table-wrap">
+          <table className="ds-table employees-table">
+            <thead>
+              <tr>
+                <th>{t("employees.table.name")}</th>
+                <th>{t("employees.table.login")}</th>
+                <th>{t("employees.table.role")}</th>
+                <th>{t("employees.table.monitoring")}</th>
+                <th>{t("employees.table.currentApp")}</th>
+                <th>{t("employees.table.lastSeen")}</th>
+                <th aria-label={t("employees.actions.more")} />
+              </tr>
+            </thead>
+            <tbody>
+              {employees.map((employee) => {
+                const state = presence(employee);
+                const isPeerAdmin =
+                  selected?.role === "admin" && employee.role === "admin";
+                const mayManageThis = mayManageMembers && !isPeerAdmin;
+                const statusLabel = t(`employees.status.${state}`);
+                const showCurrentApp =
+                  (state === "active" || state === "idle") && employee.current_app;
+
+                return (
+                  <tr
+                    key={employee.id}
+                    className="employees-row"
+                    tabIndex={0}
+                    onClick={(event) => {
+                      if (
+                        (event.target as HTMLElement).closest(
+                          "button, a, input, select, label",
+                        )
+                      ) {
+                        return;
+                      }
+                      navigate(`/employees/${employee.id}?business=${selectedId}`);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        navigate(`/employees/${employee.id}?business=${selectedId}`);
+                      }
+                    }}
+                  >
+                    <td>
+                      <div className="employees-person">
+                        <span className="employees-avatar">
+                          {initials(employee.display_name)}
+                          <span
+                            className={`employees-avatar__dot employees-avatar__dot--${state}`}
+                          />
+                        </span>
+                        <span className="employees-person__copy">
+                          <span className="employees-person__name">
+                            {employee.display_name}
+                          </span>
+                          <span className="employees-person__status">{statusLabel}</span>
+                        </span>
+                      </div>
+                    </td>
+                    <td className="employees-login">
+                      {employee.email || employee.username || "—"}
+                    </td>
+                    <td>
+                      <MemberRoleControl
+                        employee={employee}
+                        businessId={selectedId}
+                        canChange={mayManageRoles}
+                        onChanged={() => loadEmployees(selectedId)}
+                      />
+                    </td>
+                    <td>
+                      <MemberMonitoringControl
+                        employee={employee}
+                        businessId={selectedId}
+                        canChange={mayManageThis}
+                        onChanged={() => loadEmployees(selectedId)}
+                      />
+                    </td>
+                    <td>
+                      <div className="employees-app">
+                        <div className="employees-app__name">
+                          {showCurrentApp ? employee.current_app : "—"}
+                        </div>
+                        {showCurrentApp && employee.current_window && (
+                          <div className="employees-app__window">
+                            {employee.current_window}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="employees-last-seen">
+                      {relativeTime(employee.last_seen)}
+                    </td>
+                    <td>
+                      <EmployeeActionsMenu
+                        employee={employee}
+                        businessId={selectedId}
+                        canManage={mayManageThis}
+                        canDelete={mayManageRoles}
+                        onChanged={() => loadEmployees(selectedId)}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {showBusiness && (
+        <NewBusinessDialog
+          terms={terms}
+          kind={selected?.kind}
+          onClose={() => setShowBusiness(false)}
+          onCreated={async (id) => {
+            setShowBusiness(false);
+            await reloadBusinesses();
+            setSelectedId(id);
+          }}
+        />
+      )}
+
+      {showEmployee && mayManageMembers && (
+        <NewEmployeeDialog
+          businessId={selectedId}
+          terms={terms}
+          onClose={() => setShowEmployee(false)}
+          onCreated={async (newBusinessId, wasAutoCreated) => {
+            setShowEmployee(false);
+            if (wasAutoCreated) {
+              await reloadBusinesses();
+              setSelectedId(newBusinessId);
+              pushToast({
+                title: t("employees.autoCreatedNote", { member: terms.lowerOne }),
+                tone: "success",
+              });
+            } else if (selectedId) {
+              loadEmployees(selectedId);
+              pushToast({ title: t("employees.prompts.saved"), tone: "success" });
+            }
+          }}
+        />
+      )}
+    </div>
   );
 }
