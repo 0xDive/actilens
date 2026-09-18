@@ -423,3 +423,41 @@ func (s *Store) ListAuditEvents(ctx context.Context, actorID, businessID string,
 	}
 	return out, rows.Err()
 }
+
+
+func (s *Store) ListBusinessActiveDevices(
+	ctx context.Context,
+	actorID, businessID string,
+) ([]Device, error) {
+	if err := s.BusinessPermissionOrForbidden(
+		ctx, actorID, businessID, CapabilityDevicesView,
+	); err != nil {
+		return nil, err
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT `+deviceColumns+`
+		  FROM devices d
+		  JOIN memberships m
+		    ON m.user_id = d.user_id
+		   AND m.business_id = d.business_id
+		 WHERE d.business_id = $1
+		   AND d.revoked_at IS NULL
+		   AND m.status = 'active'
+		 ORDER BY d.last_seen_at DESC NULLS LAST, d.first_seen_at DESC`,
+		businessID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []Device{}
+	for rows.Next() {
+		device, err := scanDevice(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, device)
+	}
+	return out, rows.Err()
+}
