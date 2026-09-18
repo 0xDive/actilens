@@ -3,7 +3,12 @@
     "empty": "No activity recorded for this range.",
     "timeline": "Today's timeline",
     "breakdown": "App & window breakdown",
-    "idle": "Idle"
+    "idle": "Idle",
+    "v1": {
+      "emptyDescription": "Activity will appear after the desktop agent syncs data for this period.",
+      "timelineSubtitle": "Applications and idle gaps across the selected period",
+      "breakdownSubtitle": "Recorded active time by application"
+    }
   },
   "browser": {
     "empty": "No browser visits for this range.",
@@ -15,7 +20,10 @@
       "domain": "Domain"
     },
     "untitled": "(untitled)",
-    "title": "Sites visited"
+    "title": "Sites visited",
+    "v1": {
+      "emptyDescription": "Browser visits will appear after the extension and desktop agent sync data."
+    }
   },
   "keystrokes": {
     "empty": "No keystroke activity for this range.",
@@ -24,7 +32,11 @@
     "tooltip": "{{time}} — {{count}} keystrokes",
     "privacyNote": "Counts only. Individual keys are never captured or stored — this chart shows typing volume, not content.",
     "title": "Keystrokes through the day",
-    "keypresses": "keypresses"
+    "keypresses": "keypresses",
+    "v1": {
+      "subtitle": "Typing volume by time bucket",
+      "selected": "{{time}} · {{count}} keypresses"
+    }
   },
   "screenshots": {
     "empty": "No screenshots for this range.",
@@ -35,6 +47,10 @@
     "title": "Captured screenshots",
     "prev": "Previous screenshot",
     "next": "Next screenshot",
-    "close": "Close"
+    "close": "Close",
+    "v1": {
+      "subtitle": "Captured images for the selected period",
+      "emptyDescription": "Screenshots will appear here when capture is enabled and the agent syncs them."
+    }
   }
 }
