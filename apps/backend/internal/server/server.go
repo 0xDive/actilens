@@ -62,6 +62,7 @@ func New(cfg *config.Config, st *store.Store, files *filestore.Store, ret *reten
 	a := v1.Group("/auth", middleware.LoginRateLimit())
 	a.POST("/register", authH.Register)
 	a.POST("/login", authH.Login)
+	a.POST("/enroll", authH.Enroll)
 	a.POST("/refresh", authH.Refresh)
 
 	authed := v1.Group("", tok.Required(), accountGuard(st))
@@ -72,6 +73,7 @@ func New(cfg *config.Config, st *store.Store, files *filestore.Store, ret *reten
 	authed.GET("/businesses/console", ownerH.ListConsoleBusinesses)
 	authed.PATCH("/businesses/:id/members/:user_id/role", ownerH.UpdateMemberRole)
 	authed.PATCH("/businesses/:id/members/:user_id/monitoring", ownerH.UpdateMemberMonitoring)
+	authed.POST("/businesses/:id/members/:user_id/enrollment-token", ownerH.CreateEnrollmentToken)
 
 	// Business, employee, device and audit management.
 	authed.POST("/businesses", ownerH.CreateBusiness)
