@@ -16,21 +16,42 @@ const (
 	RoleEmployee BusinessRole = "employee"
 )
 
-type BusinessPermission string
+type Capability string
 
 const (
-	PermissionReports         BusinessPermission = "reports"
-	PermissionManageEmployees BusinessPermission = "manage_employees"
-	PermissionManageDevices   BusinessPermission = "manage_devices"
-	PermissionSettings        BusinessPermission = "settings"
-	PermissionAudit           BusinessPermission = "audit"
-	PermissionManageRoles     BusinessPermission = "manage_roles"
+	CapabilityReportsView         Capability = "reports.view"
+	CapabilityMembersView         Capability = "members.view"
+	CapabilityMembersManage       Capability = "members.manage"
+	CapabilityMembersPurge        Capability = "members.purge"
+	CapabilityDevicesView         Capability = "devices.view"
+	CapabilityDevicesManage       Capability = "devices.manage"
+	CapabilitySettingsView        Capability = "settings.view"
+	CapabilitySettingsManage      Capability = "settings.manage"
+	CapabilityAuditView           Capability = "audit.view"
+	CapabilityRolesManage         Capability = "roles.manage"
+	CapabilityOrganizationManage  Capability = "organization.manage"
+	CapabilityOrganizationTransfer Capability = "organization.transfer"
+	CapabilityOrganizationDelete  Capability = "organization.delete"
+)
+
+// BusinessPermission remains an alias while existing call sites migrate to the
+// capability vocabulary.
+type BusinessPermission = Capability
+
+const (
+	PermissionReports         = CapabilityReportsView
+	PermissionManageEmployees = CapabilityMembersManage
+	PermissionManageDevices   = CapabilityDevicesManage
+	PermissionSettings        = CapabilitySettingsManage
+	PermissionAudit           = CapabilityAuditView
+	PermissionManageRoles     = CapabilityRolesManage
 )
 
 type Membership struct {
 	BusinessID        string       `json:"business_id"`
 	BusinessName      string       `json:"business_name"`
 	Role              BusinessRole `json:"role"`
+	Status            string       `json:"status"`
 	MonitoringEnabled bool         `json:"monitoring_enabled"`
 }
 
@@ -48,29 +69,40 @@ func ValidBusinessRole(role BusinessRole) bool {
 	}
 }
 
-func roleAllows(role BusinessRole, permission BusinessPermission) bool {
-	switch permission {
-	case PermissionReports:
-		return role == RoleOwner || role == RoleAdmin || role == RoleManager
-	case PermissionManageEmployees, PermissionManageDevices, PermissionSettings, PermissionAudit:
-		return role == RoleOwner || role == RoleAdmin
-	case PermissionManageRoles:
-		return role == RoleOwner
-	default:
-		return false
+func roleAllows(role BusinessRole, capability Capability) bool {
+	switch role {
+	case RoleOwner:
+		return true
+	case RoleAdmin:
+		switch capability {
+		case CapabilityReportsView, CapabilityMembersView, CapabilityMembersManage,
+			CapabilityDevicesView, CapabilityDevicesManage, CapabilitySettingsView,
+			CapabilitySettingsManage, CapabilityAuditView, CapabilityOrganizationManage:
+			return true
+		}
+	case RoleManager:
+		return capability == CapabilityReportsView || capability == CapabilityMembersView
 	}
+	return false
 }
 
 func (s *Store) MembershipRole(ctx context.Context, userID, businessID string) (BusinessRole, error) {
 	var role BusinessRole
+	var status string
 	err := s.pool.QueryRow(ctx,
-		`SELECT role FROM memberships WHERE user_id = $1 AND business_id = $2`,
+		`SELECT role, status FROM memberships WHERE user_id = $1 AND business_id = $2`,
 		userID, businessID,
-	).Scan(&role)
+	).Scan(&role, &status)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", ErrNotFound
 	}
-	return role, err
+	if err != nil {
+		return "", err
+	}
+	if status != "active" {
+		return role, ErrForbidden
+	}
+	return role, nil
 }
 
 func (s *Store) MembershipMonitoringEnabled(ctx context.Context, userID, businessID string) (bool, error) {
@@ -87,14 +119,21 @@ func (s *Store) MembershipMonitoringEnabled(ctx context.Context, userID, busines
 
 func membershipRoleTx(ctx context.Context, tx pgx.Tx, userID, businessID string) (BusinessRole, error) {
 	var role BusinessRole
+	var status string
 	err := tx.QueryRow(ctx,
-		`SELECT role FROM memberships WHERE user_id = $1 AND business_id = $2`,
+		`SELECT role, status FROM memberships WHERE user_id = $1 AND business_id = $2`,
 		userID, businessID,
-	).Scan(&role)
+	).Scan(&role, &status)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", ErrNotFound
 	}
-	return role, err
+	if err != nil {
+		return "", err
+	}
+	if status != "active" {
+		return role, ErrForbidden
+	}
+	return role, nil
 }
 
 func (s *Store) HasBusinessPermission(ctx context.Context, userID, businessID string, permission BusinessPermission) (bool, error) {
@@ -124,7 +163,7 @@ func requireBusinessPermissionTx(ctx context.Context, tx pgx.Tx, userID, busines
 
 func (s *Store) MembershipsForUser(ctx context.Context, userID string) ([]Membership, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT m.business_id, b.name, m.role, m.monitoring_enabled
+		SELECT m.business_id, b.name, m.role, m.status, m.monitoring_enabled
 		  FROM memberships m
 		  JOIN businesses b ON b.id = m.business_id
 		 WHERE m.user_id = $1
@@ -137,7 +176,7 @@ func (s *Store) MembershipsForUser(ctx context.Context, userID string) ([]Member
 	out := []Membership{}
 	for rows.Next() {
 		var m Membership
-		if err := rows.Scan(&m.BusinessID, &m.BusinessName, &m.Role, &m.MonitoringEnabled); err != nil {
+		if err := rows.Scan(&m.BusinessID, &m.BusinessName, &m.Role, &m.Status, &m.MonitoringEnabled); err != nil {
 			return nil, err
 		}
 		out = append(out, m)
@@ -155,7 +194,7 @@ func (s *Store) ListBusinessesForConsole(ctx context.Context, userID string) ([]
 		       b.screenshot_mode, b.screenshot_skip_apps, m.role
 		  FROM memberships m
 		  JOIN businesses b ON b.id = m.business_id
-		 WHERE m.user_id = $1 AND m.role IN ('owner','admin','manager')
+		 WHERE m.user_id = $1 AND m.status = 'active' AND m.role IN ('owner','admin','manager')
 		 ORDER BY b.created_at, b.name`, userID)
 	if err != nil {
 		return nil, err
