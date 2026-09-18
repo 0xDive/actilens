@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import "@fontsource-variable/manrope";
 import "./theme/theme.css";
 import "./theme/foundation.css";
+import "./theme/shell.css";
 import "./i18n";
 import App from "./App";
 import { initSentry, Sentry } from "./sentry";
