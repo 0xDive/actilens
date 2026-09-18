@@ -15,51 +15,8 @@ type MemberPurgeResult struct {
 	BrowserDeleted     int64 `json:"browser_deleted"`
 	ScreenshotsDeleted int64 `json:"screenshots_deleted"`
 	EnrollmentsDeleted int64 `json:"enrollments_deleted"`
+	BytesFreed         int64 `json:"bytes_freed"`
 	AccountTombstoned  bool  `json:"account_tombstoned"`
-}
-
-// MemberPurgeScreenshotFiles authorizes an owner and returns the physical
-// screenshot files that must be removed before the database purge. The final
-// database transaction re-checks the same authorization to close the TOCTOU gap.
-func (s *Store) MemberPurgeScreenshotFiles(ctx context.Context, actorID, businessID, targetUserID string) ([]ScreenshotFile, error) {
-	actorRole, err := s.MembershipRole(ctx, actorID, businessID)
-	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			return nil, ErrForbidden
-		}
-		return nil, err
-	}
-	if actorRole != RoleOwner {
-		return nil, ErrForbidden
-	}
-
-	targetRole, err := s.MembershipRole(ctx, targetUserID, businessID)
-	if err != nil {
-		return nil, err
-	}
-	if targetRole == RoleOwner {
-		return nil, ErrForbidden
-	}
-
-	rows, err := s.pool.Query(ctx, `
-		SELECT id, file_path, byte_size
-		  FROM screenshots
-		 WHERE business_id = $1 AND user_id = $2
-		 ORDER BY id`, businessID, targetUserID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	out := []ScreenshotFile{}
-	for rows.Next() {
-		var f ScreenshotFile
-		if err := rows.Scan(&f.ID, &f.FilePath, &f.ByteSize); err != nil {
-			return nil, err
-		}
-		out = append(out, f)
-	}
-	return out, rows.Err()
 }
 
 func execDeleteCount(ctx context.Context, tx pgx.Tx, query string, args ...any) (int64, error) {
@@ -71,10 +28,23 @@ func execDeleteCount(ctx context.Context, tx pgx.Tx, query string, args ...any) 
 }
 
 // PurgeMemberFromBusiness irreversibly removes monitoring data and membership for
-// one organization. It never deletes audit history. If the user no longer belongs
-// to or owns any organization, the account is reduced to an inactive tombstone so
-// audit foreign keys remain valid while the original login identifiers are freed.
-func (s *Store) PurgeMemberFromBusiness(ctx context.Context, actorID, businessID, targetUserID string) (MemberPurgeResult, error) {
+// one organization. The target membership row is held FOR UPDATE throughout the
+// file + database deletion. Sync and screenshot ingestion take FOR SHARE on the
+// same row, so no new organization data can race the purge.
+//
+// removeScreenshotTree must remove only the selected business/user subtree. It is
+// called while the membership lock is held and before database screenshot rows are
+// deleted. Missing files/directories should be treated as success so retries are
+// safe after a partial infrastructure failure.
+//
+// Audit history is retained. If the user has no remaining organization access, the
+// account becomes an inactive tombstone so audit foreign keys stay valid while the
+// old email/username can be reused.
+func (s *Store) PurgeMemberFromBusiness(
+	ctx context.Context,
+	actorID, businessID, targetUserID string,
+	removeScreenshotTree func() error,
+) (MemberPurgeResult, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return MemberPurgeResult{}, err
@@ -94,7 +64,10 @@ func (s *Store) PurgeMemberFromBusiness(ctx context.Context, actorID, businessID
 
 	var targetRole BusinessRole
 	err = tx.QueryRow(ctx,
-		`SELECT role FROM memberships WHERE user_id = $1 AND business_id = $2 FOR UPDATE`,
+		`SELECT role
+		   FROM memberships
+		  WHERE user_id = $1 AND business_id = $2
+		  FOR UPDATE`,
 		targetUserID, businessID,
 	).Scan(&targetRole)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -108,6 +81,21 @@ func (s *Store) PurgeMemberFromBusiness(ctx context.Context, actorID, businessID
 	}
 
 	var result MemberPurgeResult
+	if err := tx.QueryRow(ctx,
+		`SELECT COALESCE(SUM(byte_size), 0)
+		   FROM screenshots
+		  WHERE business_id = $1 AND user_id = $2`,
+		businessID, targetUserID,
+	).Scan(&result.BytesFreed); err != nil {
+		return MemberPurgeResult{}, err
+	}
+
+	if removeScreenshotTree != nil {
+		if err := removeScreenshotTree(); err != nil {
+			return MemberPurgeResult{}, err
+		}
+	}
+
 	if result.EnrollmentsDeleted, err = execDeleteCount(ctx, tx,
 		`DELETE FROM enrollment_tokens WHERE business_id = $1 AND user_id = $2`,
 		businessID, targetUserID); err != nil {
@@ -155,8 +143,8 @@ func (s *Store) PurgeMemberFromBusiness(ctx context.Context, actorID, businessID
 	}
 
 	if hasOtherAccess {
-		// Membership removal must invalidate sessions that may still point at the
-		// purged organization, while preserving the account for its other orgs.
+		// Invalidate sessions that may still carry the removed organization while
+		// preserving the account and devices for its remaining organizations.
 		if _, err := tx.Exec(ctx,
 			`UPDATE users SET auth_version = auth_version + 1 WHERE id = $1`,
 			targetUserID); err != nil {
@@ -176,7 +164,9 @@ func (s *Store) PurgeMemberFromBusiness(ctx context.Context, actorID, businessID
 			 WHERE id = $1`, targetUserID); err != nil {
 			return MemberPurgeResult{}, err
 		}
-		if _, err := tx.Exec(ctx, `DELETE FROM devices WHERE user_id = $1`, targetUserID); err != nil {
+		if _, err := tx.Exec(ctx,
+			`DELETE FROM devices WHERE user_id = $1`,
+			targetUserID); err != nil {
 			return MemberPurgeResult{}, err
 		}
 	}
@@ -187,6 +177,7 @@ func (s *Store) PurgeMemberFromBusiness(ctx context.Context, actorID, businessID
 		"keystrokes_deleted":  result.KeystrokesDeleted,
 		"browser_deleted":     result.BrowserDeleted,
 		"screenshots_deleted": result.ScreenshotsDeleted,
+		"bytes_freed":         result.BytesFreed,
 		"account_tombstoned":  result.AccountTombstoned,
 	}); err != nil {
 		return MemberPurgeResult{}, err
