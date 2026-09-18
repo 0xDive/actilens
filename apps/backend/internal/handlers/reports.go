@@ -59,10 +59,13 @@ func (h *ReportsHandler) Roster(c *gin.Context) {
 	}
 	now := time.Now().In(location)
 	localMidnight := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, location)
+	ydayStart := localMidnight.AddDate(0, 0, -1).Unix()
 	dayStart := localMidnight.Unix()
 	dayEnd := localMidnight.AddDate(0, 0, 1).Unix()
 
-	roster, err := h.store.Roster(c.Request.Context(), businessID, dayStart, dayEnd)
+	roster, err := h.store.Roster(
+		c.Request.Context(), businessID, ydayStart, dayStart, dayEnd,
+	)
 	if err != nil {
 		serverError(c, err)
 		return
