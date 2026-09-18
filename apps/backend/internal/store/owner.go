@@ -190,11 +190,14 @@ func (s *Store) CreateEmployee(ctx context.Context, ownerID string, businessID *
 		return Employee{}, Business{}, err
 	}
 	emp.Role = RoleEmployee
-	emp.MonitoringEnabled = true
+	emp.Status = MemberStatusActive
+	emp.MonitoringEnabled = biz.DefaultMemberMonitoringEnabled
 
 	if _, err := tx.Exec(ctx,
-		`INSERT INTO memberships (user_id, business_id, role) VALUES ($1, $2, 'employee')`,
-		emp.ID, biz.ID,
+		`INSERT INTO memberships
+		     (user_id, business_id, role, status, monitoring_enabled)
+		 VALUES ($1, $2, 'employee', 'active', $3)`,
+		emp.ID, biz.ID, biz.DefaultMemberMonitoringEnabled,
 	); err != nil {
 		return Employee{}, Business{}, err
 	}
