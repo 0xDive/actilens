@@ -222,12 +222,34 @@ func (h *OwnerHandler) UpdateSettings(c *gin.Context) {
 // {managed:false} when the user has no single business (standalone → local defaults).
 func (h *OwnerHandler) Policy(c *gin.Context) {
 	userID, _ := auth.UserID(c)
-	p, err := h.store.PolicyForUser(c.Request.Context(), userID)
-	if errors.Is(err, store.ErrAmbiguousBusiness) {
-		c.JSON(http.StatusOK, gin.H{"managed": false})
-		return
+	businessID := strings.TrimSpace(c.Query("business_id"))
+
+	var (
+		p   *store.CapturePolicy
+		err error
+	)
+	if businessID != "" {
+		p, err = h.store.PolicyForUserInBusiness(c.Request.Context(), userID, businessID)
+	} else {
+		p, err = h.store.PolicyForUser(c.Request.Context(), userID)
 	}
-	if err != nil {
+	switch {
+	case errors.Is(err, store.ErrAmbiguousBusiness):
+		c.JSON(http.StatusOK, gin.H{"managed": false, "requires_business_id": true})
+		return
+	case errors.Is(err, store.ErrMemberBlocked):
+		apiError(c, http.StatusForbidden, ErrCodeMemberBlocked, "organization access is suspended", nil)
+		return
+	case errors.Is(err, store.ErrMemberRemoved):
+		apiError(c, http.StatusForbidden, ErrCodeMemberRemoved, "organization membership was removed", nil)
+		return
+	case errors.Is(err, store.ErrOrganizationArchived):
+		apiError(c, http.StatusConflict, ErrCodeOrganizationArchived, "organization is archived", nil)
+		return
+	case errors.Is(err, store.ErrOrganizationDeletionPending):
+		apiError(c, http.StatusConflict, ErrCodeOrganizationDeletionPending, "organization deletion is pending", nil)
+		return
+	case err != nil:
 		serverError(c, err)
 		return
 	}
@@ -236,14 +258,24 @@ func (h *OwnerHandler) Policy(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"managed":                   true,
-		"screenshot_interval_s":     p.ScreenshotIntervalS,
-		"idle_threshold_s":          p.IdleThresholdS,
-		"screenshot_retention_days": p.ScreenshotRetentionDays,
-		"allow_employee_override":   p.AllowEmployeeOverride,
-		"kind":                      p.Kind,
-		"screenshot_mode":           p.ScreenshotMode,
-		"screenshot_skip_apps":      p.ScreenshotSkipApps,
+		"managed":                           true,
+		"business_id":                       p.BusinessID,
+		"archived":                          p.Archived,
+		"default_member_monitoring_enabled": p.DefaultMemberMonitoringEnabled,
+		"collect_app_activity":               p.CollectAppActivity,
+		"collect_window_titles":              p.CollectWindowTitles,
+		"collect_screenshots":                p.CollectScreenshots,
+		"collect_browser_activity":           p.CollectBrowserActivity,
+		"collect_keystroke_counts":           p.CollectKeystrokeCounts,
+		"screenshot_interval_s":              p.ScreenshotIntervalS,
+		"screenshot_capture_scope":           p.ScreenshotCaptureScope,
+		"idle_threshold_s":                   p.IdleThresholdS,
+		"screenshot_retention_days":          p.ScreenshotRetentionDays,
+		"kind":                               p.Kind,
+		// compatibility for old desktop builds
+		"allow_employee_override": p.AllowEmployeeOverride,
+		"screenshot_mode":         p.ScreenshotMode,
+		"screenshot_skip_apps":    p.ScreenshotSkipApps,
 	})
 }
 
@@ -256,7 +288,7 @@ func (h *OwnerHandler) requireBusinessPermission(c *gin.Context, businessID stri
 		return false
 	}
 	if !ok {
-		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permission"})
+		forbidden(c, "insufficient permission")
 		return false
 	}
 	return true
