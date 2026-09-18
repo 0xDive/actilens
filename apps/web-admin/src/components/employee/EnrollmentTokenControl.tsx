@@ -2,9 +2,10 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { createEnrollmentToken, type EnrollmentTokenResponse } from "../../api/enrollment";
 import type { Employee } from "../../api/types";
-import { Modal, Notice } from "../ui";
+import { Alert, Button, Dialog, FieldFrame, TextField } from "../ds";
 
-const INSTALLER_SCRIPT_URL = "https://github.com/0xDive/actilens/releases/latest/download/install-windows-agent.ps1";
+const INSTALLER_SCRIPT_URL =
+  "https://github.com/0xDive/actilens/releases/latest/download/install-windows-agent.ps1";
 
 function psQuote(value: string) {
   return value.replace(/'/g, "''");
@@ -16,8 +17,6 @@ async function copyText(value: string) {
     return;
   }
 
-  // Clipboard API is normally unavailable on LAN HTTP origins. Keep the admin
-  // flow usable before HTTPS is configured by falling back to the legacy copy path.
   const textarea = document.createElement("textarea");
   textarea.value = value;
   textarea.setAttribute("readonly", "");
@@ -32,10 +31,16 @@ async function copyText(value: string) {
   if (!copied) throw new Error("copy failed");
 }
 
-export function EnrollmentTokenControl({ employee, businessId, canChange }: {
+export function EnrollmentTokenControl({
+  employee,
+  businessId,
+  canChange,
+  triggerVariant = "button",
+}: {
   employee: Employee;
   businessId: string;
   canChange: boolean;
+  triggerVariant?: "button" | "menu-item";
 }) {
   const { t } = useTranslation("dashboard");
   const [open, setOpen] = useState(false);
@@ -55,11 +60,19 @@ export function EnrollmentTokenControl({ employee, businessId, canChange }: {
       `$p=${path}`,
       `Invoke-WebRequest -UseBasicParsing -Uri '${psQuote(INSTALLER_SCRIPT_URL)}' -OutFile $p`,
       `& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $p -ServerUrl '${psQuote(backendUrl)}' -EnrollmentToken '${psQuote(grant.token)}'`,
-      `Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue`,
+      "Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue",
     ].join("; ");
   }, [grant, serverUrl]);
 
   if (!canChange || !employee.active) return null;
+
+  function start() {
+    setOpen(true);
+    setGrant(null);
+    setError(null);
+    setCopied(null);
+    setServerUrl(defaultBackendUrl);
+  }
 
   async function generate() {
     setBusy(true);
@@ -84,100 +97,130 @@ export function EnrollmentTokenControl({ employee, businessId, canChange }: {
     }
   }
 
-  return (
-    <>
-      <button
-        type="button"
-        className="actilens-btn actilens-btn--ghost"
-        onClick={() => {
-          setOpen(true);
-          setGrant(null);
-          setError(null);
-          setCopied(null);
-          setServerUrl(defaultBackendUrl);
-        }}
-      >
+  const trigger =
+    triggerVariant === "menu-item" ? (
+      <button type="button" className="ds-menu__item" onClick={start}>
         {t("employees.actions.enrollment")}
       </button>
+    ) : (
+      <Button variant="secondary" size="sm" onClick={start}>
+        {t("employees.actions.enrollment")}
+      </Button>
+    );
+
+  return (
+    <>
+      {trigger}
 
       {open && (
-        <Modal title={t("employees.enrollment.title", { name: employee.display_name })} onClose={() => setOpen(false)}>
-          <div style={{ display: "grid", gap: 14, minWidth: 520, maxWidth: 680 }}>
-            <Notice kind="info">{t("employees.enrollment.description")}</Notice>
+        <Dialog
+          title={t("employees.enrollment.title", { name: employee.display_name })}
+          size="complex"
+          onClose={() => !busy && setOpen(false)}
+          closeOnBackdrop={!busy}
+          footer={
+            !grant ? (
+              <>
+                <Button variant="secondary" disabled={busy} onClick={() => setOpen(false)}>
+                  {t("employees.enrollment.cancel")}
+                </Button>
+                <Button variant="primary" loading={busy} onClick={generate}>
+                  {busy
+                    ? t("employees.enrollment.generating")
+                    : t("employees.enrollment.generate")}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="secondary" onClick={() => setGrant(null)}>
+                  {t("employees.enrollment.regenerate")}
+                </Button>
+                <Button variant="primary" onClick={() => setOpen(false)}>
+                  {t("employees.enrollment.done")}
+                </Button>
+              </>
+            )
+          }
+        >
+          <div className="employees-dialog-stack">
+            <Alert tone="info">{t("employees.enrollment.description")}</Alert>
 
             {!grant && (
-              <>
-                <label style={{ display: "grid", gap: 6 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600 }}>{t("employees.enrollment.expires")}</span>
-                  <select value={hours} onChange={(e) => setHours(Number(e.target.value))}>
-                    <option value={1}>{t("employees.enrollment.ttl1")}</option>
-                    <option value={24}>{t("employees.enrollment.ttl24")}</option>
-                    <option value={72}>{t("employees.enrollment.ttl72")}</option>
-                    <option value={168}>{t("employees.enrollment.ttl168")}</option>
-                  </select>
-                </label>
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                  <button className="actilens-btn actilens-btn--secondary" onClick={() => setOpen(false)}>
-                    {t("employees.enrollment.cancel")}
-                  </button>
-                  <button className="actilens-btn actilens-btn--primary" disabled={busy} onClick={generate}>
-                    {busy ? t("employees.enrollment.generating") : t("employees.enrollment.generate")}
-                  </button>
-                </div>
-              </>
+              <FieldFrame htmlFor="enrollment-ttl" label={t("employees.enrollment.expires")}>
+                <select
+                  id="enrollment-ttl"
+                  className="ds-select"
+                  value={hours}
+                  onChange={(event) => setHours(Number(event.target.value))}
+                >
+                  <option value={1}>{t("employees.enrollment.ttl1")}</option>
+                  <option value={24}>{t("employees.enrollment.ttl24")}</option>
+                  <option value={72}>{t("employees.enrollment.ttl72")}</option>
+                  <option value={168}>{t("employees.enrollment.ttl168")}</option>
+                </select>
+              </FieldFrame>
             )}
 
             {grant && (
               <>
-                <Notice kind="success">{t("employees.enrollment.created", { expires: new Date(grant.expires_at).toLocaleString() })}</Notice>
+                <Alert tone="success">
+                  {t("employees.enrollment.created", {
+                    expires: new Date(grant.expires_at).toLocaleString(),
+                  })}
+                </Alert>
 
-                <div style={{ display: "grid", gap: 6 }}>
-                  <strong style={{ fontSize: 13 }}>{t("employees.enrollment.tokenLabel")}</strong>
-                  <code style={{ padding: 10, borderRadius: 8, background: "var(--surface-subtle)", overflowWrap: "anywhere", userSelect: "all" }}>
-                    {grant.token}
-                  </code>
-                  <button className="actilens-btn actilens-btn--secondary" onClick={() => copy("token", grant.token)}>
-                    {copied === "token" ? t("employees.enrollment.copied") : t("employees.enrollment.copyToken")}
-                  </button>
+                <div className="employees-code-section">
+                  <div className="employees-code-label">
+                    {t("employees.enrollment.tokenLabel")}
+                  </div>
+                  <code className="employees-code-block">{grant.token}</code>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => copy("token", grant.token)}
+                  >
+                    {copied === "token"
+                      ? t("employees.enrollment.copied")
+                      : t("employees.enrollment.copyToken")}
+                  </Button>
                 </div>
 
-                <label style={{ display: "grid", gap: 6 }}>
-                  <strong style={{ fontSize: 13 }}>{t("employees.enrollment.serverUrlLabel")}</strong>
-                  <input
-                    value={serverUrl}
-                    onChange={(e) => setServerUrl(e.target.value)}
-                    placeholder="http://192.168.0.249:8081"
-                    spellCheck={false}
-                    autoCapitalize="none"
-                  />
-                  <span style={{ fontSize: 12, opacity: 0.75 }}>{t("employees.enrollment.serverUrlHelp")}</span>
-                </label>
+                <TextField
+                  id="enrollment-server-url"
+                  label={t("employees.enrollment.serverUrlLabel")}
+                  description={t("employees.enrollment.serverUrlHelp")}
+                  value={serverUrl}
+                  onChange={(event) => setServerUrl(event.target.value)}
+                  placeholder="http://192.168.0.249:8081"
+                  spellCheck={false}
+                  autoCapitalize="none"
+                />
 
-                <div style={{ display: "grid", gap: 6 }}>
-                  <strong style={{ fontSize: 13 }}>{t("employees.enrollment.powershellLabel")}</strong>
-                  <code style={{ padding: 10, borderRadius: 8, background: "var(--surface-subtle)", overflowWrap: "anywhere", userSelect: "all" }}>
-                    {powershell}
-                  </code>
-                  <button className="actilens-btn actilens-btn--secondary" onClick={() => copy("powershell", powershell)}>
-                    {copied === "powershell" ? t("employees.enrollment.copied") : t("employees.enrollment.copyPowershell")}
-                  </button>
+                <div className="employees-code-section">
+                  <div className="employees-code-label">
+                    {t("employees.enrollment.powershellLabel")}
+                  </div>
+                  <code className="employees-code-block">{powershell}</code>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => copy("powershell", powershell)}
+                  >
+                    {copied === "powershell"
+                      ? t("employees.enrollment.copied")
+                      : t("employees.enrollment.copyPowershell")}
+                  </Button>
                 </div>
 
-                <div style={{ fontSize: 12, opacity: 0.75 }}>{t("employees.enrollment.oneTime")}</div>
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                  <button className="actilens-btn actilens-btn--secondary" onClick={() => setGrant(null)}>
-                    {t("employees.enrollment.regenerate")}
-                  </button>
-                  <button className="actilens-btn actilens-btn--primary" onClick={() => setOpen(false)}>
-                    {t("employees.enrollment.done")}
-                  </button>
-                </div>
+                <p className="employees-dialog-note">
+                  {t("employees.enrollment.oneTime")}
+                </p>
               </>
             )}
 
-            {error && <Notice kind="danger">{error}</Notice>}
+            {error && <Alert tone="danger">{error}</Alert>}
           </div>
-        </Modal>
+        </Dialog>
       )}
     </>
   );
