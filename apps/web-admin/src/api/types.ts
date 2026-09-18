@@ -171,11 +171,22 @@ export interface ScreenshotsResponse {
 
 export class ApiError extends Error {
   status: number;
+  code: string | null;
+  details: unknown;
   body: unknown;
-  constructor(status: number, message: string, body: unknown) {
+
+  constructor(
+    status: number,
+    message: string,
+    body: unknown,
+    code: string | null = null,
+    details: unknown = null,
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.code = code;
+    this.details = details;
     this.body = body;
   }
 }
