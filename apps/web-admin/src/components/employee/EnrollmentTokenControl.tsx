@@ -36,11 +36,13 @@ export function EnrollmentTokenControl({
   businessId,
   canChange,
   triggerVariant = "button",
+  onDialogClose,
 }: {
   employee: Employee;
   businessId: string;
   canChange: boolean;
   triggerVariant?: "button" | "menu-item";
+  onDialogClose?: () => void;
 }) {
   const { t } = useTranslation("dashboard");
   const [open, setOpen] = useState(false);
@@ -65,6 +67,12 @@ export function EnrollmentTokenControl({
   }, [grant, serverUrl]);
 
   if (!canChange || !employee.active) return null;
+
+  function close() {
+    if (busy) return;
+    setOpen(false);
+    onDialogClose?.();
+  }
 
   function start() {
     setOpen(true);
@@ -116,12 +124,12 @@ export function EnrollmentTokenControl({
         <Dialog
           title={t("employees.enrollment.title", { name: employee.display_name })}
           size="complex"
-          onClose={() => !busy && setOpen(false)}
+          onClose={close}
           closeOnBackdrop={!busy}
           footer={
             !grant ? (
               <>
-                <Button variant="secondary" disabled={busy} onClick={() => setOpen(false)}>
+                <Button variant="secondary" disabled={busy} onClick={close}>
                   {t("employees.enrollment.cancel")}
                 </Button>
                 <Button variant="primary" loading={busy} onClick={generate}>
@@ -135,7 +143,7 @@ export function EnrollmentTokenControl({
                 <Button variant="secondary" onClick={() => setGrant(null)}>
                   {t("employees.enrollment.regenerate")}
                 </Button>
-                <Button variant="primary" onClick={() => setOpen(false)}>
+                <Button variant="primary" onClick={close}>
                   {t("employees.enrollment.done")}
                 </Button>
               </>
