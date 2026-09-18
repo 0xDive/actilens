@@ -417,3 +417,28 @@
 .settings-audit-skeleton-gap {
   margin-top: 7px;
 }
+
+.settings-identity-edit {
+  width: min(100%, 420px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+.settings-timezone {
+  width: min(100%, 420px);
+}
+.settings-week-start {
+  width: min(100%, 260px);
+}
+.settings-change-summary {
+  color: var(--ds-text-secondary);
+  font-size: var(--ds-text-sm);
+  line-height: 20px;
+}
+.settings-change-summary strong {
+  color: var(--ds-text-primary);
+}
+.settings-change-summary ul {
+  margin: 6px 0 14px;
+  padding-left: 20px;
+}
