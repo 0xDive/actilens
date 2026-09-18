@@ -206,56 +206,101 @@ func (h *OwnerHandler) ListEmployees(c *gin.Context) {
 // UpdateSettings updates a business's capture policy. Only the keys present in the
 // body are changed; screenshot_retention_days accepts null ("keep forever").
 func (h *OwnerHandler) UpdateSettings(c *gin.Context) {
-	if !h.requireBusinessPermission(c, c.Param("id"), store.PermissionSettings) {
+	actorID, _ := auth.UserID(c)
+	businessID := c.Param("id")
+	if !h.requireBusinessPermission(c, businessID, store.CapabilitySettingsManage) {
 		return
 	}
+
 	var body map[string]json.RawMessage
 	if err := c.ShouldBindJSON(&body); err != nil {
 		badRequest(c, "invalid body")
 		return
 	}
-
 	fields := map[string]any{}
 
-	// Retention is nullable: present-as-null means "keep forever".
-	if raw, ok := body["screenshot_retention_days"]; ok {
-		if string(raw) == "null" {
-			fields["screenshot_retention_days"] = nil
-		} else {
-			var n int
-			if json.Unmarshal(raw, &n) != nil || n < 0 {
-				badRequest(c, "screenshot_retention_days must be a non-negative integer or null")
-				return
-			}
-			fields["screenshot_retention_days"] = n
-		}
-	}
-	for _, key := range []string{"screenshot_interval_s", "idle_threshold_s"} {
+	for _, key := range []string{
+		"collect_app_activity",
+		"collect_window_titles",
+		"collect_screenshots",
+		"collect_browser_activity",
+		"collect_keystroke_counts",
+	} {
 		if raw, ok := body[key]; ok {
-			var n int
-			if json.Unmarshal(raw, &n) != nil || n <= 0 {
-				badRequest(c, key+" must be a positive integer")
+			var value bool
+			if json.Unmarshal(raw, &value) != nil {
+				badRequest(c, key+" must be a boolean")
 				return
 			}
-			fields[key] = n
+			fields[key] = value
 		}
 	}
-	if raw, ok := body["allow_employee_override"]; ok {
-		var b bool
-		if json.Unmarshal(raw, &b) != nil {
-			badRequest(c, "allow_employee_override must be a boolean")
+
+	if raw, ok := body["screenshot_capture_scope"]; ok {
+		var value string
+		if json.Unmarshal(raw, &value) != nil {
+			badRequest(c, "screenshot_capture_scope must be a string")
 			return
 		}
-		fields["allow_employee_override"] = b
-	}
-	if raw, ok := body["screenshot_mode"]; ok {
-		var m string
-		if json.Unmarshal(raw, &m) != nil || (m != "privacy" && m != "normal") {
-			badRequest(c, "screenshot_mode must be 'privacy' or 'normal'")
+		switch value {
+		case "active_window", "active_display", "all_displays":
+			fields["screenshot_capture_scope"] = value
+			// Compatibility for older agents until the desktop migration is complete.
+			if value == "active_window" {
+				fields["screenshot_mode"] = "privacy"
+			} else {
+				fields["screenshot_mode"] = "normal"
+			}
+		default:
+			badRequest(c, "invalid screenshot_capture_scope")
 			return
 		}
-		fields["screenshot_mode"] = m
 	}
+
+	for key, bounds := range map[string][2]int{
+		"screenshot_interval_s":  {30, 86400},
+		"idle_threshold_s":       {30, 3600},
+		"activity_retention_days": {1, 3650},
+		"browser_retention_days":  {1, 3650},
+		"keystroke_retention_days": {1, 3650},
+		"enrollment_token_ttl_s": {300, 2592000},
+	} {
+		if raw, ok := body[key]; ok {
+			var value int
+			if json.Unmarshal(raw, &value) != nil || value < bounds[0] || value > bounds[1] {
+				badRequest(c, key+" is outside the allowed range")
+				return
+			}
+			fields[key] = value
+		}
+	}
+
+	for _, key := range []string{"screenshot_retention_days", "audit_retention_days", "device_limit"} {
+		raw, ok := body[key]
+		if !ok {
+			continue
+		}
+		if string(raw) == "null" {
+			fields[key] = nil
+			continue
+		}
+		var value int
+		if json.Unmarshal(raw, &value) != nil || value <= 0 {
+			badRequest(c, key+" must be a positive integer or null")
+			return
+		}
+		if key == "device_limit" && value > 1000 {
+			badRequest(c, "device_limit must be at most 1000 or null")
+			return
+		}
+		if key != "device_limit" && value > 3650 {
+			badRequest(c, key+" must be at most 3650 days or null")
+			return
+		}
+		fields[key] = value
+	}
+
+	// Legacy privacy-app compatibility stays writable until the rule UI is migrated.
 	if raw, ok := body["screenshot_skip_apps"]; ok {
 		var apps []string
 		if json.Unmarshal(raw, &apps) != nil || len(apps) > 100 {
@@ -263,22 +308,34 @@ func (h *OwnerHandler) UpdateSettings(c *gin.Context) {
 			return
 		}
 		cleaned := make([]string, 0, len(apps))
-		for _, a := range apps {
-			a = strings.TrimSpace(a)
-			if a == "" || len(a) > 200 {
+		for _, app := range apps {
+			app = strings.TrimSpace(app)
+			if app == "" || len(app) > 200 {
 				badRequest(c, "screenshot_skip_apps entries must be non-empty names up to 200 characters")
 				return
 			}
-			cleaned = append(cleaned, a)
+			cleaned = append(cleaned, app)
 		}
 		fields["screenshot_skip_apps"] = cleaned
 	}
 
-	if err := h.store.UpdateBusinessSettings(c.Request.Context(), c.Param("id"), fields); err != nil {
+	err := h.store.UpdateBusinessSettingsAudited(
+		c.Request.Context(), actorID, businessID, fields,
+	)
+	switch {
+	case err == nil:
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	case errors.Is(err, store.ErrForbidden):
+		forbidden(c, "insufficient permission")
+	case errors.Is(err, store.ErrNotFound):
+		notFound(c, "organization not found")
+	case errors.Is(err, store.ErrOrganizationArchived):
+		apiError(c, http.StatusConflict, ErrCodeOrganizationArchived, "organization is archived", nil)
+	case errors.Is(err, store.ErrOrganizationDeletionPending):
+		apiError(c, http.StatusConflict, ErrCodeOrganizationDeletionPending, "organization deletion is pending", nil)
+	default:
 		serverError(c, err)
-		return
 	}
-	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
 // Policy returns the capture policy for the authenticated user's business, or
