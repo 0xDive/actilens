@@ -1,0 +1,1110 @@
+# ActiLens Product Foundation Spec v1
+
+Status: **proposal for approval**  
+Scope: product model, organization/account lifecycle, settings, safety rules and implementation order.  
+Implementation starts only after this spec is approved.
+
+---
+
+## 1. Why this exists
+
+ActiLens already has a working monitoring core, RBAC, devices, audit, enrollment,
+reports and a redesigned UI. The product model around those capabilities is still
+too narrow.
+
+Today a business mostly has:
+
+- name;
+- kind (`team` / `family`);
+- screenshot retention;
+- screenshot interval;
+- idle threshold;
+- employee override policy;
+- screenshot mode;
+- screenshot skip-app list.
+
+This is not enough for a mature product. Organization identity, ownership, data
+lifecycle, security, account settings, defaults and destructive changes need explicit
+rules before more backend/UI work is added.
+
+This spec defines those rules.
+
+---
+
+## 2. Product principles
+
+### 2.1 Data must never disappear as a side effect of a cosmetic setting
+
+Changing:
+
+- organization name;
+- organization type;
+- user display name;
+- role wording;
+- language;
+- timezone;
+- capture labels;
+
+must never delete historical data.
+
+Any operation that can delete or invalidate data must be visually and technically
+separate from ordinary settings.
+
+### 2.2 Organization context is always explicit
+
+No organization-scoped operation may infer "the user's business" when multiple
+memberships can exist.
+
+Every organization-scoped API should eventually be one of:
+
+```text
+/v1/businesses/:business_id/...
+```
+
+or require:
+
+```text
+business_id
+```
+
+explicitly.
+
+This applies to:
+
+- member management;
+- devices;
+- reports;
+- settings;
+- audit;
+- retention;
+- enrollment;
+- desktop-managed policy;
+- exports;
+- future notifications.
+
+The server remains authoritative: passing a `business_id` never grants access by
+itself.
+
+### 2.3 Settings changes have explicit safety classes
+
+Every mutable product setting belongs to one of four classes.
+
+| Class | Meaning | Examples | Confirmation |
+|---|---|---|---|
+| A | Metadata only | name, timezone | normal Save |
+| B | Changes future collection | monitoring, screenshot interval | clear save/toggle |
+| C | Can remove data | retention reduction, cleanup, purge | preview + explicit confirmation |
+| D | Security / ownership | role elevation, owner transfer, session revoke | strong confirmation / re-auth where appropriate |
+
+UI and backend should treat these classes differently.
+
+### 2.4 Historical data is immutable by default
+
+Changing current monitoring configuration does not rewrite old reports.
+
+Examples:
+
+- changing idle threshold affects future collection only;
+- changing screenshot mode affects future captures only;
+- disabling browser collection does not delete existing browser history;
+- changing team type does not relabel stored events internally or delete anything.
+
+Deletion is always a separate operation.
+
+---
+
+## 3. Organization model
+
+The current `Business` model should evolve into a first-class organization object.
+
+### 3.1 Core identity
+
+Proposed fields:
+
+```text
+id
+name
+kind                     team | family
+owner_user_id
+timezone
+week_starts_on            monday | sunday
+created_at
+updated_at
+```
+
+Potential later fields:
+
+```text
+description
+avatar/logo
+external_id
+archived_at
+deletion_scheduled_at
+```
+
+### 3.2 Rename organization
+
+Permission:
+
+- Owner: yes;
+- Admin: yes;
+- Manager: no;
+- Employee: no.
+
+Safety class: **A**.
+
+Behavior:
+
+- updates organization display name only;
+- does not modify users;
+- does not modify memberships;
+- does not modify devices;
+- does not modify activity, screenshots, browser history or keystrokes;
+- does not revoke sessions;
+- does not invalidate enrollment tokens;
+- immediately updates organization switcher and new audit entries.
+
+Audit event:
+
+```text
+organization.renamed
+{
+  "from": "Old name",
+  "to": "New name"
+}
+```
+
+UX:
+
+- inline edit or small dialog;
+- normal Save button;
+- no destructive warning;
+- validation: trimmed, 1–120 chars.
+
+### 3.3 Change organization type
+
+Current values:
+
+- `team`;
+- `family`.
+
+Permission:
+
+- Owner only initially.
+
+Safety class: **A**, but requires semantic confirmation.
+
+Critical rule:
+
+**Changing organization type never deletes, migrates or resets existing data.**
+
+It changes only product semantics/terminology and future type-specific presentation.
+
+Team → Family confirmation should explicitly say:
+
+```text
+This changes how ActiLens describes the organization and its members.
+
+Will change:
+• Team → Family terminology
+• Employee → Kid/family-member wording where applicable
+
+Will NOT change:
+• member accounts
+• roles
+• passwords
+• monitoring state
+• devices
+• activity history
+• screenshots
+• browser history
+• keystroke counts
+• retention settings
+• enrollment codes
+```
+
+Family → Team uses the inverse wording.
+
+Important implementation rule:
+
+Type-specific defaults are applied only when a new organization is created.
+
+Changing an existing organization type must **not** silently reset:
+
+- screenshot mode;
+- retention;
+- idle threshold;
+- monitoring policy;
+- privacy exclusions.
+
+Audit:
+
+```text
+organization.kind_changed
+{
+  "from": "team",
+  "to": "family"
+}
+```
+
+### 3.4 Account persona and organization type are separate
+
+Current user `account_type` is useful for onboarding, but one person may eventually
+own or administer both team and family organizations.
+
+Therefore:
+
+- user `account_type` must not be treated as the permanent source of organization type;
+- organization `kind` is authoritative for that organization;
+- changing organization type must not automatically change the user's account type;
+- future code should avoid deriving organization behavior from owner persona after creation.
+
+---
+
+## 4. Organization ownership and lifecycle
+
+## 4.1 Ownership transfer
+
+This is required before organization deletion/leave can be considered mature.
+
+Permission: Owner only.  
+Safety class: **D**.
+
+Proposed flow:
+
+1. Owner selects an existing Admin.
+2. Product explains exactly what changes.
+3. Owner re-enters their password.
+4. Owner types the target person's display name or organization name.
+5. Transaction locks organization and both memberships.
+6. Target becomes Owner.
+7. Previous owner becomes Admin by default.
+8. Both users' security/session versions are bumped if needed.
+9. Audit event is written atomically.
+
+Restrictions:
+
+- target must already be an active member of that organization;
+- target should be Admin before transfer;
+- transfer cannot target blocked/deactivated member;
+- organization must always have exactly one Owner.
+
+Audit:
+
+```text
+organization.owner_transferred
+```
+
+### 4.2 Leave organization
+
+Admin / Manager:
+
+- may leave voluntarily;
+- their account is not deleted;
+- organization data belonging to other users is unaffected;
+- their own historical organization-scoped data remains according to org retention;
+- device/session behavior must be defined before exposing this action.
+
+Owner:
+
+- cannot leave while still Owner;
+- must transfer ownership first or delete the organization.
+
+### 4.3 Archive organization
+
+Useful before permanent deletion.
+
+Safety class: **B/D**.
+
+Archive should:
+
+- stop new monitoring collection for the organization;
+- prevent new enrollment;
+- preserve all historical data;
+- keep the organization recoverable;
+- hide it from default active organization switcher;
+- allow Owner to restore it.
+
+This gives users a reversible alternative to deletion.
+
+### 4.4 Delete organization
+
+Do not ship a one-click hard delete.
+
+Recommended mature flow:
+
+1. Owner only.
+2. Offer Export/Backup first.
+3. Show exact data counts:
+   - members;
+   - devices;
+   - screenshots + bytes;
+   - activity rows;
+   - browser visits;
+   - keystroke buckets;
+   - audit records.
+4. Explain whether user accounts also belong to other organizations.
+5. Require password re-authentication.
+6. Require typing exact organization name.
+7. Prefer a 7-day scheduled deletion window.
+8. Archive/stop collection immediately.
+9. Allow cancellation during grace period.
+10. Hard-delete only after grace period.
+
+Until this lifecycle exists, organization deletion should not be added just to have a
+"Delete organization" button.
+
+---
+
+## 5. Members and access model
+
+Existing roles:
+
+- Owner;
+- Admin;
+- Manager;
+- Employee.
+
+These should stay internal even for `family`; UI terminology may differ.
+
+### 5.1 Permission matrix target
+
+| Capability | Owner | Admin | Manager | Employee |
+|---|:---:|:---:|:---:|:---:|
+| View reports | ✓ | ✓ | ✓ | own/local only |
+| Manage employees | ✓ | ✓ | – | – |
+| Change monitoring member state | ✓ | ✓* | – | – |
+| Manage devices | ✓ | ✓* | – | – |
+| Organization settings | ✓ | ✓ | – | – |
+| Audit log | ✓ | ✓ | – | – |
+| Change roles | ✓ | – | – | – |
+| Transfer ownership | ✓ | – | – | – |
+| Delete organization | ✓ | – | – | – |
+
+`*` Admin cannot mutate Owner or peer Admin where current policy forbids it.
+
+### 5.2 Member lifecycle
+
+Member states should be conceptually distinct:
+
+```text
+active
+blocked
+archived/removed from organization
+permanently purged
+```
+
+We should avoid using one boolean for every lifecycle meaning.
+
+Definitions:
+
+**Active**
+- can sign in;
+- can sync;
+- membership active.
+
+**Blocked**
+- account/membership preserved;
+- sync/login restricted according to policy;
+- historical data preserved.
+
+**Removed from organization**
+- membership removed;
+- user account may remain because it can belong to another organization;
+- historical data retention behavior must be explicit.
+
+**Permanent purge**
+- destructive organization-scoped removal;
+- existing purge semantics remain;
+- account tombstoned only if no memberships remain.
+
+### 5.3 Defaults for new members
+
+Organization settings should eventually include:
+
+- default role: Employee;
+- monitoring enabled by default: yes/no;
+- enrollment-code TTL default;
+- whether password login is allowed before enrollment;
+- optional required device enrollment.
+
+These defaults affect only newly created members unless administrator explicitly
+chooses "Apply to existing members".
+
+---
+
+## 6. Monitoring settings
+
+The current settings cover only part of the monitoring policy.
+
+Target section:
+
+### 6.1 Organization monitoring master state
+
+```text
+organization_monitoring_enabled
+```
+
+Behavior:
+
+- when disabled, all organization-managed collection fails closed;
+- historical data remains;
+- agents clearly show "Monitoring disabled by organization";
+- member-level toggles cannot override the org-level off state.
+
+Safety class: **B**.
+
+### 6.2 New-member monitoring default
+
+```text
+default_member_monitoring_enabled
+```
+
+Applies only to new memberships.
+
+### 6.3 Idle threshold
+
+Existing.
+
+Improvements:
+
+- allow presets plus validated custom value;
+- define min/max, e.g. 30 seconds – 60 minutes;
+- state clearly that historical active-time reports are not recalculated.
+
+### 6.4 Employee override
+
+Existing.
+
+Clarify exactly what an employee may override.
+
+Instead of one vague boolean long-term, consider explicit capabilities:
+
+```text
+allow_pause_monitoring
+allow_change_screenshot_capture
+allow_change_browser_capture
+```
+
+For v1, the existing single flag can stay, but UI must explain what it covers.
+
+### 6.5 Collection categories
+
+ActiLens should eventually make each collection category explicit:
+
+- application/window activity;
+- active/idle time;
+- screenshots;
+- browser activity;
+- keystroke counts.
+
+Proposed organization settings:
+
+```text
+collect_app_activity
+collect_window_titles
+collect_browser_activity
+collect_keystroke_counts
+screenshots_enabled
+```
+
+Important:
+
+- disabling a category stops future collection;
+- it does not delete history;
+- deletion lives under Data retention / Cleanup.
+
+---
+
+## 7. Screenshots and privacy
+
+### 7.1 Screenshot enabled state
+
+Current screenshot behavior lacks a first-class organization-level off switch.
+
+Add:
+
+```text
+screenshots_enabled
+```
+
+If false:
+
+- no screenshot upload/capture;
+- interval and mode remain stored;
+- turning screenshots back on restores previous configuration.
+
+### 7.2 Screenshot mode
+
+Existing:
+
+- Privacy / active-window behavior;
+- Normal / full screen.
+
+Changing mode affects future captures only.
+
+### 7.3 Screenshot interval
+
+Existing.
+
+Improvements:
+
+- presets;
+- optional custom interval;
+- validated server range;
+- explain storage impact.
+
+Possible future preview:
+
+```text
+At 5 min with 8 active hours/day ≈ up to 96 captures/device/day.
+```
+
+Do not present an exact storage estimate unless enough real data exists.
+
+### 7.4 Privacy exclusions
+
+Existing skip-app list.
+
+Future improvements:
+
+- custom app rule;
+- curated categories;
+- rule match preview;
+- clear inherited/default rules;
+- optional window-title exclusion rules later.
+
+### 7.5 Sensitive capture policy
+
+Potential future settings:
+
+- pause screenshots on password managers;
+- pause screenshots during OS secure-input state;
+- blur instead of skip (later);
+- multi-monitor capture policy:
+  - active display;
+  - all displays.
+
+These should be designed before being implemented individually.
+
+---
+
+## 8. Data retention and deletion
+
+Current product has screenshot retention only.
+
+Target retention policy should be per data class.
+
+### 8.1 Retention categories
+
+Proposed:
+
+```text
+activity_retention_days
+screenshot_retention_days
+browser_retention_days
+keystroke_retention_days
+audit_retention_days
+```
+
+Values:
+
+- finite positive number;
+- `null` = keep indefinitely, if allowed.
+
+Audit may have a higher minimum than ordinary monitoring data.
+
+### 8.2 Retention reductions are destructive changes
+
+Example:
+
+90 days → 7 days.
+
+Do not save this like a harmless segmented-control click.
+
+Flow:
+
+1. User selects 7 days.
+2. Backend offers a dry-run/preview:
+   - records affected;
+   - screenshot count;
+   - bytes affected where applicable.
+3. UI says:
+   ```text
+   Data older than 7 days will become eligible for permanent deletion.
+   ```
+4. Explicit Confirm button.
+5. Audit old/new values.
+6. Deletion runs through retention worker.
+
+Safety class: **C**.
+
+### 8.3 Manual cleanup
+
+Current screenshot cleanup should become generic:
+
+- screenshots;
+- browser;
+- activity;
+- keystroke counts;
+- eventually all monitoring data for a date range.
+
+Every cleanup requires:
+
+- preview;
+- exact date cutoff;
+- count/size when possible;
+- destructive confirmation.
+
+### 8.4 Export before delete
+
+Before organization/member destructive actions, provide a path toward:
+
+- CSV/JSON activity export;
+- browser export;
+- audit export;
+- screenshot archive/manifest.
+
+Full export can be phased, but destructive UI should already reserve this concept.
+
+---
+
+## 9. Devices and enrollment
+
+### 9.1 Explicit organization scope
+
+All device management uses the currently selected organization context.
+
+This is a product rule, not merely a bug fix.
+
+### 9.2 Enrollment policy
+
+Organization settings should eventually expose:
+
+- default enrollment-code validity:
+  - 1 hour;
+  - 24 hours;
+  - 72 hours;
+  - 7 days;
+- one-time use always on;
+- optionally require enrollment for managed desktop setup.
+
+### 9.3 Device policy
+
+Potential settings:
+
+```text
+max_devices_per_member
+new_device_requires_admin_approval
+```
+
+Do not implement limits until UX for replacing/revoking devices exists.
+
+### 9.4 Device actions
+
+Existing:
+
+- rename;
+- revoke;
+- restore.
+
+Future:
+
+- revoke all devices for member;
+- "last sync" health;
+- desktop version status;
+- update required/outdated badge.
+
+---
+
+## 10. Account settings
+
+Current web account section is read-only.
+
+Minimum mature account settings:
+
+### Profile
+
+- display name;
+- email;
+- username where allowed;
+- language;
+- theme is already local preference.
+
+### Security
+
+- change password;
+- active sessions;
+- revoke other sessions;
+- last password change;
+- optionally MFA later.
+
+### Email / username changes
+
+Security class: **D** where login identity changes.
+
+Rules:
+
+- uniqueness check server-side;
+- password re-authentication;
+- bump auth/security version;
+- revoke other sessions if appropriate;
+- audit/security event.
+
+### Password change
+
+- current password required;
+- new password rules;
+- bump auth/security version;
+- default behavior: revoke all other sessions.
+
+### Delete personal account
+
+Must be blocked while user owns an organization.
+
+Flow:
+
+1. transfer/delete organizations first;
+2. explain memberships;
+3. re-auth;
+4. type confirmation;
+5. apply correct shared-membership semantics.
+
+---
+
+## 11. Organization settings information architecture
+
+Target web UI:
+
+```text
+Settings
+├── Organization
+│   ├── Name
+│   ├── Type
+│   ├── Timezone
+│   ├── Week start
+│   └── Ownership
+│
+├── Monitoring
+│   ├── Organization monitoring
+│   ├── Default monitoring for new members
+│   ├── Idle threshold
+│   ├── Employee override
+│   ├── App/window collection
+│   ├── Browser collection
+│   └── Keystroke counts
+│
+├── Screenshots & privacy
+│   ├── Screenshots enabled
+│   ├── Capture mode
+│   ├── Interval
+│   └── Privacy exclusions
+│
+├── Data retention
+│   ├── Activity
+│   ├── Screenshots
+│   ├── Browser
+│   ├── Keystroke counts
+│   ├── Audit
+│   └── Manual cleanup / export
+│
+├── Devices & enrollment
+│   ├── Enrollment code TTL
+│   ├── Device policy
+│   └── Device security defaults
+│
+├── Audit log
+│
+├── Account
+│   ├── Profile
+│   ├── Password
+│   └── Sessions
+│
+└── Danger zone
+    ├── Archive organization
+    ├── Transfer ownership
+    └── Delete organization
+```
+
+Not every line must ship in the first implementation phase.
+
+---
+
+## 12. Change confirmation rules
+
+### No confirmation beyond Save
+
+- organization rename;
+- timezone;
+- week-start preference;
+- increasing retention;
+- screenshot interval;
+- harmless UI preferences.
+
+### Informational confirmation
+
+- team ↔ family conversion;
+- disabling a collection category;
+- organization-wide monitoring off;
+- archive organization.
+
+### Strong destructive confirmation
+
+- reducing retention;
+- manual cleanup;
+- permanent member purge;
+- delete organization.
+
+Strong confirmation includes:
+
+- exact impact;
+- affected data summary;
+- typed organization/member name;
+- explicit destructive button color;
+- no destructive action focused by default.
+
+### Security confirmation / re-auth
+
+- ownership transfer;
+- login email/username change;
+- password change;
+- revoke all sessions;
+- delete personal account;
+- delete organization.
+
+---
+
+## 13. Audit requirements
+
+Every administrative mutation should create an audit event.
+
+Add event families:
+
+```text
+organization.renamed
+organization.kind_changed
+organization.archived
+organization.restored
+organization.owner_transferred
+organization.deletion_scheduled
+organization.deletion_cancelled
+
+settings.monitoring_changed
+settings.collection_changed
+settings.screenshot_changed
+settings.retention_changed
+
+account.profile_changed
+account.login_changed
+account.password_changed
+account.sessions_revoked
+```
+
+Audit event details must never contain:
+
+- passwords;
+- enrollment tokens;
+- JWTs;
+- screenshot content;
+- raw browser page content.
+
+For settings events, storing old/new non-secret values is desirable.
+
+---
+
+## 14. Multi-organization behavior
+
+ActiLens already permits multiple memberships at the data-model level.
+
+Before expanding settings, define these rules:
+
+### Web admin
+
+- always has one selected organization;
+- every action uses that explicit organization;
+- changing selected organization changes reports/settings scope only.
+
+### Desktop managed mode
+
+A desktop device/session must know which organization is currently governing it.
+
+Do not rely on:
+
+```text
+ResolveBusinessForUser(user)
+```
+
+when multiple memberships exist.
+
+Preferred long-term model:
+
+- enrollment binds the managed desktop/device to an organization;
+- desktop stores or receives the bound `business_id`;
+- policy requests are organization-scoped;
+- switching organization is explicit, not inferred.
+
+This area should receive a dedicated technical design before true multi-org employee
+usage is advertised.
+
+---
+
+## 15. Error and conflict UX
+
+Raw server text such as:
+
+```text
+insufficient permission
+```
+
+should not be the final product UX.
+
+Standard error categories:
+
+- Permission denied;
+- Resource no longer exists;
+- Conflict / changed elsewhere;
+- Validation;
+- Network/server;
+- Destructive operation unavailable.
+
+Example:
+
+```text
+You no longer have permission to manage devices in this organization.
+Refresh the page or contact the organization owner.
+```
+
+Backend error codes should eventually be stable machine-readable values, with UI
+localizing the final message.
+
+---
+
+## 16. Implementation priorities
+
+## Phase 0 — product invariants and organization scope
+
+Do before broad new settings.
+
+- audit organization-scoped APIs;
+- require/propagate explicit `business_id` where appropriate;
+- define desktop managed organization binding;
+- stable API error codes;
+- audit-event convention.
+
+## Phase 1 — organization and account basics
+
+Highest user-visible maturity improvement.
+
+- rename organization;
+- change team/family type safely;
+- timezone/week start;
+- edit own display name;
+- change own password;
+- active sessions / revoke sessions;
+- audit all changes.
+
+## Phase 2 — monitoring completeness
+
+- organization master monitoring state;
+- default monitoring state for new members;
+- explicit collection toggles:
+  - app/window;
+  - browser;
+  - keystroke counts;
+  - screenshots;
+- clarify employee override semantics;
+- custom validated idle threshold.
+
+## Phase 3 — retention and privacy
+
+- per-data-class retention;
+- retention change preview;
+- generic cleanup preview + confirmation;
+- screenshot/privacy refinements;
+- export foundation.
+
+## Phase 4 — organization lifecycle/security
+
+- ownership transfer;
+- archive/restore organization;
+- leave organization;
+- session/device security improvements;
+- safe scheduled organization deletion.
+
+## Phase 5 — later product expansion
+
+Not required before the core product is mature:
+
+- notifications;
+- webhooks;
+- SSO;
+- SCIM;
+- integrations;
+- advanced policy templates;
+- billing/pricing;
+- public marketing-site feature expansion.
+
+---
+
+## 17. Recommended first implementation batch
+
+After approval, the first backend/UI batch should be deliberately small:
+
+1. **Organization rename**
+2. **Organization type change**
+3. **Account display-name change**
+4. **Password change**
+5. **Audit events for all four**
+6. **Stable UI confirmations and error codes**
+
+Why this batch:
+
+- high user value;
+- low risk to historical monitoring data;
+- establishes safe mutation patterns;
+- creates infrastructure for more complex settings later.
+
+Do not combine this first batch with retention deletion or ownership transfer.
+
+---
+
+## 18. Definition of done for a new setting
+
+A setting is not complete merely because a database column and toggle exist.
+
+Every setting requires:
+
+- product meaning documented;
+- default defined;
+- permission defined;
+- safety class defined;
+- validation defined;
+- API behavior defined;
+- historical-data behavior defined;
+- multi-org scope defined;
+- audit event defined;
+- RU/EN copy;
+- Light/Dark UI;
+- error state;
+- test coverage;
+- migration/default compatibility for existing installations.
+
+---
+
+## 19. Decisions requiring explicit approval
+
+Before implementation, confirm these product decisions:
+
+1. Organization type change is metadata/terminology only and never resets policies.
+2. Owner-only for team ↔ family conversion.
+3. Admin may rename an organization.
+4. Historical monitoring data is never retroactively recalculated after policy changes.
+5. Disabling collection preserves old data.
+6. Retention reductions require destructive confirmation.
+7. Organization deletion should use archive + grace period rather than immediate hard delete.
+8. Desktop managed mode must eventually bind explicitly to one organization.
+9. User account persona and organization kind are separate concepts.
+10. New settings must be auditable and organization-scoped.
+
+Once these decisions are accepted, implementation can be split into API/schema/UI PRs
+without inventing product behavior during coding.
