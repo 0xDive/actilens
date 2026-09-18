@@ -2,11 +2,21 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listEmployeeDevices, updateDevice } from "../../api/endpoints";
 import type { Device } from "../../api/types";
-import { Notice, Spinner } from "../ui";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Dialog,
+  EmptyState,
+  Skeleton,
+  TextField,
+} from "../ds";
+import { useToast } from "../ToastProvider";
 
-function fmtTimestamp(ts: number | null, never: string): string {
-  if (!ts) return never;
-  return new Date(ts * 1000).toLocaleString();
+function fmtTimestamp(timestamp: number | null, never: string): string {
+  if (!timestamp) return never;
+  return new Date(timestamp * 1000).toLocaleString();
 }
 
 function displayName(device: Device, unnamed: string): string {
@@ -19,17 +29,22 @@ function shortID(id: string): string {
 
 export function DevicesCard({ employeeId }: { employeeId: string }) {
   const { t } = useTranslation("dashboard");
+  const { pushToast } = useToast();
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyID, setBusyID] = useState<string | null>(null);
+  const [renameDevice, setRenameDevice] = useState<Device | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [confirmDevice, setConfirmDevice] = useState<Device | null>(null);
+  const [dialogError, setDialogError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await listEmployeeDevices(employeeId);
-      setDevices(res.devices);
+      const response = await listEmployeeDevices(employeeId);
+      setDevices(response.devices);
     } catch {
       setError(t("detail.devices.loadFailed"));
     } finally {
@@ -41,124 +56,250 @@ export function DevicesCard({ employeeId }: { employeeId: string }) {
     load();
   }, [load]);
 
-  async function rename(device: Device) {
-    const value = window.prompt(
-      t("detail.devices.renamePrompt"),
-      device.label || device.hostname || "",
-    );
-    if (value === null) return;
-    setBusyID(device.id);
+  async function saveRename() {
+    if (!renameDevice) return;
+    setBusyID(renameDevice.id);
+    setDialogError(null);
     try {
-      const res = await updateDevice(device.id, { label: value.trim() });
-      setDevices((prev) => prev.map((d) => (d.id === device.id ? res.device : d)));
+      const response = await updateDevice(renameDevice.id, {
+        label: renameValue.trim(),
+      });
+      setDevices((current) =>
+        current.map((device) =>
+          device.id === renameDevice.id ? response.device : device,
+        ),
+      );
+      setRenameDevice(null);
+      pushToast({
+        title: t("detail.devices.saved"),
+        tone: "success",
+      });
     } catch {
-      window.alert(t("detail.devices.actionFailed"));
+      setDialogError(t("detail.devices.actionFailed"));
     } finally {
       setBusyID(null);
     }
   }
 
-  async function toggleRevoked(device: Device) {
-    const currentlyRevoked = !!device.revoked_at;
-    const ok = window.confirm(
-      t(currentlyRevoked ? "detail.devices.confirmRestore" : "detail.devices.confirmRevoke"),
-    );
-    if (!ok) return;
-    setBusyID(device.id);
+  async function toggleRevoked() {
+    if (!confirmDevice) return;
+    const revoked = Boolean(confirmDevice.revoked_at);
+    setBusyID(confirmDevice.id);
+    setDialogError(null);
     try {
-      const res = await updateDevice(device.id, { revoked: !currentlyRevoked });
-      setDevices((prev) => prev.map((d) => (d.id === device.id ? res.device : d)));
+      const response = await updateDevice(confirmDevice.id, {
+        revoked: !revoked,
+      });
+      setDevices((current) =>
+        current.map((device) =>
+          device.id === confirmDevice.id ? response.device : device,
+        ),
+      );
+      setConfirmDevice(null);
+      pushToast({
+        title: t("detail.devices.saved"),
+        tone: "success",
+      });
     } catch {
-      window.alert(t("detail.devices.actionFailed"));
+      setDialogError(t("detail.devices.actionFailed"));
     } finally {
       setBusyID(null);
     }
   }
 
   return (
-    <section className="actilens-card actilens-card--default" style={{ marginBottom: 20, padding: 20 }}>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 14 }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 18 }}>{t("detail.devices.title")}</h2>
-          <p style={{ margin: "5px 0 0", color: "var(--text-muted)", fontSize: 13 }}>
-            {t("detail.devices.subtitle")}
-          </p>
-        </div>
+    <Card>
+      <div className="report-card__head">
+        <h2 className="report-card__title">{t("detail.devices.title")}</h2>
+        <p className="report-card__subtitle">{t("detail.devices.subtitle")}</p>
       </div>
 
-      {loading && <Spinner label={t("detail.devices.loading")} />}
-      {error && <Notice kind="danger">{error}</Notice>}
+      {loading && (
+        <div className="devices-v1" aria-hidden>
+          {Array.from({ length: 2 }, (_, index) => (
+            <Skeleton key={index} width="100%" height={76} />
+          ))}
+        </div>
+      )}
+
+      {error && <Alert tone="danger">{error}</Alert>}
+
       {!loading && !error && devices.length === 0 && (
-        <div style={{ color: "var(--text-muted)", fontSize: 14 }}>{t("detail.devices.empty")}</div>
+        <EmptyState
+          title={t("detail.devices.empty")}
+          description={t("detail.devices.v1.emptyDescription")}
+        />
       )}
 
       {!loading && !error && devices.length > 0 && (
-        <div style={{ display: "grid", gap: 10 }}>
+        <div className="devices-v1">
           {devices.map((device) => {
-            const revoked = !!device.revoked_at;
+            const revoked = Boolean(device.revoked_at);
             const name = displayName(device, t("detail.devices.unnamed"));
-            const meta = [device.platform, device.arch].filter(Boolean).join(" · ");
+            const platform = [device.platform, device.arch]
+              .filter(Boolean)
+              .join(" · ");
+
             return (
               <div
                 key={device.id}
-                style={{
-                  border: "1px solid var(--border)",
-                  borderRadius: 12,
-                  padding: 14,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 16,
-                  opacity: revoked ? 0.72 : 1,
-                }}
+                className={`device-row${revoked ? " is-revoked" : ""}`}
               >
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <strong>{name}</strong>
-                    <span
-                      style={{
-                        padding: "2px 7px",
-                        borderRadius: 999,
-                        fontSize: 11,
-                        background: revoked ? "var(--danger-soft)" : "var(--positive-soft)",
-                        color: revoked ? "var(--danger)" : "var(--positive)",
-                      }}
-                    >
-                      {t(revoked ? "detail.devices.revoked" : "detail.devices.active")}
-                    </span>
+                <div className="device-row__main">
+                  <div className="device-row__title">
+                    <span>{name}</span>
+                    <Badge tone={revoked ? "danger" : "success"}>
+                      {t(
+                        revoked
+                          ? "detail.devices.revoked"
+                          : "detail.devices.active",
+                      )}
+                    </Badge>
                   </div>
-                  <div style={{ marginTop: 5, fontSize: 12, color: "var(--text-muted)", overflowWrap: "anywhere" }}>
-                    {meta || shortID(device.id)}
-                    {device.app_version ? ` · ${t("detail.devices.version", { version: device.app_version })}` : ""}
+                  <div className="device-row__meta">
+                    {platform || shortID(device.id)}
+                    {device.app_version
+                      ? ` · ${t("detail.devices.version", {
+                          version: device.app_version,
+                        })}`
+                      : ""}
                   </div>
-                  <div style={{ marginTop: 4, fontSize: 12, color: "var(--text-muted)" }}>
-                    {t("detail.devices.lastSeen", { value: fmtTimestamp(device.last_seen, t("detail.devices.never")) })}
+                  <div className="device-row__meta">
+                    {t("detail.devices.lastSeen", {
+                      value: fmtTimestamp(
+                        device.last_seen,
+                        t("detail.devices.never"),
+                      ),
+                    })}
                     {" · "}
-                    {t("detail.devices.firstSeen", { value: fmtTimestamp(device.first_seen, t("detail.devices.never")) })}
+                    {t("detail.devices.firstSeen", {
+                      value: fmtTimestamp(
+                        device.first_seen,
+                        t("detail.devices.never"),
+                      ),
+                    })}
                   </div>
                 </div>
 
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                  <button
-                    className="actilens-btn actilens-btn--ghost"
+                <div className="device-row__actions">
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     disabled={busyID === device.id}
-                    onClick={() => rename(device)}
+                    onClick={() => {
+                      setRenameValue(device.label || device.hostname || "");
+                      setDialogError(null);
+                      setRenameDevice(device);
+                    }}
                   >
                     {t("detail.devices.rename")}
-                  </button>
-                  <button
-                    className="actilens-btn actilens-btn--ghost"
+                  </Button>
+                  <Button
+                    variant={revoked ? "secondary" : "danger-ghost"}
+                    size="sm"
                     disabled={busyID === device.id}
-                    onClick={() => toggleRevoked(device)}
+                    onClick={() => {
+                      setDialogError(null);
+                      setConfirmDevice(device);
+                    }}
                   >
-                    {t(revoked ? "detail.devices.restore" : "detail.devices.revoke")}
-                  </button>
+                    {t(
+                      revoked
+                        ? "detail.devices.restore"
+                        : "detail.devices.revoke",
+                    )}
+                  </Button>
                 </div>
               </div>
             );
           })}
         </div>
       )}
-    </section>
+
+      {renameDevice && (
+        <Dialog
+          title={t("detail.devices.rename")}
+          size="confirm"
+          onClose={() => !busyID && setRenameDevice(null)}
+          closeOnBackdrop={!busyID}
+          footer={
+            <>
+              <Button
+                variant="secondary"
+                disabled={Boolean(busyID)}
+                onClick={() => setRenameDevice(null)}
+              >
+                {t("newBusinessModal.cancel")}
+              </Button>
+              <Button
+                variant="primary"
+                loading={busyID === renameDevice.id}
+                onClick={saveRename}
+              >
+                {t("common:actions.save")}
+              </Button>
+            </>
+          }
+        >
+          <div className="employees-dialog-stack">
+            <TextField
+              id={`device-name-${renameDevice.id}`}
+              label={t("detail.devices.renamePrompt")}
+              value={renameValue}
+              onChange={(event) => setRenameValue(event.target.value)}
+              disabled={busyID === renameDevice.id}
+              autoFocus
+            />
+            {dialogError && <Alert tone="danger">{dialogError}</Alert>}
+          </div>
+        </Dialog>
+      )}
+
+      {confirmDevice && (
+        <Dialog
+          title={t(
+            confirmDevice.revoked_at
+              ? "detail.devices.restore"
+              : "detail.devices.revoke",
+          )}
+          size="confirm"
+          onClose={() => !busyID && setConfirmDevice(null)}
+          closeOnBackdrop={!busyID}
+          footer={
+            <>
+              <Button
+                variant="secondary"
+                disabled={Boolean(busyID)}
+                onClick={() => setConfirmDevice(null)}
+              >
+                {t("newBusinessModal.cancel")}
+              </Button>
+              <Button
+                variant={confirmDevice.revoked_at ? "primary" : "danger"}
+                loading={busyID === confirmDevice.id}
+                onClick={toggleRevoked}
+              >
+                {t(
+                  confirmDevice.revoked_at
+                    ? "detail.devices.restore"
+                    : "detail.devices.revoke",
+                )}
+              </Button>
+            </>
+          }
+        >
+          <div className="employees-dialog-stack">
+            <Alert tone={confirmDevice.revoked_at ? "info" : "warning"}>
+              {t(
+                confirmDevice.revoked_at
+                  ? "detail.devices.confirmRestore"
+                  : "detail.devices.confirmRevoke",
+              )}
+            </Alert>
+            {dialogError && <Alert tone="danger">{dialogError}</Alert>}
+          </div>
+        </Dialog>
+      )}
+    </Card>
   );
 }
