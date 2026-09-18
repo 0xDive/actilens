@@ -207,5 +207,84 @@
       "noPolicyReset": "Retention, capture policy, privacy rules or enrollment settings.",
       "typeSaved": "Organization type updated."
     }
+  },
+  "accountSecurity": {
+    "title": "Account & security",
+    "subtitle": "Manage your sign-in identity, password, sessions and two-factor authentication.",
+    "loadFailed": "Could not load account security settings.",
+    "saveFailed": "Could not save the account change.",
+    "edit": "Edit",
+    "copy": "Copy",
+    "currentPassword": "Current password",
+    "profile": {
+      "title": "Profile",
+      "description": "Basic account identity shown in ActiLens.",
+      "editTitle": "Change display name",
+      "saved": "Display name updated."
+    },
+    "identity": {
+      "title": "Login identifiers",
+      "description": "Email and username can both be used to sign in when configured.",
+      "email": "Email",
+      "username": "Username",
+      "change": "Change login identifiers",
+      "logoutWarning": "Changing your email or username revokes all existing sessions. You will need to sign in again.",
+      "failed": "Could not change the login identifiers. Check your password and ensure the email/username are available."
+    },
+    "password": {
+      "title": "Password",
+      "description": "Changing your password invalidates every current session.",
+      "change": "Change password",
+      "new": "New password",
+      "confirm": "Confirm new password",
+      "mismatch": "The new passwords do not match.",
+      "failed": "Could not change the password. Check your current password and try again.",
+      "logoutWarning": "After the password is changed, all sessions including this one are revoked."
+    },
+    "sessions": {
+      "title": "Active sessions",
+      "description": "See where your account is signed in and revoke access you no longer recognize.",
+      "loadFailed": "Could not load sessions.",
+      "count_one": "{{count}} active session",
+      "count_other": "{{count}} active sessions",
+      "revokeOthers": "Revoke all other sessions",
+      "revokedOthers": "Other sessions revoked.",
+      "empty": "No sessions found.",
+      "desktop": "Desktop",
+      "web": "Web",
+      "current": "Current",
+      "revoked": "Revoked",
+      "created": "Created {{value}}",
+      "lastUsed": "Last used {{value}}",
+      "revoke": "Revoke"
+    },
+    "mfa": {
+      "title": "Two-factor authentication",
+      "description": "Protect sign-in with a TOTP authenticator and one-time recovery codes.",
+      "status": "Status",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "enabledHelp": "A TOTP or unused recovery code is required after the password.",
+      "disabledHelp": "Only your password is currently required.",
+      "enable": "Enable 2FA",
+      "disable": "Disable 2FA",
+      "enableTitle": "Enable two-factor authentication",
+      "continue": "Continue",
+      "confirm": "Confirm and enable",
+      "manualIntro": "Add this secret to a TOTP authenticator app, then enter the current 6-digit code.",
+      "secret": "Authenticator secret",
+      "code": "Authenticator or recovery code",
+      "invalid": "The authentication code is invalid.",
+      "setupFailed": "Could not start two-factor setup.",
+      "disableFailed": "Could not disable two-factor authentication.",
+      "regenerate": "Regenerate recovery codes",
+      "regenerateFailed": "Could not regenerate recovery codes.",
+      "regenerateWarning": "Generating new recovery codes permanently invalidates every previous recovery code.",
+      "disableWarning": "Disabling two-factor authentication reduces account security and revokes all current sessions.",
+      "recoveryTitle": "Save your recovery codes",
+      "recoveryWarning": "These 10 recovery codes are shown only once. Store them somewhere secure. Each code can be used one time.",
+      "copyAll": "Copy all",
+      "savedCodes": "I saved these codes"
+    }
   }
 }
