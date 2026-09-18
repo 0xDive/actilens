@@ -4,102 +4,327 @@
     <meta charset="UTF-8" />
     <style>
       :root {
-        --bg: #ffffff;
-        --bg-subtle: #f6f6f6;
-        --border: #e3e3e3;
-        --text: #1a1a1a;
-        --text-muted: #6b6b6b;
-        --accent: #2d6cdf;
-        --success: #2e7d55;
-        --danger: #c0392b;
+        color-scheme: light;
+        --bg: #f5f6f8;
+        --surface: #ffffff;
+        --subtle: #f0f2f5;
+        --hover: #eceff3;
+        --border: #d9dde4;
+        --border-subtle: #e6e8ec;
+        --text: #181b20;
+        --secondary: #5e6673;
+        --tertiary: #858e9c;
+        --brand: #6d5dfb;
+        --brand-soft: #efedff;
+        --success: #16885a;
+        --success-soft: #e7f6ef;
+        --danger: #d14343;
+        --danger-soft: #fceaea;
       }
+
       @media (prefers-color-scheme: dark) {
         :root {
-          --bg: #1a1a1a;
-          --bg-subtle: #242424;
-          --border: #363636;
-          --text: #ececec;
-          --text-muted: #9a9a9a;
-          --accent: #5b8def;
-          --success: #5fb58a;
-          --danger: #e06a5c;
+          color-scheme: dark;
+          --bg: #0f1115;
+          --surface: #15181e;
+          --subtle: #1b1f27;
+          --hover: #222731;
+          --border: #2e3440;
+          --border-subtle: #232832;
+          --text: #f3f5f7;
+          --secondary: #a7afbc;
+          --tertiary: #77808f;
+          --brand: #8b7cfb;
+          --brand-soft: #292442;
+          --success: #4ac28a;
+          --success-soft: #173126;
+          --danger: #ef6a6a;
+          --danger-soft: #351c20;
         }
       }
-      * { box-sizing: border-box; }
+
+      * {
+        box-sizing: border-box;
+      }
+
       body {
-        width: 320px;
+        width: 352px;
         margin: 0;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-        font-size: 13px;
         background: var(--bg);
         color: var(--text);
+        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+        font-size: 13px;
+        -webkit-font-smoothing: antialiased;
       }
+
+      .shell {
+        padding: 12px;
+      }
+
+      .panel {
+        overflow: hidden;
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        background: var(--surface);
+      }
+
       .head {
+        min-height: 54px;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border-subtle);
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 12px 16px;
-        border-bottom: 1px solid var(--border);
+        gap: 12px;
       }
-      .brand { font-weight: 600; display: flex; align-items: center; gap: 8px; }
-      .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
+
+      .brand {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+      }
+
+      .brand-mark {
+        width: 30px;
+        height: 30px;
+        flex: 0 0 30px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        background: var(--brand);
+        color: #fff;
+      }
+
+      .brand-mark svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      .brand-copy {
+        min-width: 0;
+      }
+
+      .brand-name {
+        font-weight: 700;
+        line-height: 17px;
+      }
+
+      .brand-sub {
+        margin-top: 1px;
+        color: var(--tertiary);
+        font-size: 11px;
+        line-height: 15px;
+      }
+
       .pill {
-        font-size: 12px; padding: 2px 8px; border-radius: 999px;
-        border: 1px solid var(--border);
+        min-height: 24px;
+        padding: 2px 8px;
+        border: 0;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        font-size: 11px;
+        font-weight: 650;
+        white-space: nowrap;
+        background: var(--subtle);
+        color: var(--secondary);
       }
-      .pill.ok { color: var(--success); }
-      .pill.bad { color: var(--danger); }
-      .body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-      .card {
-        background: var(--bg-subtle); border: 1px solid var(--border);
-        border-radius: 6px; padding: 12px;
+
+      .pill.ok {
+        background: var(--success-soft);
+        color: var(--success);
       }
-      .muted { color: var(--text-muted); font-size: 12px; }
-      .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-      .title { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+      .pill.bad {
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+
+      .body {
+        padding: 12px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .tracking-row {
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+      }
+
+      .title {
+        overflow: hidden;
+        color: var(--text);
+        font-weight: 650;
+        line-height: 18px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .muted {
+        color: var(--tertiary);
+        font-size: 11px;
+        line-height: 16px;
+      }
+
       .switch {
-        width: 38px; height: 22px; border-radius: 999px; background: var(--accent);
-        position: relative; cursor: pointer; border: none; flex: none;
+        position: relative;
+        width: 36px;
+        height: 20px;
+        flex: 0 0 36px;
+        padding: 0;
+        border: 0;
+        border-radius: 999px;
+        background: var(--brand);
+        cursor: pointer;
+        transition: background 120ms ease;
       }
+
       .switch::after {
-        content: ""; position: absolute; top: 2px; left: 18px;
-        width: 18px; height: 18px; border-radius: 50%; background: #fff;
+        content: "";
+        position: absolute;
+        top: 2px;
+        left: 18px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        transition: left 120ms ease;
       }
-      .switch.off { background: var(--border); }
-      .switch.off::after { left: 2px; }
-      .big { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+      .switch.off {
+        background: var(--border);
+      }
+
+      .switch.off::after {
+        left: 2px;
+      }
+
+      .card {
+        padding: 11px 12px;
+        border: 1px solid var(--border-subtle);
+        border-radius: 9px;
+        background: var(--subtle);
+      }
+
+      .page-title {
+        margin-top: 4px;
+      }
+
+      .page-meta {
+        margin-top: 2px;
+      }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .metric {
+        min-height: 70px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+
+      .big {
+        color: var(--text);
+        font-size: 20px;
+        font-weight: 700;
+        line-height: 24px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .privacy {
+        padding: 10px 12px 11px;
+        border-top: 1px solid var(--border-subtle);
+        color: var(--tertiary);
+        font-size: 10.5px;
+        line-height: 15px;
+      }
+
+      button:focus-visible {
+        outline: 2px solid var(--brand);
+        outline-offset: 2px;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .switch,
+        .switch::after {
+          transition: none;
+        }
+      }
     </style>
   </head>
   <body>
-    <div class="head">
-      <div class="brand"><span class="dot"></span> ActiLens</div>
-      <span id="status" class="pill">…</span>
+    <div class="shell">
+      <div class="panel">
+        <header class="head">
+          <div class="brand">
+            <span class="brand-mark" aria-hidden>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M3 12h4l2-5 4 10 2-5h6"></path>
+              </svg>
+            </span>
+            <span class="brand-copy">
+              <span class="brand-name">ActiLens</span>
+              <span class="brand-sub">Browser activity</span>
+            </span>
+          </div>
+          <span id="status" class="pill">…</span>
+        </header>
+
+        <main class="body">
+          <div class="tracking-row">
+            <div>
+              <div class="title">Track this browser</div>
+              <div class="muted">Send active-tab activity to the local app</div>
+            </div>
+            <button
+              id="toggle"
+              type="button"
+              class="switch"
+              aria-label="Toggle browser tracking"
+            ></button>
+          </div>
+
+          <section class="card">
+            <div class="muted">Current page</div>
+            <div id="page" class="title page-title">—</div>
+            <div id="pageMeta" class="muted page-meta"></div>
+          </section>
+
+          <div class="metrics">
+            <section class="card metric">
+              <div class="muted">Pages today</div>
+              <div id="count" class="big">0</div>
+            </section>
+            <section class="card metric">
+              <div class="muted">Local app port</div>
+              <div id="port" class="big">—</div>
+            </section>
+          </div>
+        </main>
+
+        <footer class="privacy">
+          Only the active tab URL, title and time are sent to the ActiLens desktop
+          app on this computer (127.0.0.1).
+        </footer>
+      </div>
     </div>
-    <div class="body">
-      <div class="row">
-        <div>
-          <div class="title">Track this browser</div>
-          <div class="muted">Reports active tab to the local app</div>
-        </div>
-        <button id="toggle" class="switch"></button>
-      </div>
-      <div class="card">
-        <div class="muted">Current page</div>
-        <div id="page" class="title">—</div>
-        <div id="pageMeta" class="muted"></div>
-      </div>
-      <div class="row">
-        <div class="card" style="flex:1; margin-right:8px;">
-          <div class="muted">Pages today</div>
-          <div id="count" class="big">0</div>
-        </div>
-        <div class="card" style="flex:1;">
-          <div class="muted">App port</div>
-          <div id="port" class="big">—</div>
-        </div>
-      </div>
-      <div class="muted">🔒 Only the active tab URL & time are sent — to 127.0.0.1.</div>
-    </div>
+
     <script src="popup.js"></script>
   </body>
 </html>
