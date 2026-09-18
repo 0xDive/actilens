@@ -553,7 +553,7 @@ export function EmployeeDetail() {
                 ))}
 
               {tab === "devices" && mayManageDevices && (
-                <DevicesCard employeeId={id} />
+                <DevicesCard employeeId={id} businessId={businessId} />
               )}
             </>
           )}
