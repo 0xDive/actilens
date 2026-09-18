@@ -397,20 +397,19 @@ export function permanentlyDeleteMember(businessId: string, userId: string) {
   );
 }
 
-export function listEmployeeDevices(employeeId: string, businessId?: string) {
-  return request<{ devices: Device[] }>(`/v1/employees/${employeeId}/devices`, {
-    query: businessId ? { business_id: businessId } : undefined,
-  });
+export function listEmployeeDevices(employeeId: string, businessId: string) {
+  return request<{ devices: Device[] }>(
+    `/v1/businesses/${businessId}/members/${employeeId}/devices`,
+  );
 }
 
 export function updateDevice(
   id: string,
   patch: { label?: string; revoked?: boolean },
-  businessId?: string,
+  businessId: string,
 ) {
-  return request<{ device: Device }>(`/v1/devices/${id}`, {
+  return request<{ device: Device }>(`/v1/businesses/${businessId}/devices/${id}`, {
     method: "PATCH",
-    query: businessId ? { business_id: businessId } : undefined,
     body: patch,
   });
 }
