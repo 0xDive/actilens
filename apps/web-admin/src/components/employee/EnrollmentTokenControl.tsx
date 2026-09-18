@@ -44,10 +44,12 @@ export function EnrollmentTokenControl({ employee, businessId, canChange }: {
   const [grant, setGrant] = useState<EnrollmentTokenResponse | null>(null);
   const [copied, setCopied] = useState<"token" | "powershell" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const defaultBackendUrl = typeof window === "undefined" ? "" : window.location.origin;
+  const [serverUrl, setServerUrl] = useState(defaultBackendUrl);
 
-  const backendUrl = typeof window === "undefined" ? "" : window.location.origin;
   const powershell = useMemo(() => {
     if (!grant) return "";
+    const backendUrl = serverUrl.trim().replace(/\/+$/, "");
     const path = "$env:TEMP\\install-actilens.ps1";
     return [
       `$p=${path}`,
@@ -55,7 +57,7 @@ export function EnrollmentTokenControl({ employee, businessId, canChange }: {
       `& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $p -ServerUrl '${psQuote(backendUrl)}' -EnrollmentToken '${psQuote(grant.token)}'`,
       `Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue`,
     ].join("; ");
-  }, [grant, backendUrl]);
+  }, [grant, serverUrl]);
 
   if (!canChange || !employee.active) return null;
 
@@ -92,6 +94,7 @@ export function EnrollmentTokenControl({ employee, businessId, canChange }: {
           setGrant(null);
           setError(null);
           setCopied(null);
+          setServerUrl(defaultBackendUrl);
         }}
       >
         {t("employees.actions.enrollment")}
@@ -137,6 +140,18 @@ export function EnrollmentTokenControl({ employee, businessId, canChange }: {
                     {copied === "token" ? t("employees.enrollment.copied") : t("employees.enrollment.copyToken")}
                   </button>
                 </div>
+
+                <label style={{ display: "grid", gap: 6 }}>
+                  <strong style={{ fontSize: 13 }}>{t("employees.enrollment.serverUrlLabel")}</strong>
+                  <input
+                    value={serverUrl}
+                    onChange={(e) => setServerUrl(e.target.value)}
+                    placeholder="http://192.168.0.249:8081"
+                    spellCheck={false}
+                    autoCapitalize="none"
+                  />
+                  <span style={{ fontSize: 12, opacity: 0.75 }}>{t("employees.enrollment.serverUrlHelp")}</span>
+                </label>
 
                 <div style={{ display: "grid", gap: 6 }}>
                   <strong style={{ fontSize: 13 }}>{t("employees.enrollment.powershellLabel")}</strong>
