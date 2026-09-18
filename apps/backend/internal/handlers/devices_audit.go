@@ -21,7 +21,8 @@ type updateDeviceReq struct {
 // the current user may manage.
 func (h *OwnerHandler) ListEmployeeDevices(c *gin.Context) {
 	actorID, _ := auth.UserID(c)
-	devices, err := h.store.ListEmployeeDevices(c.Request.Context(), actorID, c.Param("id"))
+	businessID := strings.TrimSpace(c.Query("business_id"))
+	devices, err := h.store.ListEmployeeDevices(c.Request.Context(), actorID, c.Param("id"), businessID)
 	switch {
 	case err == nil:
 		c.JSON(http.StatusOK, gin.H{"devices": devices})
@@ -55,7 +56,8 @@ func (h *OwnerHandler) UpdateDevice(c *gin.Context) {
 		req.Label = &v
 	}
 
-	device, err := h.store.UpdateDevice(c.Request.Context(), actorID, c.Param("id"), req.Label, req.Revoked)
+	businessID := strings.TrimSpace(c.Query("business_id"))
+	device, err := h.store.UpdateDevice(c.Request.Context(), actorID, c.Param("id"), req.Label, req.Revoked, businessID)
 	switch {
 	case err == nil:
 		c.JSON(http.StatusOK, gin.H{"device": device})
