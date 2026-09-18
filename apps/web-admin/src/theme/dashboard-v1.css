@@ -418,3 +418,7 @@
   display: inline-flex;
   color: var(--ds-text-tertiary);
 }
+
+.dashboard-status-dot--blocked {
+  background: var(--ds-danger);
+}
