@@ -24,6 +24,7 @@ import type {
   BusinessSettingsPatch,
   CreateEmployeeResponse,
   Device,
+  DeviceHealthSummary,
   Employee,
   KeystrokeBucket,
   Membership,
@@ -412,6 +413,10 @@ export function updateDevice(
     method: "PATCH",
     body: patch,
   });
+}
+
+export function getDeviceHealth(businessId: string) {
+  return request<DeviceHealthSummary>(`/v1/businesses/${businessId}/devices/health`);
 }
 
 // ---------- reports ----------
