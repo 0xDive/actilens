@@ -257,12 +257,13 @@ func TestIntegrationPurgeIsOrganizationScoped(t *testing.T) {
 		t.Fatalf("add second organization membership: %v", err)
 	}
 
-	deviceID := uuid.NewString()
-	if err := st.SyncBatch(ctx, employee.ID, bizA.ID, deviceID, DeviceMetadata{},
+	deviceA := uuid.NewString()
+	deviceB := uuid.NewString()
+	if err := st.SyncBatch(ctx, employee.ID, bizA.ID, deviceA, DeviceMetadata{},
 		[]ActivityRow{{ClientUUID: uuid.NewString(), Ts: 100, AppName: "A", DurationS: 1, ClientUpdatedAt: 100}}, nil, nil); err != nil {
 		t.Fatalf("sync business A: %v", err)
 	}
-	if err := st.SyncBatch(ctx, employee.ID, bizB.ID, deviceID, DeviceMetadata{},
+	if err := st.SyncBatch(ctx, employee.ID, bizB.ID, deviceB, DeviceMetadata{},
 		[]ActivityRow{{ClientUUID: uuid.NewString(), Ts: 200, AppName: "B", DurationS: 1, ClientUpdatedAt: 200}}, nil, nil); err != nil {
 		t.Fatalf("sync business B: %v", err)
 	}
