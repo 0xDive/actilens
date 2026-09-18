@@ -2,18 +2,20 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { permanentlyDeleteMember } from "../../api/endpoints";
 import type { Employee } from "../../api/types";
-import { Modal, Notice } from "../ui";
+import { Alert, Button, Dialog, TextField } from "../ds";
 
 export function PermanentDeleteControl({
   employee,
   businessId,
   canDelete,
   onDeleted,
+  triggerVariant = "button",
 }: {
   employee: Employee;
   businessId: string;
   canDelete: boolean;
   onDeleted: () => void;
+  triggerVariant?: "button" | "menu-item";
 }) {
   const { t } = useTranslation("dashboard");
   const [open, setOpen] = useState(false);
@@ -24,6 +26,12 @@ export function PermanentDeleteControl({
   if (!canDelete || employee.role === "owner") return null;
 
   const matches = confirmText.trim() === employee.display_name.trim();
+
+  function start() {
+    setConfirmText("");
+    setError(null);
+    setOpen(true);
+  }
 
   async function purge() {
     if (!matches || busy) return;
@@ -43,61 +51,53 @@ export function PermanentDeleteControl({
 
   return (
     <>
-      <button
-        type="button"
-        className="actilens-btn actilens-btn--ghost"
-        onClick={() => {
-          setConfirmText("");
-          setError(null);
-          setOpen(true);
-        }}
-      >
-        {t("employees.actions.purge")}
-      </button>
+      {triggerVariant === "menu-item" ? (
+        <button type="button" className="ds-menu__item ds-menu__item--danger" onClick={start}>
+          {t("employees.actions.purge")}
+        </button>
+      ) : (
+        <Button variant="danger-ghost" size="sm" onClick={start}>
+          {t("employees.actions.purge")}
+        </Button>
+      )}
 
       {open && (
-        <Modal
+        <Dialog
           title={t("employees.purge.title", { name: employee.display_name })}
+          size="confirm"
           onClose={() => !busy && setOpen(false)}
-        >
-          <div style={{ display: "grid", gap: 14, minWidth: 500, maxWidth: 640 }}>
-            <Notice kind="danger">{t("employees.purge.warning")}</Notice>
-            <div style={{ fontSize: 13, lineHeight: 1.55 }}>
-              {t("employees.purge.scope")}
-            </div>
-            <label style={{ display: "grid", gap: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 650 }}>
-                {t("employees.purge.confirmLabel", { name: employee.display_name })}
-              </span>
-              <input
-                value={confirmText}
-                onChange={(e) => setConfirmText(e.target.value)}
-                autoComplete="off"
-                spellCheck={false}
-                disabled={busy}
-              />
-            </label>
-            {error && <Notice kind="danger">{error}</Notice>}
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button
-                type="button"
-                className="actilens-btn actilens-btn--secondary"
-                disabled={busy}
-                onClick={() => setOpen(false)}
-              >
+          closeOnBackdrop={!busy}
+          footer={
+            <>
+              <Button variant="secondary" disabled={busy} onClick={() => setOpen(false)}>
                 {t("employees.purge.cancel")}
-              </button>
-              <button
-                type="button"
-                className="actilens-btn actilens-btn--primary"
+              </Button>
+              <Button
+                variant="danger"
+                loading={busy}
                 disabled={!matches || busy}
                 onClick={purge}
               >
                 {busy ? t("employees.purge.deleting") : t("employees.purge.delete")}
-              </button>
-            </div>
+              </Button>
+            </>
+          }
+        >
+          <div className="employees-dialog-stack">
+            <Alert tone="danger">{t("employees.purge.warning")}</Alert>
+            <p className="employees-dialog-note">{t("employees.purge.scope")}</p>
+            <TextField
+              id={`purge-confirm-${employee.id}`}
+              label={t("employees.purge.confirmLabel", { name: employee.display_name })}
+              value={confirmText}
+              onChange={(event) => setConfirmText(event.target.value)}
+              autoComplete="off"
+              spellCheck={false}
+              disabled={busy}
+            />
+            {error && <Alert tone="danger">{error}</Alert>}
           </div>
-        </Modal>
+        </Dialog>
       )}
     </>
   );
