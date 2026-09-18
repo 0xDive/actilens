@@ -19,15 +19,19 @@ export interface Tokens {
   access_token: string;
   refresh_token: string;
   expires_in: number;
+  session_id?: string;
 }
 
 export interface AuthResponse {
   user: User;
   tokens: Tokens;
+  business_id?: string;
 }
 
-export type BusinessKind = "team" | "family";
+export type BusinessKind = "team" | "family" | "other";
 export type ScreenshotMode = "privacy" | "normal";
+export type ScreenshotCaptureScope = "active_window" | "active_display" | "all_displays";
+export type MembershipStatus = "active" | "blocked" | "removed";
 
 export interface PrivacyAppCategory {
   key: string;
@@ -39,12 +43,31 @@ export interface Business {
   name: string;
   kind: BusinessKind;
   owner_user_id: string;
+  timezone: string;
+  week_starts_on: number | null;
+  default_member_monitoring_enabled: boolean;
+  collect_app_activity: boolean;
+  collect_window_titles: boolean;
+  collect_screenshots: boolean;
+  collect_browser_activity: boolean;
+  collect_keystroke_counts: boolean;
   screenshot_retention_days: number | null;
   screenshot_interval_s: number;
+  screenshot_capture_scope: ScreenshotCaptureScope;
   idle_threshold_s: number;
   allow_employee_override: boolean;
   screenshot_mode: string;
   screenshot_skip_apps: string[];
+  activity_retention_days: number;
+  browser_retention_days: number;
+  keystroke_retention_days: number;
+  audit_retention_days: number | null;
+  device_limit: number | null;
+  enrollment_token_ttl_s: number;
+  archived_at: string | null;
+  deletion_scheduled_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface BusinessAccess {
@@ -56,13 +79,27 @@ export interface Membership {
   business_id: string;
   business_name: string;
   role: BusinessRole;
+  status: MembershipStatus;
   monitoring_enabled: boolean;
 }
 
 export interface BusinessSettingsPatch {
+  default_member_monitoring_enabled?: boolean;
+  collect_app_activity?: boolean;
+  collect_window_titles?: boolean;
+  collect_screenshots?: boolean;
+  collect_browser_activity?: boolean;
+  collect_keystroke_counts?: boolean;
   screenshot_retention_days?: number | null;
   screenshot_interval_s?: number;
+  screenshot_capture_scope?: ScreenshotCaptureScope;
   idle_threshold_s?: number;
+  activity_retention_days?: number;
+  browser_retention_days?: number;
+  keystroke_retention_days?: number;
+  audit_retention_days?: number | null;
+  device_limit?: number | null;
+  enrollment_token_ttl_s?: number;
   allow_employee_override?: boolean;
   screenshot_mode?: ScreenshotMode;
   screenshot_skip_apps?: string[];
@@ -189,4 +226,42 @@ export class ApiError extends Error {
     this.details = details;
     this.body = body;
   }
+}
+
+
+export interface AuthSession {
+  id: string;
+  client_type: "web" | "desktop";
+  client_label: string;
+  created_at: string;
+  last_used_at: string;
+  expires_at: string;
+  revoked_at: string | null;
+  current: boolean;
+}
+
+export interface MFAState {
+  enabled: boolean;
+  enabled_at: string | null;
+}
+
+export interface AccountResponse {
+  user: User;
+  mfa: MFAState;
+}
+
+export interface MFASetupResponse {
+  secret: string;
+  otpauth_uri: string;
+}
+
+export interface RecoveryCodesResponse {
+  recovery_codes: string[];
+}
+
+export interface OrganizationPatch {
+  name?: string;
+  kind?: BusinessKind;
+  timezone?: string;
+  week_starts_on?: number | null;
 }
