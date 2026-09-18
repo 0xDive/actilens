@@ -37,6 +37,7 @@ func (h *OwnerHandler) listMemberDevices(c *gin.Context, businessID, userID stri
 	devices, err := h.store.ListEmployeeDevices(c.Request.Context(), actorID, userID, businessID)
 	switch {
 	case err == nil:
+		h.annotateDeviceVersions(devices)
 		c.JSON(http.StatusOK, gin.H{"devices": devices})
 	case errors.Is(err, store.ErrNotFound):
 		notFound(c, "member not found")
@@ -84,6 +85,7 @@ func (h *OwnerHandler) updateOrganizationDevice(c *gin.Context, businessID, devi
 	device, err := h.store.UpdateDevice(c.Request.Context(), actorID, deviceID, req.Label, req.Revoked, businessID)
 	switch {
 	case err == nil:
+		device.VersionStatus = h.deviceVersionStatus(device.AppVersion)
 		c.JSON(http.StatusOK, gin.H{"device": device})
 	case errors.Is(err, store.ErrNotFound):
 		notFound(c, "device not found")
@@ -118,4 +120,44 @@ func (h *OwnerHandler) ListAuditEvents(c *gin.Context) {
 	default:
 		serverError(c, err)
 	}
+}
+
+
+func (h *OwnerHandler) DeviceHealthSummary(c *gin.Context) {
+	actorID, _ := auth.UserID(c)
+	devices, err := h.store.ListBusinessActiveDevices(
+		c.Request.Context(), actorID, c.Param("id"),
+	)
+	switch {
+	case err == nil:
+	case errors.Is(err, store.ErrForbidden):
+		forbidden(c, "insufficient permission")
+		return
+	case errors.Is(err, store.ErrNotFound):
+		notFound(c, "organization not found")
+		return
+	default:
+		serverError(c, err)
+		return
+	}
+
+	h.annotateDeviceVersions(devices)
+	summary := gin.H{
+		"total":               len(devices),
+		"current":             0,
+		"outdated":            0,
+		"unknown":             0,
+		"recommended_version": h.recommendedDesktopVersion,
+	}
+	for _, device := range devices {
+		switch device.VersionStatus {
+		case "current":
+			summary["current"] = summary["current"].(int) + 1
+		case "outdated":
+			summary["outdated"] = summary["outdated"].(int) + 1
+		default:
+			summary["unknown"] = summary["unknown"].(int) + 1
+		}
+	}
+	c.JSON(http.StatusOK, summary)
 }
