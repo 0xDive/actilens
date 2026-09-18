@@ -159,8 +159,14 @@ func employeeBusinessOwnedByTx(ctx context.Context, tx pgx.Tx, ownerID, employee
 }
 
 // ListEmployeeDevices returns every installation seen for a member the actor may manage.
-func (s *Store) ListEmployeeDevices(ctx context.Context, actorID, employeeID string) ([]Device, error) {
-	if _, err := s.MemberAccessWithPermission(ctx, actorID, employeeID, PermissionManageDevices); err != nil {
+func (s *Store) ListEmployeeDevices(ctx context.Context, actorID, employeeID string, businessID ...string) ([]Device, error) {
+	var err error
+	if len(businessID) > 0 && strings.TrimSpace(businessID[0]) != "" {
+		_, err = memberAccessInBusiness(ctx, s.pool, actorID, employeeID, strings.TrimSpace(businessID[0]), PermissionManageDevices)
+	} else {
+		_, err = s.MemberAccessWithPermission(ctx, actorID, employeeID, PermissionManageDevices)
+	}
+	if err != nil {
 		return nil, err
 	}
 
@@ -186,7 +192,7 @@ func (s *Store) ListEmployeeDevices(ctx context.Context, actorID, employeeID str
 
 // UpdateDevice lets an owner rename, revoke or restore a device belonging to one
 // of their employees. Revocation affects subsequent sync and screenshot uploads.
-func (s *Store) UpdateDevice(ctx context.Context, actorID, deviceID string, label *string, revoked *bool) (Device, error) {
+func (s *Store) UpdateDevice(ctx context.Context, actorID, deviceID string, label *string, revoked *bool, businessID ...string) (Device, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return Device{}, err
@@ -206,7 +212,12 @@ func (s *Store) UpdateDevice(ctx context.Context, actorID, deviceID string, labe
 		return Device{}, err
 	}
 
-	access, err := memberAccessTx(ctx, tx, actorID, employeeID, PermissionManageDevices)
+	var access MemberAccess
+	if len(businessID) > 0 && strings.TrimSpace(businessID[0]) != "" {
+		access, err = memberAccessInBusiness(ctx, tx, actorID, employeeID, strings.TrimSpace(businessID[0]), PermissionManageDevices)
+	} else {
+		access, err = memberAccessTx(ctx, tx, actorID, employeeID, PermissionManageDevices)
+	}
 	if err != nil {
 		return Device{}, err
 	}
