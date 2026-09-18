@@ -109,6 +109,8 @@ func New(cfg *config.Config, st *store.Store, files *filestore.Store, ret *reten
 	authed.GET("/businesses/:id/employees", ownerH.ListEmployees)
 	authed.GET("/businesses/:id/audit", ownerH.ListAuditEvents)
 	authed.PATCH("/businesses/:id/settings", ownerH.UpdateSettings)
+	authed.GET("/businesses/:id/settings/default-monitoring-impact", ownerH.DefaultMonitoringImpact)
+	authed.POST("/businesses/:id/settings/default-monitoring", ownerH.UpdateDefaultMonitoring)
 	authed.POST("/businesses/:id/screenshots/cleanup", retentionH.Cleanup)
 	authed.POST("/employees", ownerH.CreateEmployee)
 	authed.PATCH("/employees/:id", ownerH.UpdateEmployee)
