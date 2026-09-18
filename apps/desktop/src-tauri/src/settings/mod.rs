@@ -107,12 +107,32 @@ pub fn env_label() -> &'static str {
     }
 }
 
-/// Base URL of the sync backend. Corporate builds can bake a self-host URL at
-/// compile time with ACTILENS_BUILD_SERVER_URL. Runtime override still wins.
+#[cfg(target_os = "windows")]
+fn windows_user_environment(name: &str) -> Option<String> {
+    use winreg::enums::HKEY_CURRENT_USER;
+    use winreg::RegKey;
+
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    let environment = hkcu.open_subkey("Environment").ok()?;
+    let value: String = environment.get_value(name).ok()?;
+    let value = value.trim().to_string();
+    (!value.is_empty()).then_some(value)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn windows_user_environment(_name: &str) -> Option<String> {
+    None
+}
+
+/// Base URL of the sync backend. Resolution order:
+/// process environment -> Windows HKCU user environment -> compile-time custom
+/// build URL -> local fallback. Reading HKCU directly means an administrator can
+/// provision a server URL without requiring a Windows sign-out or Explorer restart.
 pub fn backend_base_url() -> String {
     std::env::var("ACTILENS_BACKEND_URL")
         .ok()
-        .filter(|s| !s.is_empty())
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| windows_user_environment("ACTILENS_BACKEND_URL"))
         .or_else(|| {
             option_env!("ACTILENS_BUILD_SERVER_URL")
                 .map(str::to_string)
