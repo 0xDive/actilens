@@ -355,6 +355,28 @@ export function resetEmployeePassword(id: string, password: string) {
   });
 }
 
+export function updateManagedMemberIdentity(
+  businessId: string,
+  userId: string,
+  patch: { email?: string; username?: string; display_name?: string },
+) {
+  return request<{ employee: Employee }>(
+    `/v1/businesses/${businessId}/members/${userId}/profile`,
+    { method: "PATCH", body: patch },
+  );
+}
+
+export function resetManagedMemberPassword(
+  businessId: string,
+  userId: string,
+  password: string,
+) {
+  return request<{ status: string }>(
+    `/v1/businesses/${businessId}/members/${userId}/reset-password`,
+    { method: "POST", body: { password } },
+  );
+}
+
 export function archiveEmployee(id: string) {
   return request<{ status: string }>(`/v1/employees/${id}`, { method: "DELETE" });
 }
