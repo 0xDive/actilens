@@ -1,72 +1,97 @@
-# Privacy Policy — ActiLens (Browser Extension)
+# Privacy Policy — ActiLens Browser Extension
 
-**Last updated: June 14, 2026**
+**Last updated: September 18, 2026**
 
-This Privacy Policy explains how the **ActiLens** browser extension ("the Extension") handles information. It applies to the extension published on the Chrome Web Store and to the equivalent build for Microsoft Edge.
+This policy explains how the ActiLens browser extension handles information. It
+applies to the Chrome and Microsoft Edge versions of the extension.
 
 ## Summary
 
-- **We do not collect any data.** The developer/publisher receives nothing.
-- **Nothing is sent to the internet or to any external server.**
-- **All data stays on the user's own device**, inside the local ActiLens desktop application.
-- The source code is available for inspection so anyone can independently verify these claims.
+- The extension observes the active browser tab so it can measure time on page.
+- The extension communicates only with the ActiLens desktop application on the
+  same computer through the loopback address `127.0.0.1`.
+- The extension does not send data directly to the ActiLens developer/publisher,
+  advertising services, analytics providers or arbitrary internet endpoints.
+- In managed ActiLens deployments, the desktop application may subsequently sync
+  browser activity to the ActiLens backend configured by the deploying
+  organization.
+- The deploying organization controls that backend and is responsible for its
+  access, retention and legal/compliance policies.
 
-## What the Extension does
+## Information handled
 
-The Extension observes the **active browser tab** and records, for each completed page visit:
+For each completed active-tab visit, the extension can provide the local desktop
+application with:
 
-- the page URL,
-- the page title,
-- the time the visit started, and
-- how long the tab stayed active (time on page),
-- the browser name (Chrome or Edge).
+- page URL;
+- page title;
+- visit start time;
+- active duration/time on page;
+- browser name.
 
-This information is sent **only** to the ActiLens desktop application running on the **same computer**, over the local loopback address `http://127.0.0.1` (also called "localhost"). The loopback address never leaves the device — it is not reachable from the network or the internet.
+The extension does not read page body content, form inputs, passwords, cookies or
+typed keystrokes, and it does not capture screenshots.
 
-## What the Extension does NOT do
+## How information moves
 
-- It does **not** send any information to the developer, publisher, or any third party.
-- It does **not** transmit data over the internet or to any remote/cloud server.
-- It does **not** use analytics, advertising, tracking pixels, or third-party SDKs.
-- It does **not** sell, rent, or share data with anyone.
-- It does **not** read page content, form inputs, passwords, cookies, or keystrokes.
-- It does **not** capture screenshots from within the browser.
+The extension posts browser-activity records only to the ActiLens desktop
+application on the same device using `http://127.0.0.1`. The loopback interface is
+local to the computer and is not a remote service.
 
-## Where data is stored
+What happens after that depends on how the desktop application is configured:
 
-All browsing-activity data is stored **locally on the user's device** within the ActiLens desktop application. The Extension itself keeps only small operational values in the browser's local storage (e.g. the local app's port number and a per-device pairing token, a paused/active flag, and a daily counter). None of this is transmitted off the device.
+- in local-only mode, activity remains on the workstation;
+- in managed mode, the desktop application can synchronize the activity to the
+  self-hosted ActiLens backend selected by the deploying organization.
 
-The organization that deploys ActiLens controls the desktop application and the data it holds. Data retention, access, and deletion are governed by that organization's own policies and by the desktop application — not by the browser extension or by the publisher.
+The extension itself does not choose that backend and does not contact it directly.
 
-## Permissions and why they are needed
+## Local extension storage
 
-- **`tabs`** — to read the active tab's URL and title in order to record the current page visit.
-- **`storage`** — to store the local pairing details and small settings described above, on the device.
-- **`alarms`** — to periodically re-establish the connection to the local desktop app if it restarts or changes port.
-- **`host_permissions: http://127.0.0.1/*`** — to deliver visit data to the ActiLens desktop app running locally on the same machine. This host is the device's own loopback interface and is not accessible from the network.
+The extension stores only operational values in browser local storage, such as the
+local desktop port/pairing token, pause state and small counters used by the
+extension. These values are used to communicate with the local desktop app.
+
+## Developer/publisher data collection
+
+The extension contains no advertising SDK, analytics SDK, tracking pixel or
+third-party telemetry integration. The extension does not directly transmit
+browsing activity to the ActiLens developer/publisher.
+
+An organization that operates an ActiLens backend may receive activity synchronized
+by its managed desktop clients. That organization, rather than the browser
+extension, determines who can access the backend and how long data is retained.
+
+## Permissions
+
+- **`tabs`** — reads the active tab URL and title for the activity record.
+- **`storage`** — stores local pairing and extension settings.
+- **`alarms`** — periodically checks/re-establishes the local desktop connection.
+- **`host_permissions: http://127.0.0.1/*`** — sends records to the ActiLens
+  desktop application running on the same computer.
 
 ## Consent and intended use
 
-ActiLens is intended for **workplace use with the knowledge and consent of the people using the device**, in accordance with the deploying organization's policies and applicable local laws. Organizations are responsible for notifying users and obtaining any consent required in their jurisdiction.
+ActiLens is intended for transparent workplace use with appropriate notice and
+consent where required. Organizations deploying ActiLens are responsible for their
+monitoring policies, user notices, lawful basis/consent requirements, access
+controls and retention practices under applicable law.
 
 ## Children
 
-The Extension is a workplace tool and is not directed to children, and we do not knowingly collect information from children.
+The extension is a workplace tool and is not directed to children.
 
-## Source code and verification
+## Source code
 
-Because no data leaves the device, the safest way to verify our claims is to read the code. The Extension's source is available for review on request, and customers may inspect the build before deployment.
+The extension source is included in the public ActiLens repository so its network
+behavior and permissions can be reviewed.
 
 ## Changes to this policy
 
-If this policy changes, we will update the "Last updated" date above and publish the revised version at the policy URL below.
+Material changes will be reflected in this document together with an updated
+revision date.
 
 ## Contact
 
-For privacy questions, contact:
-
-- **Email:** 0xDive
-
----
-
-*This document is provided as the privacy policy for the ActiLens browser extension. Host it at a public URL and enter that URL in the Chrome Web Store Developer Dashboard under "Privacy practices".*
+For project/privacy questions, use the contact channels published in the ActiLens
+repository.
