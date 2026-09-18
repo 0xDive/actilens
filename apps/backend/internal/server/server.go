@@ -95,6 +95,8 @@ func New(cfg *config.Config, st *store.Store, files *filestore.Store, ret *reten
 	authed.DELETE("/businesses/:id/members/:user_id/purge", purgeH.Purge)
 	authed.POST("/businesses/:id/members/:user_id/enrollment-token", ownerH.CreateEnrollmentToken)
 	authed.POST("/businesses/:id/members/:user_id/mfa/reset", authH.ResetMemberMFA)
+	authed.PATCH("/businesses/:id/members/:user_id/profile", ownerH.UpdateManagedMemberIdentity)
+	authed.POST("/businesses/:id/members/:user_id/reset-password", ownerH.ResetManagedMemberPassword)
 
 	// Business, employee, device and audit management.
 	authed.POST("/businesses", ownerH.CreateOrganization)
