@@ -21,11 +21,11 @@ async function render() {
   const port = await probe();
   const statusEl = $("status");
   if (port) {
-    statusEl.textContent = "● Connected";
+    statusEl.textContent = "Connected";
     statusEl.className = "pill ok";
     $("port").textContent = String(port);
   } else {
-    statusEl.textContent = "▲ App not found";
+    statusEl.textContent = "App not found";
     statusEl.className = "pill bad";
     $("port").textContent = "—";
   }
@@ -48,6 +48,7 @@ async function render() {
 
   const { paused } = await chrome.storage.local.get("paused");
   $("toggle").className = paused ? "switch off" : "switch";
+  $("toggle").setAttribute("aria-pressed", String(!paused));
 }
 
 $("toggle").addEventListener("click", async () => {
