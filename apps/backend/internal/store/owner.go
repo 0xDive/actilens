@@ -512,7 +512,8 @@ type CapturePolicy struct {
 	ScreenshotRetentionDays        *int     `json:"screenshot_retention_days"`
 	Kind                           string   `json:"kind"`
 	ScreenshotMode                 string   `json:"screenshot_mode"` // compatibility
-	ScreenshotSkipApps             []string `json:"screenshot_skip_apps"` // compatibility
+	ScreenshotSkipApps             []string      `json:"screenshot_skip_apps"` // compatibility
+	PrivacyRules                   []PrivacyRule `json:"privacy_rules"`
 }
 
 func (s *Store) PolicyForUserInBusiness(ctx context.Context, userID, businessID string) (*CapturePolicy, error) {
@@ -549,6 +550,11 @@ func (s *Store) PolicyForUserInBusiness(ctx context.Context, userID, businessID 
 	if status == "removed" {
 		return nil, ErrMemberRemoved
 	}
+	rules, err := s.privacyRulesForBusiness(ctx, businessID)
+	if err != nil {
+		return nil, err
+	}
+	p.PrivacyRules = rules
 	p.Managed = true
 	return &p, nil
 }
