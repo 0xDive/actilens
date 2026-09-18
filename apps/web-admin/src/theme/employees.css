@@ -1,0 +1,237 @@
+/* Employees v1 page — built on the ActiLens design-system tokens. */
+
+.employees-page {
+  width: 100%;
+}
+
+.employees-table-wrap {
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.employees-table {
+  min-width: 1080px;
+}
+
+.employees-table th:last-child,
+.employees-table td:last-child {
+  width: 52px;
+  padding-left: 8px;
+  padding-right: 8px;
+  text-align: right;
+}
+
+.employees-row {
+  cursor: pointer;
+}
+
+.employees-row:focus-visible {
+  outline: 2px solid var(--ds-brand);
+  outline-offset: -2px;
+}
+
+.employees-person {
+  min-width: 210px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.employees-avatar {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ds-brand-soft);
+  color: var(--ds-brand);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.employees-avatar__dot {
+  position: absolute;
+  right: -1px;
+  bottom: 0;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--ds-bg-surface);
+  border-radius: 50%;
+  background: var(--ds-text-tertiary);
+}
+
+.employees-avatar__dot--active {
+  background: var(--ds-success);
+}
+
+.employees-avatar__dot--idle {
+  background: var(--ds-warning);
+}
+
+.employees-avatar__dot--blocked {
+  background: var(--ds-danger);
+}
+
+.employees-person__copy {
+  min-width: 0;
+}
+
+.employees-person__name {
+  overflow: hidden;
+  color: var(--ds-text-primary);
+  font-size: var(--ds-text-md);
+  font-weight: 700;
+  line-height: 19px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.employees-person__status {
+  margin-top: 2px;
+  color: var(--ds-text-tertiary);
+  font-size: var(--ds-text-xs);
+  line-height: 16px;
+}
+
+.employees-login {
+  color: var(--ds-text-secondary);
+  font-size: var(--ds-text-sm);
+}
+
+.employees-role-select {
+  width: 132px;
+  height: 34px;
+  padding: 0 9px;
+  font-size: var(--ds-text-sm);
+}
+
+.employees-app {
+  max-width: 260px;
+}
+
+.employees-app__name,
+.employees-app__window {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.employees-app__name {
+  color: var(--ds-text-primary);
+  font-size: var(--ds-text-sm);
+  font-weight: 600;
+}
+
+.employees-app__window {
+  margin-top: 2px;
+  color: var(--ds-text-tertiary);
+  font-size: var(--ds-text-xs);
+}
+
+.employees-last-seen {
+  color: var(--ds-text-secondary);
+  font-size: var(--ds-text-sm);
+  white-space: nowrap;
+}
+
+.employees-actions {
+  position: relative;
+  display: inline-flex;
+}
+
+.employees-actions__menu {
+  top: calc(100% + 6px);
+  right: 0;
+  width: 232px;
+  text-align: left;
+}
+
+.employees-actions__menu .ds-menu__item {
+  text-decoration: none;
+}
+
+.employees-loading-card {
+  display: grid;
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-border-subtle);
+}
+
+.employees-loading-row {
+  height: 64px;
+  padding: 0 14px;
+  display: grid;
+  grid-template-columns: 2fr 1fr 0.9fr 1.1fr 1.6fr 1fr 36px;
+  align-items: center;
+  gap: 18px;
+  background: var(--ds-bg-surface);
+}
+
+.employees-dialog-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.employees-dialog-note {
+  margin: 0;
+  color: var(--ds-text-secondary);
+  font-size: var(--ds-text-sm);
+  line-height: 20px;
+}
+
+.employees-code-section {
+  display: grid;
+  gap: 7px;
+}
+
+.employees-code-label {
+  color: var(--ds-text-primary);
+  font-size: var(--ds-text-sm);
+  font-weight: 650;
+}
+
+.employees-code-block {
+  max-height: 150px;
+  overflow: auto;
+  padding: 11px 12px;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: var(--ds-radius-md);
+  display: block;
+  background: var(--ds-bg-subtle);
+  color: var(--ds-text-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.employees-form {
+  display: grid;
+  gap: 16px;
+}
+
+.employees-password-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+
+@media (max-width: 1180px) {
+  .employees-table {
+    min-width: 980px;
+  }
+}
+
+@media (max-width: 1080px) {
+  .employees-loading-row {
+    grid-template-columns: 2fr 1fr 1fr 1fr 1.4fr 1fr 36px;
+    gap: 12px;
+  }
+}
