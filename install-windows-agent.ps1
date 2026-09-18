@@ -115,6 +115,17 @@ function Find-ActiLensExe {
 }
 
 $server = Normalize-ServerUrl $ServerUrl
+
+Write-Host "Checking ActiLens server: $server/healthz"
+try {
+    $health = Invoke-WebRequest -UseBasicParsing -Uri "$server/healthz" -TimeoutSec 10
+    if ($health.StatusCode -ne 200) {
+        throw "HTTP $($health.StatusCode)"
+    }
+} catch {
+    throw "ActiLens server health check failed for $server : $($_.Exception.Message)"
+}
+
 $token = $EnrollmentToken.Trim()
 if (-not $token.StartsWith('atl_enroll_', [StringComparison]::Ordinal)) {
     throw 'EnrollmentToken is not an ActiLens enrollment code.'
