@@ -104,7 +104,7 @@ func (h *ScreenshotHandler) Upload(c *gin.Context) {
 	}
 
 	// Screenshot uploads must obey the same device revocation policy as batch sync.
-	if err := h.store.TouchDevice(c.Request.Context(), userID, deviceID, store.DeviceMetadata{}); err != nil {
+	if err := h.store.TouchDevice(c.Request.Context(), userID, bizID, deviceID, store.DeviceMetadata{}); err != nil {
 		switch {
 		case errors.Is(err, store.ErrDeviceRevoked):
 			c.JSON(http.StatusForbidden, gin.H{"error": "this device was revoked by the administrator"})
