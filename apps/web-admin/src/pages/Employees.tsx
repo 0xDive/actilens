@@ -265,6 +265,7 @@ function EmployeeActionsMenu({
                 onClick={() => {
                   setEditName(employee.display_name);
                   setEditLogin(employee.email || employee.username || "");
+                  setOpen(false);
                   setDialogError(null);
                   setEditOpen(true);
                 }}
@@ -275,6 +276,7 @@ function EmployeeActionsMenu({
                 type="button"
                 className="ds-menu__item"
                 onClick={() => {
+                  setOpen(false);
                   setPassword("");
                   setDialogError(null);
                   setPasswordOpen(true);
@@ -286,6 +288,7 @@ function EmployeeActionsMenu({
                 type="button"
                 className="ds-menu__item"
                 onClick={() => {
+                  setOpen(false);
                   setDialogError(null);
                   setStatusOpen(true);
                 }}
@@ -564,7 +567,7 @@ function NewEmployeeDialog({
             loading={busy}
             disabled={!displayName.trim() || !login.trim() || password.length < 8}
           >
-            {t("newEmployeeModal.adding").replace("…", "")}
+            {terms.addCta}
           </Button>
         </>
       }
