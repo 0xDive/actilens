@@ -135,6 +135,14 @@ export interface Device {
   revoked_at: number | null;
 }
 
+export interface DeviceHealthSummary {
+  total: number;
+  current: number;
+  outdated: number;
+  unknown: number;
+  recommended_version: string;
+}
+
 export interface AuditEvent {
   id: number;
   business_id: string;
