@@ -4,12 +4,14 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"actilens/backend/internal/auth"
 	"actilens/backend/internal/obs"
 	"actilens/backend/internal/store"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 // AuthHandler serves registration, login, refresh, and the public picker.
@@ -29,6 +31,8 @@ type registerReq struct {
 	Password    string `json:"password"`
 	DisplayName string `json:"display_name"`
 	AccountType string `json:"account_type"` // 'manager' (default) | 'parent'
+	ClientType  string `json:"client_type"`
+	ClientLabel string `json:"client_label"`
 }
 
 // Register creates a new account (any user can be an owner) and returns tokens.
@@ -79,7 +83,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		serverError(c, err)
 		return
 	}
-	h.issue(c, http.StatusCreated, u)
+	h.issue(c, http.StatusCreated, u, req.ClientType, req.ClientLabel)
 }
 
 type loginReq struct {
@@ -87,6 +91,8 @@ type loginReq struct {
 	Email      string `json:"email"`      // legacy field; treated as an identifier
 	Password   string `json:"password"`
 	BusinessID string `json:"business_id"` // optional: employee picking their company
+	ClientType string `json:"client_type"`
+	ClientLabel string `json:"client_label"`
 }
 
 // Login verifies credentials and returns tokens. If business_id is supplied, the
@@ -130,7 +136,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			return
 		}
 	}
-	h.issue(c, http.StatusOK, u)
+	h.issue(c, http.StatusOK, u, req.ClientType, req.ClientLabel)
 }
 
 type refreshReq struct {
@@ -144,7 +150,7 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		badRequest(c, "invalid body")
 		return
 	}
-	userID, tokenVersion, err := h.tok.ParseRefreshVersioned(req.RefreshToken)
+	userID, tokenVersion, sessionID, err := h.tok.ParseRefreshSession(req.RefreshToken)
 	if err != nil {
 		unauthorized(c, "invalid refresh token")
 		return
@@ -154,12 +160,42 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 		unauthorized(c, "invalid refresh token")
 		return
 	}
-	pair, err := h.tok.IssueVersioned(userID, currentVersion)
+
+	// Legacy refresh tokens did not carry a session id. Migrate them into a
+	// first-class session on first successful refresh.
+	if sessionID == "" {
+		sessionID = uuid.NewString()
+		pair, err := h.tok.IssueSessionVersioned(userID, currentVersion, sessionID)
+		if err != nil {
+			serverError(c, err)
+			return
+		}
+		if err := h.store.CreateAuthSession(
+			c.Request.Context(), userID, sessionID, auth.HashToken(pair.RefreshToken),
+			"web", "Migrated session", currentVersion, time.Now().UTC().Add(auth.RefreshTTL()),
+		); err != nil {
+			serverError(c, err)
+			return
+		}
+		obs.Info("legacy session migrated", "user", userID, "session", sessionID)
+		c.JSON(http.StatusOK, pair)
+		return
+	}
+
+	pair, err := h.tok.IssueSessionVersioned(userID, currentVersion, sessionID)
 	if err != nil {
 		serverError(c, err)
 		return
 	}
-	obs.Info("login ok", "user", userID)
+	if err := h.store.RotateAuthSession(
+		c.Request.Context(), userID, sessionID,
+		auth.HashToken(req.RefreshToken), auth.HashToken(pair.RefreshToken),
+		currentVersion, time.Now().UTC().Add(auth.RefreshTTL()),
+	); err != nil {
+		apiError(c, http.StatusUnauthorized, ErrCodeSessionRevoked, "session revoked", nil)
+		return
+	}
+	obs.Info("session refreshed", "user", userID, "session", sessionID)
 	c.JSON(http.StatusOK, pair)
 }
 
@@ -194,7 +230,12 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	})
 }
 
-func (h *AuthHandler) issue(c *gin.Context, status int, u store.User) {
+func (h *AuthHandler) issue(
+	c *gin.Context,
+	status int,
+	u store.User,
+	clientType, clientLabel string,
+) {
 	active, version, err := h.store.UserSecurity(c.Request.Context(), u.ID)
 	if err != nil {
 		serverError(c, err)
@@ -204,8 +245,16 @@ func (h *AuthHandler) issue(c *gin.Context, status int, u store.User) {
 		unauthorized(c, "invalid credentials")
 		return
 	}
-	pair, err := h.tok.IssueVersioned(u.ID, version)
+	sessionID := uuid.NewString()
+	pair, err := h.tok.IssueSessionVersioned(u.ID, version, sessionID)
 	if err != nil {
+		serverError(c, err)
+		return
+	}
+	if err := h.store.CreateAuthSession(
+		c.Request.Context(), u.ID, sessionID, auth.HashToken(pair.RefreshToken),
+		clientType, clientLabel, version, time.Now().UTC().Add(auth.RefreshTTL()),
+	); err != nil {
 		serverError(c, err)
 		return
 	}
