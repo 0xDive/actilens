@@ -55,12 +55,21 @@ jobs:
       - name: Build MSI and EXE
         shell: pwsh
         run: pnpm --filter @actilens/desktop tauri build --target x86_64-pc-windows-msvc
+      - name: Normalize installer names
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem 'apps/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi' -Filter '*.msi' -File | Select-Object -First 1
+          $exe = Get-ChildItem 'apps/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis' -Filter '*.exe' -File | Select-Object -First 1
+          if (-not $msi) { throw 'MSI bundle was not produced' }
+          if (-not $exe) { throw 'NSIS bundle was not produced' }
+          New-Item -ItemType Directory -Force 'release-windows' | Out-Null
+          Copy-Item -LiteralPath $msi.FullName -Destination 'release-windows/ActiLens-x64.msi'
+          Copy-Item -LiteralPath $exe.FullName -Destination 'release-windows/ActiLens-x64-setup.exe'
+          Copy-Item -LiteralPath 'install-windows-agent.ps1' -Destination 'release-windows/install-windows-agent.ps1'
       - name: Upload installers
         uses: actions/upload-artifact@v4
         with:
           name: ActiLens-Windows-${{ github.run_number }}
           retention-days: 30
           if-no-files-found: error
-          path: |
-            apps/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
-            apps/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
+          path: release-windows/*

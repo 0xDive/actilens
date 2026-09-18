@@ -86,14 +86,16 @@
       "created": "Enrollment code created. It expires {{expires}}.",
       "tokenLabel": "One-time enrollment code",
       "copyToken": "Copy code",
-      "powershellLabel": "Windows provisioning command",
+      "powershellLabel": "Windows installation command",
       "copyPowershell": "Copy PowerShell",
       "copied": "Copied",
-      "oneTime": "The code can be redeemed only once. The PowerShell command sets the server URL and enrollment code for the Windows user; ActiLens will consume it on its next launch.",
+      "oneTime": "The code can be redeemed only once. The command downloads the ActiLens installer, sets the server URL and enrollment code, installs the app and launches it.",
       "regenerate": "Generate another",
       "done": "Done",
       "failed": "Could not create an enrollment code.",
-      "copyFailed": "Could not copy to the clipboard."
+      "copyFailed": "Could not copy to the clipboard.",
+      "serverUrlLabel": "ActiLens server URL",
+      "serverUrlHelp": "If the console is open through localhost, enter the LAN server URL, for example http://192.168.0.249:8081."
     }
   },
   "newBusinessModal": {
