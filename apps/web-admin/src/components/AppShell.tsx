@@ -220,6 +220,7 @@ function OrganizationPicker() {
 
 function AccountMenu() {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { mode, setMode } = useTheme();
   const [open, setOpen] = useState(false);
@@ -303,6 +304,20 @@ function AccountMenu() {
               ))}
             </select>
           </div>
+
+          <div className="ds-menu__separator" />
+
+          <button
+            type="button"
+            className="ds-menu__item"
+            onClick={() => {
+              setOpen(false);
+              navigate("/account");
+            }}
+          >
+            <SettingsIcon />
+            {t("shell.account")}
+          </button>
 
           <div className="ds-menu__separator" />
 
