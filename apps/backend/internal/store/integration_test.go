@@ -117,6 +117,44 @@ func TestIntegrationManagedMemberLifecycle(t *testing.T) {
 		t.Fatalf("insert screenshot metadata: %v", err)
 	}
 
+	devices, err := st.ListEmployeeDevices(ctx, owner.ID, employee.ID, biz.ID)
+	if err != nil {
+		t.Fatalf("list employee devices in business: %v", err)
+	}
+	if len(devices) != 1 || devices[0].ID != deviceID {
+		t.Fatalf("unexpected employee devices: %+v", devices)
+	}
+
+	admin, err := st.CreateUser(ctx, "admin@example.test", "", "hash", "Admin", "manager")
+	if err != nil {
+		t.Fatalf("create admin: %v", err)
+	}
+	if _, err := pool.Exec(ctx,
+		`INSERT INTO memberships (user_id, business_id, role) VALUES ($1, $2, 'admin')`,
+		admin.ID, biz.ID); err != nil {
+		t.Fatalf("add admin membership: %v", err)
+	}
+	if _, err := st.ListEmployeeDevices(ctx, admin.ID, employee.ID, biz.ID); err != nil {
+		t.Fatalf("admin list employee devices in business: %v", err)
+	}
+
+	otherBiz, err := st.CreateBusiness(ctx, admin.ID, "Other team", "team")
+	if err != nil {
+		t.Fatalf("create unrelated business: %v", err)
+	}
+	if _, err := st.ListEmployeeDevices(ctx, admin.ID, employee.ID, otherBiz.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("list devices through unrelated business = %v, want ErrNotFound", err)
+	}
+
+	label := "Work laptop"
+	updatedDevice, err := st.UpdateDevice(ctx, owner.ID, deviceID, &label, nil, biz.ID)
+	if err != nil {
+		t.Fatalf("rename device in business: %v", err)
+	}
+	if updatedDevice.Label != label {
+		t.Fatalf("renamed device label = %q, want %q", updatedDevice.Label, label)
+	}
+
 	if err := st.UpdateMembershipMonitoring(ctx, owner.ID, biz.ID, employee.ID, false); err != nil {
 		t.Fatalf("disable monitoring: %v", err)
 	}

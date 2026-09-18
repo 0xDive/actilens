@@ -27,7 +27,13 @@ function shortID(id: string): string {
   return id.length > 12 ? `${id.slice(0, 8)}…${id.slice(-4)}` : id;
 }
 
-export function DevicesCard({ employeeId }: { employeeId: string }) {
+export function DevicesCard({
+  employeeId,
+  businessId,
+}: {
+  employeeId: string;
+  businessId: string;
+}) {
   const { t } = useTranslation("dashboard");
   const { pushToast } = useToast();
   const [devices, setDevices] = useState<Device[]>([]);
@@ -43,14 +49,14 @@ export function DevicesCard({ employeeId }: { employeeId: string }) {
     setLoading(true);
     setError(null);
     try {
-      const response = await listEmployeeDevices(employeeId);
+      const response = await listEmployeeDevices(employeeId, businessId);
       setDevices(response.devices);
     } catch {
       setError(t("detail.devices.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, [employeeId, t]);
+  }, [businessId, employeeId, t]);
 
   useEffect(() => {
     load();
@@ -61,9 +67,11 @@ export function DevicesCard({ employeeId }: { employeeId: string }) {
     setBusyID(renameDevice.id);
     setDialogError(null);
     try {
-      const response = await updateDevice(renameDevice.id, {
-        label: renameValue.trim(),
-      });
+      const response = await updateDevice(
+        renameDevice.id,
+        { label: renameValue.trim() },
+        businessId,
+      );
       setDevices((current) =>
         current.map((device) =>
           device.id === renameDevice.id ? response.device : device,
@@ -87,9 +95,11 @@ export function DevicesCard({ employeeId }: { employeeId: string }) {
     setBusyID(confirmDevice.id);
     setDialogError(null);
     try {
-      const response = await updateDevice(confirmDevice.id, {
-        revoked: !revoked,
-      });
+      const response = await updateDevice(
+        confirmDevice.id,
+        { revoked: !revoked },
+        businessId,
+      );
       setDevices((current) =>
         current.map((device) =>
           device.id === confirmDevice.id ? response.device : device,

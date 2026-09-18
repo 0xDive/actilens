@@ -67,6 +67,43 @@ func memberAccessRows(ctx context.Context, q interface {
 	return MemberAccess{}, ErrNotFound
 }
 
+
+type queryRower interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
+// memberAccessInBusiness validates access through an explicit organization.
+// Device/report screens already have a selected business, so using that scope
+// avoids guessing which shared membership should authorize the request.
+func memberAccessInBusiness(
+	ctx context.Context,
+	q queryRower,
+	actorID, targetID, businessID string,
+	permission BusinessPermission,
+) (MemberAccess, error) {
+	var access MemberAccess
+	err := q.QueryRow(ctx, `
+		SELECT target.business_id, actor.role, target.role
+		  FROM memberships target
+		  JOIN memberships actor
+		    ON actor.business_id = target.business_id
+		 WHERE actor.user_id = $1
+		   AND target.user_id = $2
+		   AND target.business_id = $3`,
+		actorID, targetID, businessID,
+	).Scan(&access.BusinessID, &access.ActorRole, &access.TargetRole)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return MemberAccess{}, ErrNotFound
+	}
+	if err != nil {
+		return MemberAccess{}, err
+	}
+	if !roleMayManageTarget(access.ActorRole, access.TargetRole, permission) {
+		return MemberAccess{}, ErrForbidden
+	}
+	return access, nil
+}
+
 // MemberAccessWithPermission resolves a shared business and validates the actor's
 // permission for an action on targetID.
 func (s *Store) MemberAccessWithPermission(ctx context.Context, actorID, targetID string, permission BusinessPermission) (MemberAccess, error) {

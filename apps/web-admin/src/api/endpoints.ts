@@ -200,13 +200,20 @@ export function permanentlyDeleteMember(businessId: string, userId: string) {
   );
 }
 
-export function listEmployeeDevices(employeeId: string) {
-  return request<{ devices: Device[] }>(`/v1/employees/${employeeId}/devices`);
+export function listEmployeeDevices(employeeId: string, businessId?: string) {
+  return request<{ devices: Device[] }>(`/v1/employees/${employeeId}/devices`, {
+    query: businessId ? { business_id: businessId } : undefined,
+  });
 }
 
-export function updateDevice(id: string, patch: { label?: string; revoked?: boolean }) {
+export function updateDevice(
+  id: string,
+  patch: { label?: string; revoked?: boolean },
+  businessId?: string,
+) {
   return request<{ device: Device }>(`/v1/devices/${id}`, {
     method: "PATCH",
+    query: businessId ? { business_id: businessId } : undefined,
     body: patch,
   });
 }
