@@ -101,7 +101,8 @@
       "memberRoleChanged": "Роль участника изменена",
       "memberMonitoringChanged": "Мониторинг участника изменён",
       "memberEnrollmentCreated": "Создан код привязки",
-      "memberEnrollmentRedeemed": "Код привязки использован"
+      "memberEnrollmentRedeemed": "Код привязки использован",
+      "memberPurged": "Сотрудник удалён навсегда"
     },
     "targets": {
       "employee": "сотрудник",
