@@ -74,6 +74,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"
+          cache-dependency-path: apps/backend/go.sum
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -105,19 +106,21 @@ jobs:
       ACTILENS_BUILD_SERVER_URL: http://127.0.0.1:8081
     steps:
       - uses: actions/checkout@v4
-      - name: Validate local build script
+      - name: Validate Windows PowerShell scripts
         shell: pwsh
         run: |
-          $tokens = $null
-          $errors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile(
-            (Join-Path $PWD 'build-windows-client.ps1'),
-            [ref]$tokens,
-            [ref]$errors
-          ) | Out-Null
-          if ($errors.Count -gt 0) {
-            $errors | ForEach-Object { Write-Error $_.Message }
-            throw 'build-windows-client.ps1 contains syntax errors'
+          foreach ($script in @('build-windows-client.ps1', 'install-windows-agent.ps1')) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Join-Path $PWD $script),
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error "$script: $($_.Message)" }
+              throw "$script contains syntax errors"
+            }
           }
       - uses: actions/setup-node@v4
         with:
