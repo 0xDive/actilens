@@ -276,38 +276,42 @@ function EmployeeActionsMenu({
 
           {canManage && (
             <>
-              <EnrollmentTokenControl
-                employee={employee}
-                businessId={businessId}
-                canChange={canManage}
-                triggerVariant="menu-item"
-                onDialogClose={() => setOpen(false)}
-              />
-              <button
-                type="button"
-                className="ds-menu__item"
-                onClick={() => {
-                  setEditName(employee.display_name);
-                  setEditLogin(employee.email || employee.username || "");
-                  setOpen(false);
-                  setDialogError(null);
-                  setEditOpen(true);
-                }}
-              >
-                {t("employees.actions.edit")}
-              </button>
-              <button
-                type="button"
-                className="ds-menu__item"
-                onClick={() => {
-                  setOpen(false);
-                  setPassword("");
-                  setDialogError(null);
-                  setPasswordOpen(true);
-                }}
-              >
-                {t("employees.actions.password")}
-              </button>
+              {employee.status !== "blocked" && (
+                <>
+                  <EnrollmentTokenControl
+                    employee={employee}
+                    businessId={businessId}
+                    canChange
+                    triggerVariant="menu-item"
+                    onDialogClose={() => setOpen(false)}
+                  />
+                  <button
+                    type="button"
+                    className="ds-menu__item"
+                    onClick={() => {
+                      setEditName(employee.display_name);
+                      setEditLogin(employee.email || employee.username || "");
+                      setOpen(false);
+                      setDialogError(null);
+                      setEditOpen(true);
+                    }}
+                  >
+                    {t("employees.actions.edit")}
+                  </button>
+                  <button
+                    type="button"
+                    className="ds-menu__item"
+                    onClick={() => {
+                      setOpen(false);
+                      setPassword("");
+                      setDialogError(null);
+                      setPasswordOpen(true);
+                    }}
+                  >
+                    {t("employees.actions.password")}
+                  </button>
+                </>
+              )}
               <button
                 type="button"
                 className="ds-menu__item"
@@ -1044,7 +1048,7 @@ export function Employees() {
                       <MemberRoleControl
                         employee={employee}
                         businessId={selectedId}
-                        canChange={mayManageRoles}
+                        canChange={mayManageRoles && employee.status !== "blocked"}
                         onChanged={() => loadEmployees(selectedId)}
                       />
                     </td>
@@ -1052,7 +1056,7 @@ export function Employees() {
                       <MemberMonitoringControl
                         employee={employee}
                         businessId={selectedId}
-                        canChange={mayManageThis}
+                        canChange={mayManageThis && employee.status !== "blocked"}
                         onChanged={() => loadEmployees(selectedId)}
                       />
                     </td>
