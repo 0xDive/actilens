@@ -107,14 +107,21 @@ func (s *Store) MembershipRole(ctx context.Context, userID, businessID string) (
 
 func (s *Store) MembershipMonitoringEnabled(ctx context.Context, userID, businessID string) (bool, error) {
 	var enabled bool
+	var status string
 	err := s.pool.QueryRow(ctx,
-		`SELECT monitoring_enabled FROM memberships WHERE user_id = $1 AND business_id = $2`,
+		`SELECT monitoring_enabled, status FROM memberships WHERE user_id = $1 AND business_id = $2`,
 		userID, businessID,
-	).Scan(&enabled)
+	).Scan(&enabled, &status)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, ErrNotFound
 	}
-	return enabled, err
+	if err != nil {
+		return false, err
+	}
+	if status != MemberStatusActive {
+		return false, nil
+	}
+	return enabled, nil
 }
 
 func membershipRoleTx(ctx context.Context, tx pgx.Tx, userID, businessID string) (BusinessRole, error) {
