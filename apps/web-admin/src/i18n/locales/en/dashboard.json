@@ -22,7 +22,8 @@
     "vsYesterday": "vs yesterday",
     "ofMembers": "of {{count}} {{members}}",
     "todayLabel": "today",
-    "newTeam": "New team"
+    "newTeam": "New team",
+    "organization": "Organization"
   },
   "employees": {
     "newBusiness": "New business",
