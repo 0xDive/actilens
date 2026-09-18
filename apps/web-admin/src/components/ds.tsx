@@ -1,5 +1,7 @@
 import {
   forwardRef,
+  useEffect,
+  useId,
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
   type ReactNode,
@@ -304,6 +306,82 @@ export function EmptyState({
           <div style={{ marginTop: 6, fontSize: "var(--ds-text-sm)" }}>{description}</div>
         )}
         {action && <div style={{ marginTop: 16 }}>{action}</div>}
+      </div>
+    </div>
+  );
+}
+
+
+export type AlertTone = "info" | "success" | "warning" | "danger";
+
+export function Alert({
+  children,
+  tone = "info",
+  className,
+}: {
+  children: ReactNode;
+  tone?: AlertTone;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cx("ds-alert", `ds-alert--${tone}`, className)}
+      role={tone === "danger" ? "alert" : "status"}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function Dialog({
+  title,
+  onClose,
+  children,
+  footer,
+  size = "default",
+  closeOnBackdrop = true,
+}: {
+  title: ReactNode;
+  onClose: () => void;
+  children: ReactNode;
+  footer?: ReactNode;
+  size?: "confirm" | "default" | "complex";
+  closeOnBackdrop?: boolean;
+}) {
+  const titleId = useId();
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  return (
+    <div
+      className="ds-modal-backdrop"
+      onMouseDown={(event) => {
+        if (closeOnBackdrop && event.currentTarget === event.target) onClose();
+      }}
+    >
+      <div
+        className={cx(
+          "ds-modal",
+          size === "confirm" && "ds-modal--confirm",
+          size === "complex" && "ds-modal--complex",
+        )}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+      >
+        <div className="ds-modal__header">
+          <h2 id={titleId} className="ds-modal__title">
+            {title}
+          </h2>
+        </div>
+        <div className="ds-modal__body">{children}</div>
+        {footer && <div className="ds-modal__footer">{footer}</div>}
       </div>
     </div>
   );
