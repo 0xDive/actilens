@@ -139,6 +139,36 @@ jobs:
         working-directory: apps/backend
         run: go build ./...
 
+
+  backend-integration:
+    name: Backend PostgreSQL integration
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: actilens_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d actilens_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ACTILENS_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/actilens_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache-dependency-path: apps/backend/go.sum
+      - name: Run PostgreSQL integration tests
+        working-directory: apps/backend
+        run: go test ./internal/store -run '^TestIntegration' -count=1 -v
+
   windows:
     name: Windows installer
     needs: changes
@@ -187,6 +217,10 @@ jobs:
       - name: Typecheck desktop UI
         shell: pwsh
         run: pnpm --filter @actilens/desktop typecheck
+      - name: Test desktop Rust core
+        shell: pwsh
+        working-directory: apps/desktop/src-tauri
+        run: cargo test --locked --lib --target x86_64-pc-windows-msvc
       - name: Build Windows MSI and EXE
         shell: pwsh
         run: pnpm --filter @actilens/desktop tauri build --target x86_64-pc-windows-msvc
