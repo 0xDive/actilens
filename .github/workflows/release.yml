@@ -14,23 +14,11 @@ jobs:
     name: Build Windows installers
     runs-on: windows-latest
     env:
-      ACTILENS_BUILD_SERVER_URL: ${{ vars.ACTILENS_SERVER_URL }}
+      # Public releases are server-agnostic. Deployment selects the backend at
+      # runtime via install-windows-agent.ps1 / ACTILENS_BACKEND_URL.
+      ACTILENS_BUILD_SERVER_URL: http://127.0.0.1:8081
     steps:
       - uses: actions/checkout@v4
-      - name: Require production backend URL
-        shell: pwsh
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:ACTILENS_BUILD_SERVER_URL)) {
-            throw "Repository variable ACTILENS_SERVER_URL is required for production releases. Example: http://192.168.0.249:8081 or https://tracker.example.com"
-          }
-          $uri = $null
-          if (-not [Uri]::TryCreate($env:ACTILENS_BUILD_SERVER_URL, [UriKind]::Absolute, [ref]$uri)) {
-            throw "ACTILENS_SERVER_URL must be an absolute URL"
-          }
-          if ($uri.Scheme -notin @('http','https')) {
-            throw "ACTILENS_SERVER_URL must use http or https"
-          }
-          Write-Host "Building ActiLens for backend: $($uri.AbsoluteUri.TrimEnd('/'))"
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -56,13 +44,23 @@ jobs:
       - name: Build MSI and EXE
         shell: pwsh
         run: pnpm --filter @actilens/desktop tauri build --target x86_64-pc-windows-msvc
+      - name: Normalize Windows release asset names
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem 'apps/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi' -Filter '*.msi' -File | Select-Object -First 1
+          $exe = Get-ChildItem 'apps/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis' -Filter '*.exe' -File | Select-Object -First 1
+          if (-not $msi) { throw 'MSI bundle was not produced' }
+          if (-not $exe) { throw 'NSIS bundle was not produced' }
+          New-Item -ItemType Directory -Force 'release-windows' | Out-Null
+          Copy-Item -LiteralPath $msi.FullName -Destination 'release-windows/ActiLens-x64.msi'
+          Copy-Item -LiteralPath $exe.FullName -Destination 'release-windows/ActiLens-x64-setup.exe'
+          Copy-Item -LiteralPath 'install-windows-agent.ps1' -Destination 'release-windows/install-windows-agent.ps1'
+          Get-ChildItem 'release-windows' | Format-Table Name,Length
       - uses: actions/upload-artifact@v4
         with:
           name: windows-installers
           if-no-files-found: error
-          path: |
-            apps/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
-            apps/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
+          path: release-windows/*
 
   docker:
     name: Publish Docker image
@@ -102,6 +100,7 @@ jobs:
     needs: [windows, docker]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: windows-installers
@@ -111,10 +110,13 @@ jobs:
         with:
           generate_release_notes: true
           files: |
-            release-assets/**/*.exe
-            release-assets/**/*.msi
+            release-assets/ActiLens-x64.msi
+            release-assets/ActiLens-x64-setup.exe
+            release-assets/install-windows-agent.ps1
+            install-windows-agent.ps1
           body: |
             ActiLens release.
 
             Docker image: `ghcr.io/0xdive/actilens:${{ github.ref_name }}`
-            Windows client server: `${{ vars.ACTILENS_SERVER_URL }}`
+            Windows client: server-agnostic; configure it during provisioning with `install-windows-agent.ps1`.
+            Enrollment helper: `install-windows-agent.ps1`
