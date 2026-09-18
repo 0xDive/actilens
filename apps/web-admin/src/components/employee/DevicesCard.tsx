@@ -241,7 +241,7 @@ export function DevicesCard({ employeeId }: { employeeId: string }) {
             </>
           }
         >
-          <div className="employees-dialog-stack">
+          <div className="detail-dialog-stack">
             <TextField
               id={`device-name-${renameDevice.id}`}
               label={t("detail.devices.renamePrompt")}
@@ -288,7 +288,7 @@ export function DevicesCard({ employeeId }: { employeeId: string }) {
             </>
           }
         >
-          <div className="employees-dialog-stack">
+          <div className="detail-dialog-stack">
             <Alert tone={confirmDevice.revoked_at ? "info" : "warning"}>
               {t(
                 confirmDevice.revoked_at
