@@ -46,7 +46,7 @@ ALTER TABLE businesses
     ADD CONSTRAINT businesses_device_limit_check
         CHECK (device_limit IS NULL OR device_limit > 0),
     ADD CONSTRAINT businesses_enrollment_ttl_check
-        CHECK (enrollment_token_ttl_s BETWEEN 300 AND 2592000);
+        CHECK (enrollment_token_ttl_s BETWEEN 300 AND 604800);
 
 -- Preserve the old screenshot-mode meaning while moving toward explicit scope.
 UPDATE businesses
