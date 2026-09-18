@@ -1,45 +1,157 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { Trans, useTranslation } from "react-i18next";
-import { cleanupScreenshots, getPrivacyApps, updateBusinessSettings } from "../api/endpoints";
-import { ApiError, type BusinessSettingsPatch, type PrivacyAppCategory, type ScreenshotMode } from "../api/types";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
+import {
+  cleanupScreenshots,
+  getPrivacyApps,
+  updateBusinessSettings,
+} from "../api/endpoints";
+import {
+  ApiError,
+  type BusinessSettingsPatch,
+  type PrivacyAppCategory,
+  type ScreenshotMode,
+} from "../api/types";
 import { useAuth } from "../auth/AuthContext";
-import { Empty, Modal, Notice, Spinner } from "../components/ui";
+import {
+  Alert,
+  Button,
+  Card,
+  Dialog,
+  EmptyState,
+  PageHeader,
+  Skeleton,
+  TextField,
+} from "../components/ds";
+import { useToast } from "../components/ToastProvider";
 import { AuditLogCard } from "../components/settings/AuditLogCard";
 import { useBusinesses } from "../useBusinesses";
 import { memberTerms } from "../terms";
 import { canManageSettings } from "../rbac";
+import "../theme/settings-v1.css";
 
-// display-only icon (lucide trash-2), same svg pattern as other pages
-const svg = (children: ReactNode) => (
-  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-    {children}
-  </svg>
-);
-const IconTrash = svg(<><path d="M10 11v6" /><path d="M14 11v6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></>);
-
-function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+function formatBytes(value: number): string {
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 const CLEANUP_PRESETS = [7, 14, 30, 90];
 
-/** Normalize a stored mode (incl. pre-rename values) to the two current modes. */
-function normalizeMode(m: string | undefined): ScreenshotMode {
-  return m === "normal" || m === "full_screen" ? "normal" : "privacy";
+const INTERVAL_PRESETS = [
+  { minutes: 1, value: 60 },
+  { minutes: 5, value: 300 },
+  { minutes: 10, value: 600 },
+  { minutes: 15, value: 900 },
+];
+
+const IDLE_PRESETS = [
+  { minutes: 1, value: 60 },
+  { minutes: 3, value: 180 },
+  { minutes: 5, value: 300 },
+];
+
+const RETENTION_PRESETS: Array<{ days: number | null; value: number | null }> = [
+  { days: 7, value: 7 },
+  { days: 14, value: 14 },
+  { days: 30, value: 30 },
+  { days: 90, value: 90 },
+  { days: null, value: null },
+];
+
+function normalizeMode(mode: string | undefined): ScreenshotMode {
+  return mode === "normal" || mode === "full_screen" ? "normal" : "privacy";
 }
 
-/** One selectable mode card: radio dot + label + explanation. */
+function SettingsSection({
+  id,
+  title,
+  description,
+  children,
+}: {
+  id: string;
+  title: ReactNode;
+  description?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="settings-section" id={id}>
+      <div className="settings-section__head">
+        <h2 className="settings-section__title">{title}</h2>
+        {description && (
+          <p className="settings-section__description">{description}</p>
+        )}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function SettingsRow({
+  title,
+  description,
+  children,
+  top = false,
+}: {
+  title: ReactNode;
+  description?: ReactNode;
+  children: ReactNode;
+  top?: boolean;
+}) {
+  return (
+    <div className={`settings-row${top ? " settings-row--top" : ""}`}>
+      <div className="settings-row__copy">
+        <div className="settings-row__title">{title}</div>
+        {description && (
+          <div className="settings-row__description">{description}</div>
+        )}
+      </div>
+      <div className="settings-row__control">{children}</div>
+    </div>
+  );
+}
+
+function Segmented<T extends string | number>({
+  value,
+  options,
+  disabled,
+  onChange,
+  ariaLabel,
+}: {
+  value: T;
+  options: Array<{ value: T; label: string }>;
+  disabled?: boolean;
+  onChange: (value: T) => void;
+  ariaLabel: string;
+}) {
+  return (
+    <div className="settings-segmented" role="group" aria-label={ariaLabel}>
+      {options.map((option) => (
+        <button
+          key={String(option.value)}
+          type="button"
+          className={`settings-segmented__option${
+            option.value === value ? " is-active" : ""
+          }`}
+          disabled={disabled}
+          aria-pressed={option.value === value}
+          onClick={() => onChange(option.value)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function ModeOption({
   label,
-  desc,
+  description,
   selected,
   disabled,
   onSelect,
 }: {
   label: string;
-  desc: string;
+  description: string;
   selected: boolean;
   disabled?: boolean;
   onSelect: () => void;
@@ -49,130 +161,63 @@ function ModeOption({
       type="button"
       role="radio"
       aria-checked={selected}
+      className={`settings-mode${selected ? " is-active" : ""}`}
       disabled={disabled}
       onClick={onSelect}
-      style={{
-        display: "flex",
-        gap: 10,
-        alignItems: "flex-start",
-        textAlign: "left",
-        width: "100%",
-        font: "inherit",
-        color: "inherit",
-        cursor: disabled ? "default" : "pointer",
-        background: selected ? "var(--accent-weak)" : "transparent",
-        border: selected ? "1px solid var(--accent)" : "1px solid var(--border)",
-        borderRadius: 10,
-        padding: "10px 12px",
-      }}
     >
-      <span
-        aria-hidden
-        style={{
-          flexShrink: 0,
-          marginTop: 2,
-          width: 14,
-          height: 14,
-          borderRadius: "50%",
-          border: selected ? "4px solid var(--accent)" : "2px solid var(--border)",
-        }}
-      />
+      <span className="settings-mode__radio" aria-hidden />
       <span>
-        <span style={{ display: "block", fontWeight: 600 }}>{label}</span>
-        <span className="muted" style={{ display: "block", fontSize: 12, marginTop: 2 }}>{desc}</span>
+        <span className="settings-mode__label">{label}</span>
+        <span className="settings-mode__description">{description}</span>
       </span>
     </button>
   );
 }
 
-// Interval/idle presets in seconds, with the minute count for label interpolation.
-const INTERVAL_PRESETS = [
-  { minutes: 1, value: 60 },
-  { minutes: 5, value: 300 },
-  { minutes: 10, value: 600 },
-  { minutes: 15, value: 900 },
-];
-const IDLE_PRESETS = [
-  { minutes: 1, value: 60 },
-  { minutes: 3, value: 180 },
-  { minutes: 5, value: 300 },
-];
-
-// null = "Never" (keep forever).
-const PRESETS: { days: number | null; value: number | null }[] = [
-  { days: 7, value: 7 },
-  { days: 14, value: 14 },
-  { days: 30, value: 30 },
-  { days: 90, value: 90 },
-  { days: null, value: null },
-];
-
 export function Settings() {
   const { t } = useTranslation("settings");
   const { user } = useAuth();
+  const { pushToast } = useToast();
   const { businesses, selected, selectedId, loading, reload } = useBusinesses();
   const terms = memberTerms(selected?.kind);
   const mayManageSettings = canManageSettings(selected?.role);
 
+  const [activeSection, setActiveSection] = useState("organization");
   const [retention, setRetention] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<{ kind: "success" | "danger"; text: string } | null>(null);
   const [skipAppInput, setSkipAppInput] = useState("");
   const [skipOpen, setSkipOpen] = useState(false);
-  // The curated sensitive-app list (backend-served) rendered as suggestions.
   const [privacyApps, setPrivacyApps] = useState<PrivacyAppCategory[]>([]);
+  const [cleanupOpen, setCleanupOpen] = useState(false);
+  const [cleanupDays, setCleanupDays] = useState(30);
+  const [cleaning, setCleaning] = useState(false);
+  const [dialogError, setDialogError] = useState<string | null>(null);
 
   useEffect(() => {
     getPrivacyApps()
-      .then((res) => setPrivacyApps(res.categories))
+      .then((response) => setPrivacyApps(response.categories))
       .catch(() => {});
   }, []);
-
-  // Manual "clean up now".
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [cleanupDays, setCleanupDays] = useState(30);
-  const [cleaning, setCleaning] = useState(false);
 
   useEffect(() => {
     if (selected) setRetention(selected.screenshot_retention_days);
   }, [selected]);
 
-  async function runCleanup() {
+  async function savePatch(
+    patch: BusinessSettingsPatch,
+    successText: string,
+  ) {
     if (!selectedId) return;
-    setCleaning(true);
-    setMsg(null);
-    try {
-      const res = await cleanupScreenshots(selectedId, cleanupDays);
-      setMsg({
-        kind: "success",
-        text: t("cleanup.removed", {
-          count: res.deleted_count,
-          size: formatBytes(res.bytes_freed),
-        }),
-      });
-    } catch (err) {
-      setMsg({
-        kind: "danger",
-        text: err instanceof ApiError ? err.message : t("cleanup.failed"),
-      });
-    } finally {
-      setCleaning(false);
-      setConfirmOpen(false);
-    }
-  }
 
-  async function savePatch(patch: BusinessSettingsPatch, successText: string) {
-    if (!selectedId) return;
     setSaving(true);
-    setMsg(null);
     try {
       await updateBusinessSettings(selectedId, patch);
       await reload();
-      setMsg({ kind: "success", text: successText });
-    } catch (err) {
-      setMsg({
-        kind: "danger",
-        text: err instanceof ApiError ? err.message : t("saveError"),
+      pushToast({ title: successText, tone: "success" });
+    } catch (error) {
+      pushToast({
+        title: error instanceof ApiError ? error.message : t("saveError"),
+        tone: "danger",
       });
     } finally {
       setSaving(false);
@@ -185,383 +230,612 @@ export function Settings() {
   }
 
   const skipApps = selected?.screenshot_skip_apps ?? [];
+  const hasSkipApp = (app: string) =>
+    skipApps.some((value) => value.toLowerCase() === app.toLowerCase());
 
-  function saveMode(m: ScreenshotMode) {
-    const patch: BusinessSettingsPatch = { screenshot_mode: m };
-    // Switching into privacy with an empty skip list prefills the curated rules.
-    if (m === "privacy" && skipApps.length === 0 && privacyApps.length > 0) {
-      patch.screenshot_skip_apps = privacyApps.flatMap((c) => c.apps);
+  const suggestedLower = useMemo(
+    () =>
+      new Set(
+        privacyApps.flatMap((category) =>
+          category.apps.map((app) => app.toLowerCase()),
+        ),
+      ),
+    [privacyApps],
+  );
+
+  const customSkipApps = skipApps.filter(
+    (app) => !suggestedLower.has(app.toLowerCase()),
+  );
+
+  function saveMode(mode: ScreenshotMode) {
+    const patch: BusinessSettingsPatch = { screenshot_mode: mode };
+    if (
+      mode === "privacy" &&
+      skipApps.length === 0 &&
+      privacyApps.length > 0
+    ) {
+      patch.screenshot_skip_apps = privacyApps.flatMap(
+        (category) => category.apps,
+      );
     }
     savePatch(patch, t("screenshotMode.saved"));
   }
 
-  const hasSkipApp = (a: string) => skipApps.some((x) => x.toLowerCase() === a.toLowerCase());
-
-  // Entries the owner typed themselves (not part of any suggested category).
-  const suggestedLower = new Set(privacyApps.flatMap((c) => c.apps.map((a) => a.toLowerCase())));
-  const customSkipApps = skipApps.filter((a) => !suggestedLower.has(a.toLowerCase()));
-
-  function addSkipApp(app?: string) {
-    const name = (app ?? skipAppInput).trim();
-    if (!name || !selected) return;
-    setSkipAppInput("");
-    addSkipApps([name]);
-  }
-
   function addSkipApps(apps: string[]) {
-    const fresh = apps.filter((a) => !hasSkipApp(a));
+    const fresh = apps.filter((app) => !hasSkipApp(app));
     if (!fresh.length) return;
-    savePatch({ screenshot_skip_apps: [...skipApps, ...fresh] }, t("skipApps.saved"));
-  }
-
-  function removeSkipApps(apps: string[]) {
-    const drop = new Set(apps.map((a) => a.toLowerCase()));
     savePatch(
-      { screenshot_skip_apps: skipApps.filter((a) => !drop.has(a.toLowerCase())) },
+      { screenshot_skip_apps: [...skipApps, ...fresh] },
       t("skipApps.saved"),
     );
   }
 
+  function removeSkipApps(apps: string[]) {
+    const drop = new Set(apps.map((app) => app.toLowerCase()));
+    savePatch(
+      {
+        screenshot_skip_apps: skipApps.filter(
+          (app) => !drop.has(app.toLowerCase()),
+        ),
+      },
+      t("skipApps.saved"),
+    );
+  }
+
+  function addSkipApp() {
+    const name = skipAppInput.trim();
+    if (!name) return;
+    setSkipAppInput("");
+    addSkipApps([name]);
+  }
+
+  async function runCleanup() {
+    if (!selectedId) return;
+
+    setCleaning(true);
+    setDialogError(null);
+
+    try {
+      const response = await cleanupScreenshots(selectedId, cleanupDays);
+      setCleanupOpen(false);
+      pushToast({
+        title: t("cleanup.removed", {
+          count: response.deleted_count,
+          size: formatBytes(response.bytes_freed),
+        }),
+        tone: "success",
+      });
+    } catch (error) {
+      setDialogError(
+        error instanceof ApiError ? error.message : t("cleanup.failed"),
+      );
+    } finally {
+      setCleaning(false);
+    }
+  }
+
+  const nav = [
+    ["organization", t("v1.sections.organization")],
+    ["monitoring", t("v1.sections.monitoring")],
+    ["screenshots", t("v1.sections.screenshots")],
+    ["storage", t("v1.sections.storage")],
+    ["audit", t("v1.sections.audit")],
+    ["account", t("v1.sections.account")],
+  ] as const;
+
+  function goToSection(id: string) {
+    setActiveSection(id);
+    document.getElementById(id)?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
+
   return (
-    <div className="ad-wrap" style={{ paddingBottom: 32 }}>
-      <div className="ad-pagehead">
-        <div className="ad-pagehead__main">
-          <h1 className="ad-h1">{t("title")}</h1>
-          {selected && (
-            <p className="ad-sub">
-              <Trans
-                t={t}
-                i18nKey="scope"
-                values={{ name: selected.name, members: terms.many }}
-                components={[<strong />]}
-              />
-            </p>
-          )}
+    <div className="settings-v1">
+      <PageHeader
+        title={t("title")}
+        subtitle={
+          selected
+            ? t("v1.subtitle", { name: selected.name })
+            : undefined
+        }
+      />
+
+      {loading && (
+        <div className="settings-layout" aria-hidden>
+          <Skeleton width={180} height={220} />
+          <div className="settings-content">
+            {Array.from({ length: 3 }, (_, index) => (
+              <Skeleton key={index} width="100%" height={180} />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {loading && <Spinner label={t("loading")} />}
+      {!loading && businesses.length === 0 && (
+        <EmptyState
+          title={t("noBusinesses")}
+          description={t("v1.noBusinessDescription")}
+        />
+      )}
 
-      {!loading && businesses.length === 0 && <Empty>{t("noBusinesses")}</Empty>}
-      {selected && !mayManageSettings && <Notice kind="info">{t("roleDenied")}</Notice>}
+      {selected && !mayManageSettings && (
+        <Alert tone="info">{t("roleDenied")}</Alert>
+      )}
 
       {selected && mayManageSettings && (
-        <>
-          <div className="ad-set-sec">{t("sections.capture")}</div>
-          <div className="set-group">
-            <div className="set-row">
-              <div>
-                <div className="set-title">{t("capturePolicy.title")}</div>
-                <div className="set-desc">{t("capturePolicy.desc", { members: terms.many })}</div>
-              </div>
-              <div
-                className="segmented"
-                role="group"
-                aria-label={t("capturePolicy.ariaLabel", { member: terms.lowerOne })}
+        <div className="settings-layout">
+          <nav className="settings-nav" aria-label={t("v1.sectionNavigation")}>
+            {nav.map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                className={`settings-nav__item${
+                  activeSection === id ? " is-active" : ""
+                }`}
+                onClick={() => goToSection(id)}
               >
-                <button
-                  className={!selected.allow_employee_override ? "active" : ""}
-                  disabled={saving}
-                  onClick={() => savePatch({ allow_employee_override: false }, t("capturePolicy.savedLocked", { members: terms.many }))}
+                {label}
+              </button>
+            ))}
+          </nav>
+
+          <div className="settings-content">
+            <SettingsSection
+              id="organization"
+              title={t("v1.sections.organization")}
+              description={t("v1.organization.description")}
+            >
+              <Card className="settings-card">
+                <SettingsRow title={t("v1.organization.name")}>
+                  <div className="settings-readonly">
+                    <span className="settings-readonly__value">
+                      {selected.name}
+                    </span>
+                  </div>
+                </SettingsRow>
+                <SettingsRow title={t("v1.organization.type")}>
+                  <div className="settings-readonly">
+                    <span className="settings-readonly__value">
+                      {selected.kind === "family"
+                        ? t("v1.organization.family")
+                        : t("v1.organization.team")}
+                    </span>
+                  </div>
+                </SettingsRow>
+                <SettingsRow title={t("v1.organization.yourRole")}>
+                  <div className="settings-readonly">
+                    <span className="settings-readonly__value">
+                      {t(`v1.roles.${selected.role}`)}
+                    </span>
+                  </div>
+                </SettingsRow>
+              </Card>
+            </SettingsSection>
+
+            <SettingsSection
+              id="monitoring"
+              title={t("v1.sections.monitoring")}
+              description={t("v1.monitoring.description")}
+            >
+              <Card className="settings-card">
+                <SettingsRow
+                  title={t("capturePolicy.title")}
+                  description={t("capturePolicy.desc", {
+                    members: terms.many,
+                  })}
                 >
-                  {t("capturePolicy.locked")}
-                </button>
-                <button
-                  className={selected.allow_employee_override ? "active" : ""}
-                  disabled={saving}
-                  onClick={() => savePatch({ allow_employee_override: true }, t("capturePolicy.savedAllowed", { members: terms.many }))}
+                  <Segmented
+                    value={
+                      selected.allow_employee_override ? "override" : "locked"
+                    }
+                    ariaLabel={t("capturePolicy.ariaLabel", {
+                      member: terms.lowerOne,
+                    })}
+                    disabled={saving}
+                    options={[
+                      {
+                        value: "locked",
+                        label: t("capturePolicy.locked"),
+                      },
+                      {
+                        value: "override",
+                        label: t("capturePolicy.allowOverride"),
+                      },
+                    ]}
+                    onChange={(value) =>
+                      savePatch(
+                        {
+                          allow_employee_override: value === "override",
+                        },
+                        value === "override"
+                          ? t("capturePolicy.savedAllowed", {
+                              members: terms.many,
+                            })
+                          : t("capturePolicy.savedLocked", {
+                              members: terms.many,
+                            }),
+                      )
+                    }
+                  />
+                </SettingsRow>
+
+                <SettingsRow
+                  title={t("idleThreshold.title")}
+                  description={t("idleThreshold.desc")}
                 >
-                  {t("capturePolicy.allowOverride")}
-                </button>
+                  <Segmented
+                    value={selected.idle_threshold_s}
+                    ariaLabel={t("idleThreshold.ariaLabel")}
+                    disabled={saving}
+                    options={IDLE_PRESETS.map((preset) => ({
+                      value: preset.value,
+                      label: t("presets.min", {
+                        count: preset.minutes,
+                      }),
+                    }))}
+                    onChange={(value) =>
+                      savePatch(
+                        { idle_threshold_s: value },
+                        t("idleThreshold.saved"),
+                      )
+                    }
+                  />
+                </SettingsRow>
+              </Card>
+            </SettingsSection>
+
+            <SettingsSection
+              id="screenshots"
+              title={t("v1.sections.screenshots")}
+              description={t("v1.screenshots.description")}
+            >
+              <Card className="settings-card">
+                <SettingsRow
+                  top
+                  title={t("screenshotMode.title")}
+                  description={t("screenshotMode.desc")}
+                >
+                  <div
+                    className="settings-mode-grid"
+                    role="radiogroup"
+                    aria-label={t("screenshotMode.ariaLabel")}
+                  >
+                    <ModeOption
+                      label={t("screenshotMode.privacy")}
+                      description={t("screenshotMode.privacyDesc")}
+                      selected={
+                        normalizeMode(selected.screenshot_mode) === "privacy"
+                      }
+                      disabled={saving}
+                      onSelect={() => saveMode("privacy")}
+                    />
+                    <ModeOption
+                      label={t("screenshotMode.normal")}
+                      description={t("screenshotMode.normalDesc")}
+                      selected={
+                        normalizeMode(selected.screenshot_mode) === "normal"
+                      }
+                      disabled={saving}
+                      onSelect={() => saveMode("normal")}
+                    />
+                  </div>
+                </SettingsRow>
+
+                <SettingsRow
+                  title={t("screenshotInterval.title")}
+                  description={t("screenshotInterval.desc", {
+                    member: terms.lowerOne,
+                  })}
+                >
+                  <Segmented
+                    value={selected.screenshot_interval_s}
+                    ariaLabel={t("screenshotInterval.ariaLabel")}
+                    disabled={saving}
+                    options={INTERVAL_PRESETS.map((preset) => ({
+                      value: preset.value,
+                      label: t("presets.min", {
+                        count: preset.minutes,
+                      }),
+                    }))}
+                    onChange={(value) =>
+                      savePatch(
+                        { screenshot_interval_s: value },
+                        t("screenshotInterval.saved"),
+                      )
+                    }
+                  />
+                </SettingsRow>
+
+                {normalizeMode(selected.screenshot_mode) === "privacy" && (
+                  <SettingsRow
+                    title={t("skipApps.title")}
+                    description={t("skipApps.desc")}
+                  >
+                    <div className="settings-inline">
+                      <span className="settings-count">
+                        {t("skipApps.count", {
+                          count: skipApps.length,
+                        })}
+                      </span>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={saving}
+                        onClick={() => setSkipOpen(true)}
+                      >
+                        {t("skipApps.manage")}
+                      </Button>
+                    </div>
+                  </SettingsRow>
+                )}
+              </Card>
+            </SettingsSection>
+
+            <SettingsSection
+              id="storage"
+              title={t("v1.sections.storage")}
+              description={t("v1.storage.description")}
+            >
+              <Card className="settings-card">
+                <SettingsRow
+                  title={t("retention.title")}
+                  description={t("retention.desc", {
+                    name: selected.name,
+                  })}
+                >
+                  <Segmented
+                    value={String(retention)}
+                    ariaLabel={t("retention.ariaLabel")}
+                    disabled={saving}
+                    options={RETENTION_PRESETS.map((preset) => ({
+                      value: String(preset.value),
+                      label:
+                        preset.days === null
+                          ? t("presets.never")
+                          : t("presets.days", {
+                              count: preset.days,
+                            }),
+                    }))}
+                    onChange={(value) =>
+                      saveRetention(
+                        value === "null" ? null : Number(value),
+                      )
+                    }
+                  />
+                </SettingsRow>
+
+                <SettingsRow
+                  title={t("cleanup.title")}
+                  description={t("cleanup.desc", {
+                    name: selected.name,
+                  })}
+                >
+                  <Button
+                    variant="danger-ghost"
+                    size="sm"
+                    disabled={cleaning}
+                    onClick={() => {
+                      setDialogError(null);
+                      setCleanupOpen(true);
+                    }}
+                  >
+                    {t("cleanup.button")}
+                  </Button>
+                </SettingsRow>
+              </Card>
+            </SettingsSection>
+
+            {selectedId && (
+              <SettingsSection
+                id="audit"
+                title={t("v1.sections.audit")}
+                description={t("v1.audit.description")}
+              >
+                <AuditLogCard businessId={selectedId} />
+              </SettingsSection>
+            )}
+
+            <SettingsSection
+              id="account"
+              title={t("v1.sections.account")}
+              description={t("v1.account.description")}
+            >
+              <Card className="settings-card">
+                <SettingsRow title={t("account.email")}>
+                  <div className="settings-readonly">
+                    <span className="settings-readonly__value">
+                      {user?.email || user?.username || "—"}
+                    </span>
+                  </div>
+                </SettingsRow>
+                <SettingsRow title={t("account.displayName")}>
+                  <div className="settings-readonly">
+                    <span className="settings-readonly__value">
+                      {user?.display_name || user?.username || "—"}
+                    </span>
+                  </div>
+                </SettingsRow>
+              </Card>
+            </SettingsSection>
+          </div>
+        </div>
+      )}
+
+      {skipOpen && selected && (
+        <Dialog
+          title={t("skipApps.modalTitle")}
+          size="complex"
+          onClose={() => !saving && setSkipOpen(false)}
+          closeOnBackdrop={!saving}
+          footer={
+            <Button variant="primary" onClick={() => setSkipOpen(false)}>
+              {t("skipApps.done")}
+            </Button>
+          }
+        >
+          <div className="settings-dialog-stack">
+            <p className="settings-section__description">
+              {t("skipApps.desc")}
+            </p>
+
+            <div className="settings-inline">
+              <div className="settings-skip-input">
+                <TextField
+                  id="skip-app-input"
+                  label={t("skipApps.custom")}
+                  value={skipAppInput}
+                  placeholder={t("skipApps.placeholder")}
+                  disabled={saving}
+                  autoFocus
+                  onChange={(event) => setSkipAppInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      addSkipApp();
+                    }
+                  }}
+                />
               </div>
+              <Button
+                variant="secondary"
+                disabled={saving || !skipAppInput.trim()}
+                onClick={addSkipApp}
+              >
+                {t("skipApps.add")}
+              </Button>
             </div>
 
-            <div className="set-row">
+            {customSkipApps.length > 0 && (
               <div>
-                <div className="set-title">{t("screenshotMode.title")}</div>
-                <div className="set-desc">{t("screenshotMode.desc")}</div>
-              </div>
-              <div role="radiogroup" aria-label={t("screenshotMode.ariaLabel")} style={{ display: "grid", gap: 8, width: 380, maxWidth: "100%" }}>
-                <ModeOption
-                  label={t("screenshotMode.privacy")}
-                  desc={t("screenshotMode.privacyDesc")}
-                  selected={normalizeMode(selected.screenshot_mode) === "privacy"}
-                  disabled={saving}
-                  onSelect={() => saveMode("privacy")}
-                />
-                <ModeOption
-                  label={t("screenshotMode.normal")}
-                  desc={t("screenshotMode.normalDesc")}
-                  selected={normalizeMode(selected.screenshot_mode) === "normal"}
-                  disabled={saving}
-                  onSelect={() => saveMode("normal")}
-                />
-              </div>
-            </div>
-
-            {normalizeMode(selected.screenshot_mode) === "privacy" && (
-              <div className="set-row">
-                <div>
-                  <div className="set-title">{t("skipApps.title")}</div>
-                  <div className="set-desc">{t("skipApps.desc")}</div>
+                <div className="settings-row__title">
+                  {t("skipApps.custom")}
                 </div>
-                <div className="toolbar" style={{ gap: 10 }}>
-                  <span className="muted">{t("skipApps.count", { count: skipApps.length })}</span>
-                  <button className="actilens-btn actilens-btn--secondary actilens-btn--sm" disabled={saving} onClick={() => setSkipOpen(true)}>
-                    {t("skipApps.manage")}
-                  </button>
+                <div className="settings-chip-group settings-chip-group--top">
+                  {customSkipApps.map((app) => (
+                    <button
+                      key={app}
+                      type="button"
+                      className="settings-chip is-active"
+                      disabled={saving}
+                      onClick={() => removeSkipApps([app])}
+                    >
+                      {app} ×
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
 
-            <div className="set-row">
-              <div>
-                <div className="set-title">{t("screenshotInterval.title")}</div>
-              </div>
-              <div className="segmented" role="group" aria-label={t("screenshotInterval.ariaLabel")}>
-                {INTERVAL_PRESETS.map((p) => (
-                  <button
-                    key={p.value}
-                    className={selected.screenshot_interval_s === p.value ? "active" : ""}
-                    disabled={saving}
-                    onClick={() => savePatch({ screenshot_interval_s: p.value }, t("screenshotInterval.saved"))}
-                  >
-                    {t("presets.min", { count: p.minutes })}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="set-row">
-              <div>
-                <div className="set-title">{t("idleThreshold.title")}</div>
-              </div>
-              <div className="segmented" role="group" aria-label={t("idleThreshold.ariaLabel")}>
-                {IDLE_PRESETS.map((p) => (
-                  <button
-                    key={p.value}
-                    className={selected.idle_threshold_s === p.value ? "active" : ""}
-                    disabled={saving}
-                    onClick={() => savePatch({ idle_threshold_s: p.value }, t("idleThreshold.saved"))}
-                  >
-                    {t("presets.min", { count: p.minutes })}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="set-row">
-              <div>
-                <div className="set-title">{t("retention.title")}</div>
-              </div>
-              <div className="segmented" role="group" aria-label={t("retention.ariaLabel")}>
-                {PRESETS.map((p) => (
-                  <button
-                    key={p.days ?? "never"}
-                    className={retention === p.value ? "active" : ""}
-                    disabled={saving}
-                    onClick={() => saveRetention(p.value)}
-                  >
-                    {p.days === null ? t("presets.never") : t("presets.days", { count: p.days })}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="ad-set-sec">{t("sections.storage")}</div>
-          <div className="set-group">
-            <div className="set-row">
-              <div>
-                <div className="set-title">{t("cleanup.title")}</div>
-                <div className="set-desc">{t("cleanup.desc", { name: selected.name })}</div>
-              </div>
-              <button className="actilens-btn actilens-btn--secondary actilens-btn--sm" disabled={cleaning} onClick={() => setConfirmOpen(true)}>
-                <span style={{ display: "inline-flex", lineHeight: 0 }}>{IconTrash}</span>
-                <span>{t("cleanup.button")}</span>
-              </button>
-            </div>
-          </div>
-
-          {selectedId && (
-            <>
-              <div className="ad-set-sec">{t("sections.audit")}</div>
-              <AuditLogCard businessId={selectedId} />
-            </>
-          )}
-
-          {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
-        </>
-      )}
-
-      {skipOpen && selected && (
-        <Modal title={t("skipApps.modalTitle")} onClose={() => setSkipOpen(false)}>
-          <p className="muted" style={{ marginTop: 0 }}>{t("skipApps.desc")}</p>
-
-          <div className="toolbar" style={{ gap: 8, marginBottom: 12 }}>
-            <input
-              className="input"
-              value={skipAppInput}
-              placeholder={t("skipApps.placeholder")}
-              disabled={saving}
-              autoFocus
-              onChange={(e) => setSkipAppInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addSkipApp();
-                }
-              }}
-            />
-            <button className="actilens-btn actilens-btn--secondary actilens-btn--sm" disabled={saving || !skipAppInput.trim()} onClick={() => addSkipApp()}>
-              {t("skipApps.add")}
-            </button>
-          </div>
-
-          {customSkipApps.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>{t("skipApps.custom")}</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {customSkipApps.map((a) => (
-                  <span key={a} className="pill">
-                    {a}
-                    <button
-                      type="button"
-                      disabled={saving}
-                      aria-label={t("skipApps.remove", { name: a })}
-                      onClick={() => removeSkipApps([a])}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        color: "inherit",
-                        padding: "0 2px",
-                        marginLeft: 4,
-                        lineHeight: 1,
-                      }}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div style={{ maxHeight: 300, overflowY: "auto" }}>
-            {privacyApps.map((cat) => {
-              const added = cat.apps.filter(hasSkipApp);
-              return (
-                <div key={cat.key} style={{ marginBottom: 12 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                    <span className="muted" style={{ fontSize: 12, fontWeight: 700 }}>
-                      {t(`skipApps.cat${cat.key}`)} ({added.length}/{cat.apps.length})
-                    </span>
-                    {added.length < cat.apps.length && (
-                      <button
-                        className="actilens-btn actilens-btn--ghost"
-                        style={{ padding: "1px 8px", fontSize: 11 }}
-                        disabled={saving}
-                        onClick={() => addSkipApps(cat.apps)}
-                      >
-                        {t("skipApps.addAll")}
-                      </button>
-                    )}
-                    {added.length > 0 && (
-                      <button
-                        className="actilens-btn actilens-btn--ghost"
-                        style={{ padding: "1px 8px", fontSize: 11 }}
-                        disabled={saving}
-                        onClick={() => removeSkipApps(cat.apps)}
-                      >
-                        {t("skipApps.removeAll")}
-                      </button>
-                    )}
-                  </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                    {cat.apps.map((s) => {
-                      const on = hasSkipApp(s);
-                      return (
-                        <button
-                          key={s}
-                          type="button"
-                          role="checkbox"
-                          aria-checked={on}
+            <div className="settings-skip-list">
+              {privacyApps.map((category) => {
+                const added = category.apps.filter(hasSkipApp);
+                return (
+                  <div className="settings-skip-category" key={category.key}>
+                    <div className="settings-skip-category__head">
+                      <span className="settings-skip-category__name">
+                        {t(`skipApps.cat${category.key}`)} ({added.length}/
+                        {category.apps.length})
+                      </span>
+                      {added.length < category.apps.length && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           disabled={saving}
-                          style={{
-                            font: "inherit",
-                            padding: "2px 10px",
-                            fontSize: 12,
-                            borderRadius: 999,
-                            cursor: "pointer",
-                            color: "inherit",
-                            border: on ? "1px solid var(--accent)" : "1px solid var(--border)",
-                            background: on ? "var(--accent-weak)" : "transparent",
-                          }}
-                          onClick={() => (on ? removeSkipApps([s]) : addSkipApps([s]))}
+                          onClick={() => addSkipApps(category.apps)}
                         >
-                          {on ? "✓ " : "+ "}
-                          {s}
-                        </button>
-                      );
-                    })}
+                          {t("skipApps.addAll")}
+                        </Button>
+                      )}
+                      {added.length > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={saving}
+                          onClick={() => removeSkipApps(category.apps)}
+                        >
+                          {t("skipApps.removeAll")}
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="settings-chip-group">
+                      {category.apps.map((app) => {
+                        const active = hasSkipApp(app);
+                        return (
+                          <button
+                            key={app}
+                            type="button"
+                            role="checkbox"
+                            aria-checked={active}
+                            className={`settings-chip${
+                              active ? " is-active" : ""
+                            }`}
+                            disabled={saving}
+                            onClick={() =>
+                              active
+                                ? removeSkipApps([app])
+                                : addSkipApps([app])
+                            }
+                          >
+                            {active ? "✓ " : "+ "}
+                            {app}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-
-          <div className="toolbar" style={{ justifyContent: "flex-end", marginTop: 12 }}>
-            <button className="actilens-btn actilens-btn--primary" onClick={() => setSkipOpen(false)}>
-              {t("skipApps.done")}
-            </button>
-          </div>
-        </Modal>
+        </Dialog>
       )}
 
-      {confirmOpen && selected && (
-        <Modal title={t("cleanup.modalTitle")} onClose={() => setConfirmOpen(false)}>
-          <p className="muted" style={{ marginTop: 0 }}>
-            <Trans
-              t={t}
-              i18nKey="cleanup.olderThanIntro"
-              values={{ name: selected.name }}
-              components={[<strong />]}
-            />
-          </p>
-          <div className="segmented" role="group" aria-label={t("cleanup.olderThanAriaLabel")} style={{ marginBottom: 16 }}>
-            {CLEANUP_PRESETS.map((d) => (
-              <button
-                key={d}
-                className={cleanupDays === d ? "active" : ""}
-                onClick={() => setCleanupDays(d)}
+      {cleanupOpen && selected && (
+        <Dialog
+          title={t("cleanup.modalTitle")}
+          size="confirm"
+          onClose={() => !cleaning && setCleanupOpen(false)}
+          closeOnBackdrop={!cleaning}
+          footer={
+            <>
+              <Button
+                variant="secondary"
+                disabled={cleaning}
+                onClick={() => setCleanupOpen(false)}
               >
-                {t("presets.days", { count: d })}
-              </button>
-            ))}
+                {t("cleanup.cancel")}
+              </Button>
+              <Button
+                variant="danger"
+                loading={cleaning}
+                onClick={runCleanup}
+              >
+                {t("cleanup.delete", { days: cleanupDays })}
+              </Button>
+            </>
+          }
+        >
+          <div className="settings-dialog-stack">
+            <Alert tone="warning">
+              {t("cleanup.warning", { days: cleanupDays })}
+            </Alert>
+            <Segmented
+              value={cleanupDays}
+              ariaLabel={t("cleanup.olderThanAriaLabel")}
+              disabled={cleaning}
+              options={CLEANUP_PRESETS.map((days) => ({
+                value: days,
+                label: t("presets.days", { count: days }),
+              }))}
+              onChange={setCleanupDays}
+            />
+            {dialogError && <Alert tone="danger">{dialogError}</Alert>}
           </div>
-          <p className="muted">{t("cleanup.warning", { days: cleanupDays })}</p>
-          <div className="toolbar" style={{ justifyContent: "flex-end", gap: 8 }}>
-            <button className="actilens-btn actilens-btn--secondary" disabled={cleaning} onClick={() => setConfirmOpen(false)}>
-              {t("cleanup.cancel")}
-            </button>
-            <button className="actilens-btn actilens-btn--primary" disabled={cleaning} onClick={runCleanup}>
-              {cleaning ? t("cleanup.deleting") : t("cleanup.delete", { days: cleanupDays })}
-            </button>
-          </div>
-        </Modal>
+        </Dialog>
       )}
-
-      <div className="ad-set-sec">{t("sections.account")}</div>
-      <div className="set-group">
-        <div className="set-row">
-          <div className="set-title">{t("account.email")}</div>
-          <div className="ad-readonly">{user?.email || user?.username}</div>
-        </div>
-        <div className="set-row">
-          <div className="set-title">{t("account.displayName")}</div>
-          <div className="ad-readonly">{user?.display_name || user?.username}</div>
-        </div>
-      </div>
     </div>
   );
 }
