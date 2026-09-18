@@ -44,6 +44,7 @@ func New(cfg *config.Config, st *store.Store, files *filestore.Store, ret *reten
 	retentionH := handlers.NewRetentionHandler(st, ret)
 	downloadsH := handlers.NewDownloadsHandler(st, cfg.StaticDir)
 	keepaliveH := handlers.NewKeepaliveHandler(cfg.KeepaliveToken)
+	purgeH := handlers.NewMemberPurgeHandler(st, files)
 
 	if cfg.StaticDir != "" {
 		r.GET("/download/:file", downloadsH.Serve)
@@ -73,6 +74,7 @@ func New(cfg *config.Config, st *store.Store, files *filestore.Store, ret *reten
 	authed.GET("/businesses/console", ownerH.ListConsoleBusinesses)
 	authed.PATCH("/businesses/:id/members/:user_id/role", ownerH.UpdateMemberRole)
 	authed.PATCH("/businesses/:id/members/:user_id/monitoring", ownerH.UpdateMemberMonitoring)
+	authed.DELETE("/businesses/:id/members/:user_id/purge", purgeH.Purge)
 	authed.POST("/businesses/:id/members/:user_id/enrollment-token", ownerH.CreateEnrollmentToken)
 
 	// Business, employee, device and audit management.

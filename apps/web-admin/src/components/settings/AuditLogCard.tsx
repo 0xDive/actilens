@@ -15,6 +15,7 @@ const ACTION_KEYS: Record<string, string> = {
   "device.restored": "deviceRestored",
   "member.role_changed": "memberRoleChanged",
   "member.monitoring_changed": "memberMonitoringChanged",
+  "member.purged": "memberPurged",
   "member.enrollment_created": "memberEnrollmentCreated",
   "member.enrollment_redeemed": "memberEnrollmentRedeemed",
 };

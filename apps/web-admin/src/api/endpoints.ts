@@ -184,6 +184,22 @@ export function archiveEmployee(id: string) {
   return request<{ status: string }>(`/v1/employees/${id}`, { method: "DELETE" });
 }
 
+export interface PermanentMemberPurgeResult {
+  activity_deleted: number;
+  keystrokes_deleted: number;
+  browser_deleted: number;
+  screenshots_deleted: number;
+  enrollments_deleted: number;
+  account_tombstoned: boolean;
+}
+
+export function permanentlyDeleteMember(businessId: string, userId: string) {
+  return request<{ status: string; bytes_freed: number; result: PermanentMemberPurgeResult }>(
+    `/v1/businesses/${businessId}/members/${userId}/purge`,
+    { method: "DELETE" },
+  );
+}
+
 export function listEmployeeDevices(employeeId: string) {
   return request<{ devices: Device[] }>(`/v1/employees/${employeeId}/devices`);
 }

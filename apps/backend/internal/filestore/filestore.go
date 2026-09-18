@@ -74,6 +74,19 @@ func (s *Store) Open(rel string) (*os.File, error) {
 	return os.Open(abs)
 }
 
+// RemoveMemberScreenshots deletes the entire screenshot subtree for one
+// organization member. Both path components are UUIDs, so the recursive delete
+// cannot escape the storage root.
+func (s *Store) RemoveMemberScreenshots(businessID, userID string) error {
+	for _, id := range []string{businessID, userID} {
+		if _, err := uuid.Parse(id); err != nil {
+			return errors.New("path component is not a uuid")
+		}
+	}
+	dir := filepath.Join(s.root, "screenshots", businessID, userID)
+	return os.RemoveAll(dir)
+}
+
 // Remove deletes a stored screenshot by relative path. A missing file is not an error.
 func (s *Store) Remove(rel string) error {
 	abs := filepath.Join(s.root, filepath.Clean("/"+rel))

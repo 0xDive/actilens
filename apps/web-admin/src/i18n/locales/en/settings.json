@@ -101,7 +101,8 @@
       "memberRoleChanged": "Member role changed",
       "memberMonitoringChanged": "Member monitoring changed",
       "memberEnrollmentCreated": "Enrollment code created",
-      "memberEnrollmentRedeemed": "Enrollment code redeemed"
+      "memberEnrollmentRedeemed": "Enrollment code redeemed",
+      "memberPurged": "Member permanently deleted"
     },
     "targets": {
       "employee": "employee",
