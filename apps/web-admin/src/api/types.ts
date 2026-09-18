@@ -156,6 +156,7 @@ export interface ReportEmployee {
   username?: string;
   display_name: string;
   role?: BusinessRole;
+  status?: MembershipStatus;
   last_seen: number | null;
   active_today_s: number;
   active_yesterday_s: number;
