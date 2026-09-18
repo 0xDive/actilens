@@ -164,6 +164,10 @@ jobs:
         run: pnpm --filter @actilens/web-admin typecheck
       - name: Build web admin
         run: pnpm --filter @actilens/web-admin build
+      - name: Typecheck design fixtures
+        run: pnpm --filter @actilens/design typecheck
+      - name: Build design fixtures
+        run: pnpm --filter @actilens/design build
       - name: Typecheck desktop UI
         run: pnpm --filter @actilens/desktop typecheck
       - name: Test backend
