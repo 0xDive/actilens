@@ -80,7 +80,8 @@
       "enrollment": "Install code",
       "purge": "Delete permanently",
       "more": "More actions",
-      "openProfile": "Open profile"
+      "openProfile": "Open profile",
+      "remove": "Remove from organization"
     },
     "prompts": {
       "displayName": "New display name",
@@ -146,6 +147,27 @@
       "offline": "Offline",
       "blocked": "Blocked",
       "never": "Never"
+    },
+    "lifecycle": {
+      "viewLabel": "Member list",
+      "activeMembers": "Active members",
+      "formerMembers": "Former members",
+      "removed": "Removed",
+      "removedAt": "Removed",
+      "noFormer": "No former members",
+      "noFormerDescription": "Members removed from this organization will appear here while their retained history remains available.",
+      "errorLoadFormer": "Could not load former members.",
+      "removeTitle": "Remove {{name}} from this organization?",
+      "removeWarning": "This removes organization access and stops future monitoring, but it does not delete retained history.",
+      "removeScope": "The member will move to Former members. Owner/Admin can still view retained history, restore the member later, or permanently purge organization-scoped data.",
+      "removedToast": "Member moved to Former members.",
+      "restore": "Restore member",
+      "restoreTitle": "Restore {{name}}?",
+      "restoreInfo": "The same account and retained history will be restored. The member returns with the Employee role.",
+      "restoreMonitoring": "Enable monitoring after restore",
+      "restoreMonitoringHelp": "If disabled, the member is restored but managed monitoring remains off until an administrator enables it.",
+      "restoredToast": "Member restored.",
+      "viewHistory": "View retained history"
     }
   },
   "newBusinessModal": {
