@@ -55,6 +55,10 @@ SET screenshot_capture_scope = CASE
     ELSE 'active_window'
 END;
 
+-- Managed members cannot weaken organization policy locally. Older desktop builds
+-- still receive this compatibility field, but it is always false after upgrade.
+UPDATE businesses SET allow_employee_override = false;
+
 -- Organization-scoped member lifecycle.
 ALTER TABLE memberships
     ADD COLUMN status text NOT NULL DEFAULT 'active',
