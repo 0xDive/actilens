@@ -41,7 +41,8 @@
       "login": "Login",
       "currentApp": "Current app",
       "role": "Role",
-      "monitoring": "Monitoring"
+      "monitoring": "Monitoring",
+      "lastSeen": "Last activity"
     },
     "blocked": "Blocked",
     "actions": {
@@ -50,7 +51,9 @@
       "archive": "Block",
       "restore": "Unblock",
       "enrollment": "Install code",
-      "purge": "Delete permanently"
+      "purge": "Delete permanently",
+      "more": "More actions",
+      "openProfile": "Open profile"
     },
     "prompts": {
       "displayName": "New display name",
@@ -108,6 +111,14 @@
       "delete": "Delete permanently",
       "deleting": "Deleting…",
       "failed": "The member could not be fully deleted. Retry the operation; partially removed files are handled safely."
+    },
+    "total": "Total: {{count}}",
+    "status": {
+      "active": "Online",
+      "idle": "Idle",
+      "offline": "Offline",
+      "blocked": "Blocked",
+      "never": "Never"
     }
   },
   "newBusinessModal": {
