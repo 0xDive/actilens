@@ -394,3 +394,26 @@
     text-align: left;
   }
 }
+
+.settings-skip-input {
+  min-width: 260px;
+  flex: 1;
+}
+.settings-chip-group--top {
+  margin-top: 8px;
+}
+.settings-skip-list {
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.settings-audit-head {
+  margin-bottom: 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.settings-audit-skeleton-gap {
+  margin-top: 7px;
+}
