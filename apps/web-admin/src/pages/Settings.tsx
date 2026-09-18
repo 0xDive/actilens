@@ -9,9 +9,7 @@ import {
   ApiError,
   type BusinessSettingsPatch,
   type PrivacyAppCategory,
-  type ScreenshotMode,
 } from "../api/types";
-import { useAuth } from "../auth/AuthContext";
 import {
   Alert,
   Button,
@@ -25,8 +23,10 @@ import {
 import { useToast } from "../components/ToastProvider";
 import { AuditLogCard } from "../components/settings/AuditLogCard";
 import { OrganizationSettingsCard } from "../components/settings/OrganizationSettingsCard";
+import { MonitoringSettingsCard } from "../components/settings/MonitoringSettingsCard";
+import { ScreenshotPolicyCard } from "../components/settings/ScreenshotPolicyCard";
+import { DeviceEnrollmentSettingsCard } from "../components/settings/DeviceEnrollmentSettingsCard";
 import { useBusinesses } from "../useBusinesses";
-import { memberTerms } from "../terms";
 import { canManageSettings } from "../rbac";
 import "../theme/settings-v1.css";
 
@@ -38,19 +38,6 @@ function formatBytes(value: number): string {
 
 const CLEANUP_PRESETS = [7, 14, 30, 90];
 
-const INTERVAL_PRESETS = [
-  { minutes: 1, value: 60 },
-  { minutes: 5, value: 300 },
-  { minutes: 10, value: 600 },
-  { minutes: 15, value: 900 },
-];
-
-const IDLE_PRESETS = [
-  { minutes: 1, value: 60 },
-  { minutes: 3, value: 180 },
-  { minutes: 5, value: 300 },
-];
-
 const RETENTION_PRESETS: Array<{ days: number | null; value: number | null }> = [
   { days: 7, value: 7 },
   { days: 14, value: 14 },
@@ -58,10 +45,6 @@ const RETENTION_PRESETS: Array<{ days: number | null; value: number | null }> = 
   { days: 90, value: 90 },
   { days: null, value: null },
 ];
-
-function normalizeMode(mode: string | undefined): ScreenshotMode {
-  return mode === "normal" || mode === "full_screen" ? "normal" : "privacy";
-}
 
 function SettingsSection({
   id,
@@ -144,43 +127,10 @@ function Segmented<T extends string | number>({
   );
 }
 
-function ModeOption({
-  label,
-  description,
-  selected,
-  disabled,
-  onSelect,
-}: {
-  label: string;
-  description: string;
-  selected: boolean;
-  disabled?: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={selected}
-      className={`settings-mode${selected ? " is-active" : ""}`}
-      disabled={disabled}
-      onClick={onSelect}
-    >
-      <span className="settings-mode__radio" aria-hidden />
-      <span>
-        <span className="settings-mode__label">{label}</span>
-        <span className="settings-mode__description">{description}</span>
-      </span>
-    </button>
-  );
-}
-
 export function Settings() {
   const { t } = useTranslation("settings");
-  const { user } = useAuth();
   const { pushToast } = useToast();
   const { businesses, selected, selectedId, loading, reload } = useBusinesses();
-  const terms = memberTerms(selected?.kind);
   const mayManageSettings = canManageSettings(selected?.role);
 
   const [activeSection, setActiveSection] = useState("organization");
@@ -248,20 +198,6 @@ export function Settings() {
     (app) => !suggestedLower.has(app.toLowerCase()),
   );
 
-  function saveMode(mode: ScreenshotMode) {
-    const patch: BusinessSettingsPatch = { screenshot_mode: mode };
-    if (
-      mode === "privacy" &&
-      skipApps.length === 0 &&
-      privacyApps.length > 0
-    ) {
-      patch.screenshot_skip_apps = privacyApps.flatMap(
-        (category) => category.apps,
-      );
-    }
-    savePatch(patch, t("screenshotMode.saved"));
-  }
-
   function addSkipApps(apps: string[]) {
     const fresh = apps.filter((app) => !hasSkipApp(app));
     if (!fresh.length) return;
@@ -319,9 +255,9 @@ export function Settings() {
     ["organization", t("v1.sections.organization")],
     ["monitoring", t("v1.sections.monitoring")],
     ["screenshots", t("v1.sections.screenshots")],
+    ["devices", t("v1.sections.devices")],
     ["storage", t("v1.sections.storage")],
     ["audit", t("v1.sections.audit")],
-    ["account", t("v1.sections.account")],
   ] as const;
 
   function goToSection(id: string) {
@@ -399,71 +335,10 @@ export function Settings() {
               title={t("v1.sections.monitoring")}
               description={t("v1.monitoring.description")}
             >
-              <Card className="settings-card">
-                <SettingsRow
-                  title={t("capturePolicy.title")}
-                  description={t("capturePolicy.desc", {
-                    members: terms.many,
-                  })}
-                >
-                  <Segmented
-                    value={
-                      selected.allow_employee_override ? "override" : "locked"
-                    }
-                    ariaLabel={t("capturePolicy.ariaLabel", {
-                      member: terms.lowerOne,
-                    })}
-                    disabled={saving}
-                    options={[
-                      {
-                        value: "locked",
-                        label: t("capturePolicy.locked"),
-                      },
-                      {
-                        value: "override",
-                        label: t("capturePolicy.allowOverride"),
-                      },
-                    ]}
-                    onChange={(value) =>
-                      savePatch(
-                        {
-                          allow_employee_override: value === "override",
-                        },
-                        value === "override"
-                          ? t("capturePolicy.savedAllowed", {
-                              members: terms.many,
-                            })
-                          : t("capturePolicy.savedLocked", {
-                              members: terms.many,
-                            }),
-                      )
-                    }
-                  />
-                </SettingsRow>
-
-                <SettingsRow
-                  title={t("idleThreshold.title")}
-                  description={t("idleThreshold.desc")}
-                >
-                  <Segmented
-                    value={selected.idle_threshold_s}
-                    ariaLabel={t("idleThreshold.ariaLabel")}
-                    disabled={saving}
-                    options={IDLE_PRESETS.map((preset) => ({
-                      value: preset.value,
-                      label: t("presets.min", {
-                        count: preset.minutes,
-                      }),
-                    }))}
-                    onChange={(value) =>
-                      savePatch(
-                        { idle_threshold_s: value },
-                        t("idleThreshold.saved"),
-                      )
-                    }
-                  />
-                </SettingsRow>
-              </Card>
+              <MonitoringSettingsCard
+                access={{ business: selected, role: selected.role }}
+                onReload={reload}
+              />
             </SettingsSection>
 
             <SettingsSection
@@ -471,86 +346,22 @@ export function Settings() {
               title={t("v1.sections.screenshots")}
               description={t("v1.screenshots.description")}
             >
-              <Card className="settings-card">
-                <SettingsRow
-                  top
-                  title={t("screenshotMode.title")}
-                  description={t("screenshotMode.desc")}
-                >
-                  <div
-                    className="settings-mode-grid"
-                    role="radiogroup"
-                    aria-label={t("screenshotMode.ariaLabel")}
-                  >
-                    <ModeOption
-                      label={t("screenshotMode.privacy")}
-                      description={t("screenshotMode.privacyDesc")}
-                      selected={
-                        normalizeMode(selected.screenshot_mode) === "privacy"
-                      }
-                      disabled={saving}
-                      onSelect={() => saveMode("privacy")}
-                    />
-                    <ModeOption
-                      label={t("screenshotMode.normal")}
-                      description={t("screenshotMode.normalDesc")}
-                      selected={
-                        normalizeMode(selected.screenshot_mode) === "normal"
-                      }
-                      disabled={saving}
-                      onSelect={() => saveMode("normal")}
-                    />
-                  </div>
-                </SettingsRow>
+              <ScreenshotPolicyCard
+                access={{ business: selected, role: selected.role }}
+                onReload={reload}
+                onManagePrivacy={() => setSkipOpen(true)}
+              />
+            </SettingsSection>
 
-                <SettingsRow
-                  title={t("screenshotInterval.title")}
-                  description={t("screenshotInterval.desc", {
-                    member: terms.lowerOne,
-                  })}
-                >
-                  <Segmented
-                    value={selected.screenshot_interval_s}
-                    ariaLabel={t("screenshotInterval.ariaLabel")}
-                    disabled={saving}
-                    options={INTERVAL_PRESETS.map((preset) => ({
-                      value: preset.value,
-                      label: t("presets.min", {
-                        count: preset.minutes,
-                      }),
-                    }))}
-                    onChange={(value) =>
-                      savePatch(
-                        { screenshot_interval_s: value },
-                        t("screenshotInterval.saved"),
-                      )
-                    }
-                  />
-                </SettingsRow>
-
-                {normalizeMode(selected.screenshot_mode) === "privacy" && (
-                  <SettingsRow
-                    title={t("skipApps.title")}
-                    description={t("skipApps.desc")}
-                  >
-                    <div className="settings-inline">
-                      <span className="settings-count">
-                        {t("skipApps.count", {
-                          count: skipApps.length,
-                        })}
-                      </span>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={saving}
-                        onClick={() => setSkipOpen(true)}
-                      >
-                        {t("skipApps.manage")}
-                      </Button>
-                    </div>
-                  </SettingsRow>
-                )}
-              </Card>
+            <SettingsSection
+              id="devices"
+              title={t("v1.sections.devices")}
+              description={t("v1.devices.description")}
+            >
+              <DeviceEnrollmentSettingsCard
+                access={{ business: selected, role: selected.role }}
+                onReload={reload}
+              />
             </SettingsSection>
 
             <SettingsSection
@@ -617,28 +428,6 @@ export function Settings() {
               </SettingsSection>
             )}
 
-            <SettingsSection
-              id="account"
-              title={t("v1.sections.account")}
-              description={t("v1.account.description")}
-            >
-              <Card className="settings-card">
-                <SettingsRow title={t("account.email")}>
-                  <div className="settings-readonly">
-                    <span className="settings-readonly__value">
-                      {user?.email || user?.username || "—"}
-                    </span>
-                  </div>
-                </SettingsRow>
-                <SettingsRow title={t("account.displayName")}>
-                  <div className="settings-readonly">
-                    <span className="settings-readonly__value">
-                      {user?.display_name || user?.username || "—"}
-                    </span>
-                  </div>
-                </SettingsRow>
-              </Card>
-            </SettingsSection>
           </div>
         </div>
       )}
