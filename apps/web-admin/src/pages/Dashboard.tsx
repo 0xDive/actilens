@@ -1,8 +1,16 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Trans, useTranslation } from "react-i18next";
-import { listBusinessEmployees, reportEmployees } from "../api/endpoints";
-import type { Employee, ReportEmployee } from "../api/types";
+import {
+  getDeviceHealth,
+  listBusinessEmployees,
+  reportEmployees,
+} from "../api/endpoints";
+import type {
+  DeviceHealthSummary,
+  Employee,
+  ReportEmployee,
+} from "../api/types";
 import { Alert, Card, EmptyState, PageHeader, Skeleton } from "../components/ds";
 import { fmtRelative } from "../format";
 import { useBusinesses } from "../useBusinesses";
@@ -213,6 +221,7 @@ export function Dashboard() {
 
   const [rows, setRows] = useState<ReportEmployee[]>([]);
   const [liveEmployees, setLiveEmployees] = useState<Employee[]>([]);
+  const [deviceHealth, setDeviceHealth] = useState<DeviceHealthSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -220,6 +229,7 @@ export function Dashboard() {
     if (!selectedId) {
       setRows([]);
       setLiveEmployees([]);
+      setDeviceHealth(null);
       return;
     }
 
@@ -227,11 +237,21 @@ export function Dashboard() {
     setLoading(true);
     setError(null);
 
-    Promise.all([reportEmployees(selectedId), listBusinessEmployees(selectedId)])
-      .then(([report, live]) => {
+    const healthRequest =
+      selected?.role === "owner" || selected?.role === "admin"
+        ? getDeviceHealth(selectedId).catch(() => null)
+        : Promise.resolve(null);
+
+    Promise.all([
+      reportEmployees(selectedId),
+      listBusinessEmployees(selectedId),
+      healthRequest,
+    ])
+      .then(([report, live, health]) => {
         if (cancelled) return;
         setRows(report.employees);
         setLiveEmployees(live.employees);
+        setDeviceHealth(health);
       })
       .catch(() => {
         if (!cancelled) setError(t("dashboard.errorRoster"));
@@ -243,7 +263,7 @@ export function Dashboard() {
     return () => {
       cancelled = true;
     };
-  }, [selectedId]);
+  }, [selected?.role, selectedId, t]);
 
   const metrics = useMemo(() => {
     const totalToday = rows.reduce((sum, employee) => sum + (employee.active_today_s || 0), 0);
@@ -348,6 +368,17 @@ export function Dashboard() {
       )}
 
       {error && <Alert tone="danger">{error}</Alert>}
+
+      {!loading && deviceHealth && deviceHealth.outdated > 0 && (
+        <div className="dashboard-device-health">
+          <Alert tone="warning">
+            {t("dashboard.v1.deviceHealthWarning", {
+              count: deviceHealth.outdated,
+              version: deviceHealth.recommended_version || t("dashboard.v1.recommendedRelease"),
+            })}
+          </Alert>
+        </div>
+      )}
 
       {!loading && !error && selectedId && rows.length === 0 && (
         <EmptyState
