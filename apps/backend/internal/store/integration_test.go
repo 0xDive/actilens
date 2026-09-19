@@ -1690,3 +1690,139 @@ func TestIntegrationFormerMemberHistoryAndCaptureGroups(t *testing.T) {
 		t.Fatalf("former screenshot capture group = %+v, want %s", shots, groupID)
 	}
 }
+
+
+func TestIntegrationOrganizationMetadataChangesPreserveHistory(t *testing.T) {
+	st, pool := integrationStore(t)
+	ctx := context.Background()
+
+	owner, err := st.CreateUser(
+		ctx, "metadata-owner@example.test", "", "hash", "Metadata Owner", "manager",
+	)
+	if err != nil {
+		t.Fatalf("create owner: %v", err)
+	}
+	biz, err := st.CreateBusinessConfigured(
+		ctx, owner.ID, "Original Org", "team", "UTC", nil,
+	)
+	if err != nil {
+		t.Fatalf("create business: %v", err)
+	}
+	member, _, err := st.CreateEmployee(
+		ctx, owner.ID, &biz.ID, "", "metadata_member", "hash", "Metadata Member",
+	)
+	if err != nil {
+		t.Fatalf("create member: %v", err)
+	}
+
+	deviceID := uuid.NewString()
+	activityID := uuid.NewString()
+	if err := st.SyncBatch(
+		ctx, member.ID, biz.ID, deviceID, DeviceMetadata{Hostname: "metadata-device"},
+		[]ActivityRow{{
+			ClientUUID: activityID,
+			Ts: 200,
+			AppName: "Metadata App",
+			DurationS: 15,
+			ClientUpdatedAt: 200,
+		}},
+		nil, nil,
+	); err != nil {
+		t.Fatalf("seed history: %v", err)
+	}
+	screenshotID := uuid.NewString()
+	if err := st.UpsertScreenshot(ctx, member.ID, biz.ID, ScreenshotRow{
+		ClientUUID: screenshotID,
+		DeviceID: deviceID,
+		Ts: 200,
+		FilePath: "screenshots/metadata.webp",
+		ByteSize: 64,
+		ClientUpdatedAt: 200,
+	}); err != nil {
+		t.Fatalf("seed screenshot: %v", err)
+	}
+
+	newName := "Renamed Org"
+	newKind := "other"
+	newTimezone := "Europe/Berlin"
+	weekStart := 1
+	updated, err := st.UpdateOrganization(ctx, owner.ID, biz.ID, OrganizationPatch{
+		Name: &newName,
+		Kind: &newKind,
+		Timezone: &newTimezone,
+		WeekStartsOnSet: true,
+		WeekStartsOn: &weekStart,
+	})
+	if err != nil {
+		t.Fatalf("update organization metadata: %v", err)
+	}
+	if updated.ID != biz.ID ||
+		updated.Name != newName ||
+		updated.Kind != newKind ||
+		updated.Timezone != newTimezone ||
+		updated.WeekStartsOn == nil ||
+		*updated.WeekStartsOn != weekStart {
+		t.Fatalf("unexpected updated business: %+v", updated)
+	}
+
+	var (
+		membershipCount int
+		deviceBusinessID string
+		activityBusinessID string
+		screenshotBusinessID string
+	)
+	if err := pool.QueryRow(ctx, `
+		SELECT count(*)
+		  FROM memberships
+		 WHERE business_id = $1
+		   AND user_id IN ($2, $3)`,
+		biz.ID, owner.ID, member.ID,
+	).Scan(&membershipCount); err != nil {
+		t.Fatalf("count preserved memberships: %v", err)
+	}
+	if membershipCount != 2 {
+		t.Fatalf("memberships after metadata change = %d, want 2", membershipCount)
+	}
+	if err := pool.QueryRow(
+		ctx, `SELECT business_id::text FROM devices WHERE id = $1`, deviceID,
+	).Scan(&deviceBusinessID); err != nil {
+		t.Fatalf("read preserved device: %v", err)
+	}
+	if err := pool.QueryRow(
+		ctx, `SELECT business_id::text FROM activity_samples WHERE client_uuid = $1`, activityID,
+	).Scan(&activityBusinessID); err != nil {
+		t.Fatalf("read preserved activity: %v", err)
+	}
+	if err := pool.QueryRow(
+		ctx, `SELECT business_id::text FROM screenshots WHERE client_uuid = $1`, screenshotID,
+	).Scan(&screenshotBusinessID); err != nil {
+		t.Fatalf("read preserved screenshot: %v", err)
+	}
+	for label, businessID := range map[string]string{
+		"device": deviceBusinessID,
+		"activity": activityBusinessID,
+		"screenshot": screenshotBusinessID,
+	} {
+		if businessID != biz.ID {
+			t.Fatalf("%s history rebound to %q, want %q", label, businessID, biz.ID)
+		}
+	}
+
+	var auditCount int
+	if err := pool.QueryRow(ctx, `
+		SELECT count(*)
+		  FROM audit_events
+		 WHERE business_id = $1
+		   AND action IN (
+		       'organization.renamed',
+		       'organization.kind_changed',
+		       'organization.timezone_changed',
+		       'organization.week_start_changed'
+		   )`, biz.ID,
+	).Scan(&auditCount); err != nil {
+		t.Fatalf("count organization metadata audit: %v", err)
+	}
+	if auditCount != 4 {
+		t.Fatalf("organization metadata audit count = %d, want 4", auditCount)
+	}
+}
