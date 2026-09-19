@@ -13,6 +13,7 @@ import {
   TextField,
 } from "../ds";
 import { useToast } from "../ToastProvider";
+import { EnrollmentTokenControl } from "./EnrollmentTokenControl";
 
 function fmtTimestamp(timestamp: number | null, never: string): string {
   if (!timestamp) return never;
@@ -28,9 +29,11 @@ function shortID(id: string): string {
 }
 
 export function DevicesCard({
+  employee,
   employeeId,
   businessId,
 }: {
+  employee?: Employee | null;
   employeeId: string;
   businessId: string;
 }) {
@@ -127,9 +130,19 @@ export function DevicesCard({
 
   return (
     <Card>
-      <div className="report-card__head">
-        <h2 className="report-card__title">{t("detail.devices.title")}</h2>
-        <p className="report-card__subtitle">{t("detail.devices.subtitle")}</p>
+      <div className="report-card__head device-card__head">
+        <div>
+          <h2 className="report-card__title">{t("detail.devices.title")}</h2>
+          <p className="report-card__subtitle">{t("detail.devices.subtitle")}</p>
+        </div>
+        {employee && (
+          <EnrollmentTokenControl
+            employee={employee}
+            businessId={businessId}
+            canChange
+            triggerLabel={t("detail.devices.reenroll")}
+          />
+        )}
       </div>
 
       {!loading &&
@@ -190,6 +203,11 @@ export function DevicesCard({
                           : "detail.devices.active",
                       )}
                     </Badge>
+                    {revoked && (
+                      <span className="device-row__reenroll-hint">
+                        {t("detail.devices.reenrollHint")}
+                      </span>
+                    )}
                     {!revoked && (
                       <Badge
                         tone={
