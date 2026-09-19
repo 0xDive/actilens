@@ -143,7 +143,7 @@ func touchDeviceTx(
 	}
 
 	// Serialize first-seen devices for this organization so concurrent enrollments
-	// cannot both pass the configured per-member limit.
+	// cannot both pass the configured organization-wide active-device limit.
 	var limit *int
 	if err := tx.QueryRow(ctx, `
 		SELECT device_limit
@@ -169,9 +169,8 @@ func touchDeviceTx(
 			SELECT count(*)
 			  FROM devices
 			 WHERE business_id = $1
-			   AND user_id = $2
 			   AND revoked_at IS NULL`,
-			businessID, userID,
+			businessID,
 		).Scan(&count); err != nil {
 			return err
 		}
@@ -324,10 +323,9 @@ func (s *Store) UpdateDevice(ctx context.Context, actorID, deviceID string, labe
 				SELECT count(*)
 				  FROM devices
 				 WHERE business_id = $1
-				   AND user_id = $2
 				   AND revoked_at IS NULL
-				   AND id <> $3`,
-				access.BusinessID, employeeID, deviceID,
+				   AND id <> $2`,
+				access.BusinessID, deviceID,
 			).Scan(&count); err != nil {
 				return Device{}, err
 			}
