@@ -35,6 +35,30 @@ func (s *Store) ScreenshotsBefore(ctx context.Context, businessID string, cutoff
 	return out, rows.Err()
 }
 
+// ScreenshotsRange lists a business's screenshots in the half-open [from,to)
+// Unix-second range used by organization-local calendar cleanup.
+func (s *Store) ScreenshotsRange(ctx context.Context, businessID string, fromTs, toTs int64) ([]ScreenshotFile, error) {
+	rows, err := s.pool.Query(ctx,
+		`SELECT id, file_path, byte_size FROM screenshots
+		  WHERE business_id = $1 AND ts >= $2 AND ts < $3`,
+		businessID, fromTs, toTs,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []ScreenshotFile{}
+	for rows.Next() {
+		var f ScreenshotFile
+		if err := rows.Scan(&f.ID, &f.FilePath, &f.ByteSize); err != nil {
+			return nil, err
+		}
+		out = append(out, f)
+	}
+	return out, rows.Err()
+}
+
 // DeleteScreenshotsByIDs removes screenshot rows by id, returning the count deleted.
 func (s *Store) DeleteScreenshotsByIDs(ctx context.Context, ids []int64) (int64, error) {
 	if len(ids) == 0 {
