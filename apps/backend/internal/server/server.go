@@ -187,7 +187,10 @@ func staticSite(dir string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		p := c.Request.URL.Path
 		if p == "/healthz" || p == "/v1" || strings.HasPrefix(p, "/v1/") {
-			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "not found",
+				"code":  "not_found",
+			})
 			return
 		}
 		file := filepath.Join(dir, filepath.Clean("/"+p))
