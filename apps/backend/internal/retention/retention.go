@@ -144,6 +144,9 @@ func (s *Service) CleanupClasses(
 // CleanupBusiness deletes a business's screenshots older than olderThanDays. With 0,
 // everything up to now is removed.
 func (s *Service) CleanupBusiness(ctx context.Context, businessID string, olderThanDays int) (Result, error) {
+	if err := s.store.EnsureBusinessMutable(ctx, businessID); err != nil {
+		return Result{}, err
+	}
 	cutoff := cutoffForDays(olderThanDays)
 	files, err := s.store.ScreenshotsBefore(ctx, businessID, cutoff)
 	if err != nil {
