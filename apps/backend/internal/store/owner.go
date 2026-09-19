@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
+	"sort"
 	"strings"
 	"time"
 
@@ -282,6 +284,65 @@ var settableColumns = map[string]bool{
 	"screenshot_skip_apps":    true,
 }
 
+func businessSettingValue(b Business, field string) any {
+	switch field {
+	case "default_member_monitoring_enabled": return b.DefaultMemberMonitoringEnabled
+	case "collect_app_activity": return b.CollectAppActivity
+	case "collect_window_titles": return b.CollectWindowTitles
+	case "collect_screenshots": return b.CollectScreenshots
+	case "collect_browser_activity": return b.CollectBrowserActivity
+	case "collect_keystroke_counts": return b.CollectKeystrokeCounts
+	case "screenshot_retention_days":
+		if b.ScreenshotRetentionDays == nil { return nil }
+		return *b.ScreenshotRetentionDays
+	case "screenshot_interval_s": return b.ScreenshotIntervalS
+	case "screenshot_capture_scope": return b.ScreenshotCaptureScope
+	case "idle_threshold_s": return b.IdleThresholdS
+	case "activity_retention_days": return b.ActivityRetentionDays
+	case "browser_retention_days": return b.BrowserRetentionDays
+	case "keystroke_retention_days": return b.KeystrokeRetentionDays
+	case "audit_retention_days":
+		if b.AuditRetentionDays == nil { return nil }
+		return *b.AuditRetentionDays
+	case "device_limit":
+		if b.DeviceLimit == nil { return nil }
+		return *b.DeviceLimit
+	case "enrollment_token_ttl_s": return b.EnrollmentTokenTTLS
+	case "allow_employee_override": return b.AllowEmployeeOverride
+	case "screenshot_mode": return b.ScreenshotMode
+	case "screenshot_skip_apps": return b.ScreenshotSkipApps
+	default: return nil
+	}
+}
+
+func settingsAuditAction(fields []string) string {
+	categories := map[string]struct{}{}
+	for _, name := range fields {
+		category := "settings.changed"
+		switch name {
+		case "activity_retention_days", "screenshot_retention_days",
+			"browser_retention_days", "keystroke_retention_days", "audit_retention_days":
+			category = "settings.retention_changed"
+		case "device_limit":
+			category = "settings.device_limit_changed"
+		case "enrollment_token_ttl_s":
+			category = "settings.enrollment_changed"
+		case "collect_app_activity", "collect_window_titles", "collect_browser_activity",
+			"collect_keystroke_counts", "default_member_monitoring_enabled":
+			category = "settings.collection_changed"
+		case "collect_screenshots", "screenshot_interval_s", "screenshot_capture_scope",
+			"screenshot_mode", "screenshot_skip_apps":
+			category = "settings.screenshot_changed"
+		}
+		categories[category] = struct{}{}
+	}
+	if len(categories) != 1 {
+		return "settings.changed"
+	}
+	for category := range categories { return category }
+	return "settings.changed"
+}
+
 // UpdateBusinessSettings updates only the provided columns (keys must be in
 // settableColumns; values are already typed by the caller). A nil value sets NULL
 // (used for "keep screenshots forever").
@@ -351,19 +412,33 @@ func (s *Store) UpdateBusinessSettingsAudited(
 		return ErrOrganizationArchived
 	}
 
+	current, err := getBusiness(ctx, tx, businessID)
+	if err != nil {
+		return err
+	}
+
 	sets := make([]string, 0, len(fields)+1)
 	args := []any{businessID}
 	fieldNames := make([]string, 0, len(fields))
 	values := map[string]any{}
+	changes := []AuditChange{}
 	for col, val := range fields {
 		if !settableColumns[col] {
 			return fmt.Errorf("not a settable column: %s", col)
 		}
 		args = append(args, val)
 		sets = append(sets, fmt.Sprintf("%s = $%d", col, len(args)))
-		fieldNames = append(fieldNames, col)
-		values[col] = val
+		before := businessSettingValue(current, col)
+		if !reflect.DeepEqual(before, val) {
+			fieldNames = append(fieldNames, col)
+			values[col] = val
+			changes = append(changes, auditChange(col, before, val))
+		}
 	}
+	if len(changes) == 0 {
+		return tx.Commit(ctx)
+	}
+	sort.Strings(fieldNames)
 	sets = append(sets, "updated_at = now()")
 	q := fmt.Sprintf("UPDATE businesses SET %s WHERE id = $1", strings.Join(sets, ", "))
 	ct, err := tx.Exec(ctx, q, args...)
@@ -374,31 +449,11 @@ func (s *Store) UpdateBusinessSettingsAudited(
 		return ErrNotFound
 	}
 
-	action := "settings.changed"
-	for _, name := range fieldNames {
-		switch name {
-		case "activity_retention_days", "screenshot_retention_days",
-			"browser_retention_days", "keystroke_retention_days", "audit_retention_days":
-			action = "settings.retention_changed"
-		case "device_limit":
-			action = "settings.device_limit_changed"
-		case "enrollment_token_ttl_s":
-			action = "settings.enrollment_changed"
-		case "collect_app_activity", "collect_window_titles", "collect_browser_activity",
-			"collect_keystroke_counts", "default_member_monitoring_enabled":
-			if action == "settings.changed" {
-				action = "settings.collection_changed"
-			}
-		case "collect_screenshots", "screenshot_interval_s", "screenshot_capture_scope",
-			"screenshot_mode", "screenshot_skip_apps":
-			if action == "settings.changed" {
-				action = "settings.screenshot_changed"
-			}
-		}
-	}
+	action := settingsAuditAction(fieldNames)
 	if err := insertAuditTx(ctx, tx, businessID, actorID, action, "organization", businessID, map[string]any{
-		"fields": fieldNames,
-		"values": values,
+		"fields":  fieldNames,
+		"values":  values,
+		"changes": changes,
 	}); err != nil {
 		return err
 	}
@@ -445,12 +500,13 @@ func (s *Store) UpdateDefaultMonitoring(
 		return 0, err
 	}
 	var archivedAt, deletionScheduledAt *time.Time
+	var currentDefaultMonitoring bool
 	if err := tx.QueryRow(ctx, `
-		SELECT archived_at, deletion_scheduled_at
+		SELECT archived_at, deletion_scheduled_at, default_member_monitoring_enabled
 		  FROM businesses
 		 WHERE id = $1
 		 FOR UPDATE`, businessID,
-	).Scan(&archivedAt, &deletionScheduledAt); err != nil {
+	).Scan(&archivedAt, &deletionScheduledAt, &currentDefaultMonitoring); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return 0, ErrNotFound
 		}
@@ -493,6 +549,9 @@ func (s *Store) UpdateDefaultMonitoring(
 		"enabled":        enabled,
 		"apply_existing": applyExisting,
 		"affected_count": affected,
+		"changes": auditChanges(
+			auditChange("default_member_monitoring_enabled", currentDefaultMonitoring, enabled),
+		),
 	}); err != nil {
 		return 0, err
 	}

@@ -55,7 +55,9 @@ func (s *Store) ArchiveOrganization(
 	}
 	if err := insertAuditTx(
 		ctx, tx, businessID, actorID, "organization.archived",
-		"organization", businessID, nil,
+		"organization", businessID, map[string]any{
+			"changes": auditChanges(auditChange("organization_status", "active", "archived")),
+		},
 	); err != nil {
 		return Business{}, err
 	}
@@ -105,7 +107,9 @@ func (s *Store) RestoreOrganization(
 	}
 	if err := insertAuditTx(
 		ctx, tx, businessID, actorID, "organization.restored",
-		"organization", businessID, nil,
+		"organization", businessID, map[string]any{
+			"changes": auditChanges(auditChange("organization_status", "archived", "active")),
+		},
 	); err != nil {
 		return Business{}, err
 	}
@@ -227,6 +231,7 @@ func (s *Store) TransferOrganizationOwnership(
 		map[string]any{
 			"previous_owner_user_id": actorID,
 			"new_owner_user_id":      targetUserID,
+			"changes": auditChanges(auditChange("owner_user_id", actorID, targetUserID)),
 		},
 	); err != nil {
 		return err
@@ -300,7 +305,10 @@ func (s *Store) ScheduleOrganizationDeletion(
 	if err := insertAuditTx(
 		ctx, tx, businessID, actorID, "organization.deletion_scheduled",
 		"organization", businessID,
-		map[string]any{"deletion_scheduled_at": deadline},
+		map[string]any{
+			"deletion_scheduled_at": deadline,
+			"changes": auditChanges(auditChange("deletion_scheduled_at", nil, deadline)),
+		},
 	); err != nil {
 		return Business{}, err
 	}
@@ -347,7 +355,9 @@ func (s *Store) CancelOrganizationDeletion(
 	}
 	if err := insertAuditTx(
 		ctx, tx, businessID, actorID, "organization.deletion_cancelled",
-		"organization", businessID, nil,
+		"organization", businessID, map[string]any{
+			"changes": auditChanges(auditChange("deletion_scheduled_at", current.DeletionScheduledAt, nil)),
+		},
 	); err != nil {
 		return Business{}, err
 	}

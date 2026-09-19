@@ -165,6 +165,12 @@ func (s *Store) CreatePrivacyRule(
 	}
 	if err := insertAuditTx(ctx, tx, businessID, actorID, "settings.privacy_rule_created", "privacy_rule", id, map[string]any{
 		"kind": kind, "match_type": matchType, "pattern": pattern,
+		"changes": auditChanges(
+			auditChange("privacy_kind", nil, kind),
+			auditChange("privacy_match_type", nil, matchType),
+			auditChange("privacy_pattern", nil, pattern),
+			auditChange("privacy_enabled", nil, true),
+		),
 	}); err != nil {
 		return PrivacyRule{}, err
 	}
@@ -253,8 +259,22 @@ func (s *Store) UpdatePrivacyRule(
 	if err := syncLegacySkipAppsTx(ctx, tx, businessID); err != nil {
 		return PrivacyRule{}, err
 	}
+	changes := []AuditChange{}
+	if current.Kind != nextKind {
+		changes = append(changes, auditChange("privacy_kind", current.Kind, nextKind))
+	}
+	if current.MatchType != nextMatch {
+		changes = append(changes, auditChange("privacy_match_type", current.MatchType, nextMatch))
+	}
+	if current.Pattern != nextPattern {
+		changes = append(changes, auditChange("privacy_pattern", current.Pattern, nextPattern))
+	}
+	if current.Enabled != nextEnabled {
+		changes = append(changes, auditChange("privacy_enabled", current.Enabled, nextEnabled))
+	}
 	if err := insertAuditTx(ctx, tx, businessID, actorID, "settings.privacy_rule_changed", "privacy_rule", ruleID, map[string]any{
 		"kind": nextKind, "match_type": nextMatch, "pattern": nextPattern, "enabled": nextEnabled,
+		"changes": changes,
 	}); err != nil {
 		return PrivacyRule{}, err
 	}
@@ -301,6 +321,11 @@ func (s *Store) DeletePrivacyRule(
 	}
 	if err := insertAuditTx(ctx, tx, businessID, actorID, "settings.privacy_rule_deleted", "privacy_rule", ruleID, map[string]any{
 		"kind": kind, "match_type": matchType, "pattern": pattern,
+		"target": map[string]any{
+			"id": ruleID, "type": "privacy_rule",
+			"kind": kind, "match_type": matchType, "pattern": pattern, "enabled": true,
+		},
+		"changes": auditChanges(auditChange("exists", true, false)),
 	}); err != nil {
 		return err
 	}

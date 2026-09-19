@@ -82,7 +82,11 @@ func (s *Store) UpdateOrganization(
 			nextName = value
 			events = append(events, pendingAudit{
 				action:  "organization.renamed",
-				details: map[string]any{"from": current.Name, "to": value},
+				details: map[string]any{
+					"from": current.Name,
+					"to": value,
+					"changes": auditChanges(auditChange("organization_name", current.Name, value)),
+				},
 			})
 		}
 	}
@@ -99,7 +103,11 @@ func (s *Store) UpdateOrganization(
 			nextKind = value
 			events = append(events, pendingAudit{
 				action:  "organization.kind_changed",
-				details: map[string]any{"from": current.Kind, "to": value},
+				details: map[string]any{
+					"from": current.Kind,
+					"to": value,
+					"changes": auditChanges(auditChange("organization_kind", current.Kind, value)),
+				},
 			})
 		}
 	}
@@ -113,7 +121,11 @@ func (s *Store) UpdateOrganization(
 			nextTimezone = value
 			events = append(events, pendingAudit{
 				action:  "organization.timezone_changed",
-				details: map[string]any{"from": current.Timezone, "to": value},
+				details: map[string]any{
+					"from": current.Timezone,
+					"to": value,
+					"changes": auditChanges(auditChange("timezone", current.Timezone, value)),
+				},
 			})
 		}
 	}
@@ -133,6 +145,7 @@ func (s *Store) UpdateOrganization(
 				details: map[string]any{
 					"from": current.WeekStartsOn,
 					"to":   patch.WeekStartsOn,
+					"changes": auditChanges(auditChange("week_starts_on", current.WeekStartsOn, patch.WeekStartsOn)),
 				},
 			})
 		}
@@ -243,6 +256,12 @@ func (s *Store) CreateBusinessConfigured(
 		"name":     name,
 		"kind":     kind,
 		"timezone": timezone,
+		"changes": auditChanges(
+			auditChange("organization_name", nil, name),
+			auditChange("organization_kind", nil, kind),
+			auditChange("timezone", nil, timezone),
+			auditChange("week_starts_on", nil, weekStartsOn),
+		),
 	}); err != nil {
 		return Business{}, err
 	}
