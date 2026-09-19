@@ -1443,3 +1443,107 @@ func TestIntegrationPolicyStopsOnOrganizationLifecycle(t *testing.T) {
 		t.Fatalf("deletion-pending monitoring error = %v, want ErrOrganizationDeletionPending", err)
 	}
 }
+
+
+func TestIntegrationCleanupDateRangeBoundaries(t *testing.T) {
+	st, _ := integrationStore(t)
+	ctx := context.Background()
+
+	owner, err := st.CreateUser(ctx, "range-owner@example.test", "", "hash", "Range Owner", "manager")
+	if err != nil {
+		t.Fatalf("create owner: %v", err)
+	}
+	biz, err := st.CreateBusiness(ctx, owner.ID, "Range cleanup", "team")
+	if err != nil {
+		t.Fatalf("create business: %v", err)
+	}
+	member, _, err := st.CreateEmployee(
+		ctx, owner.ID, &biz.ID, "", "range_member", "hash", "Range Member",
+	)
+	if err != nil {
+		t.Fatalf("create member: %v", err)
+	}
+	deviceID := uuid.NewString()
+
+	activity := []ActivityRow{}
+	keys := []KeystrokeRow{}
+	browser := []BrowserRow{}
+	for _, ts := range []int64{100, 200, 300} {
+		activity = append(activity, ActivityRow{
+			ClientUUID: uuid.NewString(), Ts: ts, AppName: "Range App",
+			DurationS: 5, ClientUpdatedAt: ts,
+		})
+		keys = append(keys, KeystrokeRow{
+			ClientUUID: uuid.NewString(), TsBucket: ts, Count: 2, ClientUpdatedAt: ts,
+		})
+		browser = append(browser, BrowserRow{
+			ClientUUID: uuid.NewString(), Ts: ts, URL: "https://range.example",
+			DurationS: 3, ClientUpdatedAt: ts,
+		})
+	}
+	if err := st.SyncBatch(
+		ctx, member.ID, biz.ID, deviceID, DeviceMetadata{},
+		activity, keys, browser,
+	); err != nil {
+		t.Fatalf("seed structured range rows: %v", err)
+	}
+	for i, ts := range []int64{100, 200, 300} {
+		if err := st.UpsertScreenshot(ctx, member.ID, biz.ID, ScreenshotRow{
+			ClientUUID: uuid.NewString(),
+			DeviceID: deviceID,
+			Ts: ts,
+			FilePath: "screenshots/range-" + string(rune('a'+i)) + ".webp",
+			ByteSize: (i + 1) * 10,
+			ClientUpdatedAt: ts,
+		}); err != nil {
+			t.Fatalf("seed screenshot %d: %v", ts, err)
+		}
+	}
+
+	const fromTs, toTs = int64(150), int64(300)
+	if count, err := st.CountActivityRange(ctx, biz.ID, fromTs, toTs); err != nil || count != 1 {
+		t.Fatalf("activity preview count=%d err=%v, want 1", count, err)
+	}
+	if count, err := st.CountBrowserRange(ctx, biz.ID, fromTs, toTs); err != nil || count != 1 {
+		t.Fatalf("browser preview count=%d err=%v, want 1", count, err)
+	}
+	if count, err := st.CountKeystrokesRange(ctx, biz.ID, fromTs, toTs); err != nil || count != 1 {
+		t.Fatalf("keystroke preview count=%d err=%v, want 1", count, err)
+	}
+	if count, bytes, err := st.ScreenshotStatsRange(ctx, biz.ID, fromTs, toTs); err != nil || count != 1 || bytes != 20 {
+		t.Fatalf("screenshot preview count=%d bytes=%d err=%v, want 1/20", count, bytes, err)
+	}
+	files, err := st.ScreenshotsRange(ctx, biz.ID, fromTs, toTs)
+	if err != nil {
+		t.Fatalf("list screenshot range: %v", err)
+	}
+	if len(files) != 1 || files[0].ByteSize != 20 {
+		t.Fatalf("screenshot range files=%+v, want middle screenshot only", files)
+	}
+
+	if deleted, err := st.DeleteActivityRange(ctx, biz.ID, fromTs, toTs); err != nil || deleted != 1 {
+		t.Fatalf("delete activity range=%d err=%v, want 1", deleted, err)
+	}
+	if deleted, err := st.DeleteBrowserRange(ctx, biz.ID, fromTs, toTs); err != nil || deleted != 1 {
+		t.Fatalf("delete browser range=%d err=%v, want 1", deleted, err)
+	}
+	if deleted, err := st.DeleteKeystrokesRange(ctx, biz.ID, fromTs, toTs); err != nil || deleted != 1 {
+		t.Fatalf("delete keystroke range=%d err=%v, want 1", deleted, err)
+	}
+	if deleted, err := st.DeleteScreenshotsByIDs(ctx, []int64{files[0].ID}); err != nil || deleted != 1 {
+		t.Fatalf("delete screenshot range metadata=%d err=%v, want 1", deleted, err)
+	}
+
+	if count, err := st.CountActivityBefore(ctx, biz.ID, 1_000); err != nil || count != 2 {
+		t.Fatalf("remaining activity=%d err=%v, want 2", count, err)
+	}
+	if count, err := st.CountBrowserBefore(ctx, biz.ID, 1_000); err != nil || count != 2 {
+		t.Fatalf("remaining browser=%d err=%v, want 2", count, err)
+	}
+	if count, err := st.CountKeystrokesBefore(ctx, biz.ID, 1_000); err != nil || count != 2 {
+		t.Fatalf("remaining keystrokes=%d err=%v, want 2", count, err)
+	}
+	if count, bytes, err := st.ScreenshotStatsBefore(ctx, biz.ID, 1_000); err != nil || count != 2 || bytes != 40 {
+		t.Fatalf("remaining screenshots=%d bytes=%d err=%v, want 2/40", count, bytes, err)
+	}
+}
