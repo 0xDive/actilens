@@ -315,3 +315,106 @@ func TestIntegrationPurgeIsOrganizationScoped(t *testing.T) {
 		t.Fatalf("shared user devices = %d, want 1", devices)
 	}
 }
+
+
+func TestIntegrationCollectionPolicyEnforcedAtIngest(t *testing.T) {
+	st, pool := integrationStore(t)
+	ctx := context.Background()
+
+	owner, err := st.CreateUser(ctx, "policy-owner@example.test", "", "hash", "Policy Owner", "manager")
+	if err != nil {
+		t.Fatalf("create owner: %v", err)
+	}
+	biz, err := st.CreateBusiness(ctx, owner.ID, "Policy team", "team")
+	if err != nil {
+		t.Fatalf("create business: %v", err)
+	}
+	employee, _, err := st.CreateEmployee(ctx, owner.ID, &biz.ID, "", "policy-member", "hash", "Policy Member")
+	if err != nil {
+		t.Fatalf("create employee: %v", err)
+	}
+
+	if _, err := pool.Exec(ctx, `
+		UPDATE businesses
+		   SET collect_app_activity = false,
+		       collect_window_titles = false,
+		       collect_keystroke_counts = false,
+		       collect_browser_activity = false,
+		       collect_screenshots = false
+		 WHERE id = $1`, biz.ID); err != nil {
+		t.Fatalf("disable optional collection: %v", err)
+	}
+
+	title := "Sensitive document title"
+	pid := 4242
+	deviceID := uuid.NewString()
+	activityID := uuid.NewString()
+	if err := st.SyncBatch(ctx, employee.ID, biz.ID, deviceID, DeviceMetadata{},
+		[]ActivityRow{{
+			ClientUUID: activityID,
+			Ts: 100,
+			AppName: "Sensitive App",
+			WindowTitle: &title,
+			Pid: &pid,
+			DurationS: 10,
+			ClientUpdatedAt: 100,
+		}},
+		[]KeystrokeRow{{
+			ClientUUID: uuid.NewString(),
+			TsBucket: 60,
+			Count: 12,
+			ClientUpdatedAt: 100,
+		}},
+		[]BrowserRow{{
+			ClientUUID: uuid.NewString(),
+			Ts: 100,
+			URL: "https://secret.example.test/private",
+			DurationS: 10,
+			ClientUpdatedAt: 100,
+		}},
+	); err != nil {
+		t.Fatalf("sync disabled categories: %v", err)
+	}
+
+	var appName string
+	var storedTitle *string
+	var storedPID *int
+	if err := pool.QueryRow(ctx, `
+		SELECT app_name, window_title, pid
+		  FROM activity_samples
+		 WHERE client_uuid = $1`, activityID).Scan(&appName, &storedTitle, &storedPID); err != nil {
+		t.Fatalf("load redacted activity: %v", err)
+	}
+	if appName != "" || storedTitle != nil || storedPID != nil {
+		t.Fatalf("activity identity leaked under disabled policy: app=%q title=%v pid=%v", appName, storedTitle, storedPID)
+	}
+
+	for _, table := range []string{"keystroke_buckets", "browser_visits"} {
+		var count int
+		if err := pool.QueryRow(ctx, "SELECT count(*) FROM "+table+" WHERE business_id = $1", biz.ID).Scan(&count); err != nil {
+			t.Fatalf("count %s: %v", table, err)
+		}
+		if count != 0 {
+			t.Fatalf("%s has %d rows with collection disabled, want 0", table, count)
+		}
+	}
+
+	err = st.UpsertScreenshot(ctx, employee.ID, biz.ID, ScreenshotRow{
+		ClientUUID: uuid.NewString(),
+		DeviceID: deviceID,
+		Ts: 100,
+		FilePath: "screenshots/disabled.webp",
+		ByteSize: 42,
+		ClientUpdatedAt: 100,
+	})
+	if !errors.Is(err, ErrCollectionDisabled) {
+		t.Fatalf("screenshot insert with collection disabled = %v, want ErrCollectionDisabled", err)
+	}
+	var screenshots int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM screenshots WHERE business_id = $1`, biz.ID).Scan(&screenshots); err != nil {
+		t.Fatalf("count screenshots: %v", err)
+	}
+	if screenshots != 0 {
+		t.Fatalf("screenshots has %d rows with collection disabled, want 0", screenshots)
+	}
+}
