@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"actilens/backend/internal/auth"
 	"actilens/backend/internal/retention"
@@ -62,11 +63,6 @@ func (h *RetentionHandler) Preview(c *gin.Context) {
 	}
 
 	dataClass := c.Query("class")
-	days, err := strconv.Atoi(c.Query("days"))
-	if err != nil || days < 0 || days > 3650 {
-		badRequest(c, "days must be an integer between 0 and 3650")
-		return
-	}
 	switch dataClass {
 	case "activity", "screenshots", "browser", "keystrokes":
 	default:
@@ -74,6 +70,36 @@ func (h *RetentionHandler) Preview(c *gin.Context) {
 		return
 	}
 
+	fromRaw := strings.TrimSpace(c.Query("from"))
+	toRaw := strings.TrimSpace(c.Query("to"))
+	daysRaw := strings.TrimSpace(c.Query("days"))
+	if fromRaw != "" || toRaw != "" {
+		if fromRaw == "" || toRaw == "" || daysRaw != "" {
+			badRequest(c, "provide either days or both from and to")
+			return
+		}
+		fromTs, fromErr := strconv.ParseInt(fromRaw, 10, 64)
+		toTs, toErr := strconv.ParseInt(toRaw, 10, 64)
+		if fromErr != nil || toErr != nil || fromTs < 0 || toTs <= fromTs {
+			badRequest(c, "from and to must satisfy 0 <= from < to")
+			return
+		}
+		preview, err := h.retention.PreviewRange(
+			c.Request.Context(), businessID, dataClass, fromTs, toTs,
+		)
+		if err != nil {
+			serverError(c, err)
+			return
+		}
+		c.JSON(http.StatusOK, preview)
+		return
+	}
+
+	days, err := strconv.Atoi(daysRaw)
+	if err != nil || days < 0 || days > 3650 {
+		badRequest(c, "days must be an integer between 0 and 3650")
+		return
+	}
 	preview, err := h.retention.PreviewClass(c.Request.Context(), businessID, dataClass, days)
 	if err != nil {
 		serverError(c, err)
@@ -84,7 +110,9 @@ func (h *RetentionHandler) Preview(c *gin.Context) {
 
 type cleanupDataReq struct {
 	DataClasses   []string `json:"data_classes"`
-	OlderThanDays int      `json:"older_than_days"`
+	OlderThanDays *int     `json:"older_than_days"`
+	From          *int64   `json:"from"`
+	To            *int64   `json:"to"`
 }
 
 // CleanupData runs one audited manual cleanup across selected structured data classes.
@@ -115,9 +143,21 @@ func (h *RetentionHandler) CleanupData(c *gin.Context) {
 		badRequest(c, "invalid cleanup request")
 		return
 	}
-	if req.OlderThanDays < 0 || req.OlderThanDays > 3650 {
+	daysMode := req.OlderThanDays != nil
+	rangeMode := req.From != nil || req.To != nil
+	if daysMode == rangeMode {
+		badRequest(c, "provide either older_than_days or both from and to")
+		return
+	}
+	if daysMode && (*req.OlderThanDays < 0 || *req.OlderThanDays > 3650) {
 		badRequest(c, "older_than_days must be between 0 and 3650")
 		return
+	}
+	if rangeMode {
+		if req.From == nil || req.To == nil || *req.From < 0 || *req.To <= *req.From {
+			badRequest(c, "from and to must satisfy 0 <= from < to")
+			return
+		}
 	}
 	if len(req.DataClasses) == 0 || len(req.DataClasses) > 4 {
 		badRequest(c, "select between 1 and 4 data classes")
@@ -140,19 +180,36 @@ func (h *RetentionHandler) CleanupData(c *gin.Context) {
 		seen[dataClass] = true
 		classes = append(classes, dataClass)
 
-		preview, err := h.retention.PreviewClass(
-			c.Request.Context(),
-			businessID,
-			dataClass,
-			req.OlderThanDays,
-		)
-		if err != nil {
-			serverError(c, err)
+		var preview retention.Preview
+		var previewErr error
+		if rangeMode {
+			preview, previewErr = h.retention.PreviewRange(
+				c.Request.Context(), businessID, dataClass, *req.From, *req.To,
+			)
+		} else {
+			preview, previewErr = h.retention.PreviewClass(
+				c.Request.Context(), businessID, dataClass, *req.OlderThanDays,
+			)
+		}
+		if previewErr != nil {
+			serverError(c, previewErr)
 			return
 		}
 		previews = append(previews, preview)
 	}
 
+	details := map[string]any{
+		"data_classes": classes,
+		"preview":      previews,
+	}
+	if rangeMode {
+		details["from"] = *req.From
+		details["to"] = *req.To
+		details["mode"] = "range"
+	} else {
+		details["older_than_days"] = *req.OlderThanDays
+		details["mode"] = "older_than"
+	}
 	if err := h.store.RecordSettingsAudit(
 		c.Request.Context(),
 		actorID,
@@ -160,22 +217,22 @@ func (h *RetentionHandler) CleanupData(c *gin.Context) {
 		"data.cleanup_requested",
 		"organization",
 		businessID,
-		map[string]any{
-			"data_classes":    classes,
-			"older_than_days": req.OlderThanDays,
-			"preview":         previews,
-		},
+		details,
 	); err != nil {
 		serverError(c, err)
 		return
 	}
 
-	result, err := h.retention.CleanupClasses(
-		c.Request.Context(),
-		businessID,
-		classes,
-		req.OlderThanDays,
-	)
+	var result retention.MultiResult
+	if rangeMode {
+		result, err = h.retention.CleanupRanges(
+			c.Request.Context(), businessID, classes, *req.From, *req.To,
+		)
+	} else {
+		result, err = h.retention.CleanupClasses(
+			c.Request.Context(), businessID, classes, *req.OlderThanDays,
+		)
+	}
 	if retentionMutationError(c, err) {
 		return
 	}
