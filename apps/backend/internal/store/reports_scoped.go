@@ -177,7 +177,7 @@ func (s *Store) ScreenshotsReportInBusiness(
 	limit, offset int,
 ) ([]ScreenshotMeta, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT client_uuid, ts, byte_size, width, height, display_id
+		SELECT client_uuid, ts, byte_size, width, height, display_id, capture_group_id
 		  FROM screenshots
 		 WHERE user_id = $1 AND business_id = $2 AND ts >= $3 AND ts < $4
 		 ORDER BY ts DESC LIMIT $5 OFFSET $6`,
@@ -192,7 +192,8 @@ func (s *Store) ScreenshotsReportInBusiness(
 	for rows.Next() {
 		var row ScreenshotMeta
 		if err := rows.Scan(
-			&row.ClientUUID, &row.Ts, &row.ByteSize, &row.Width, &row.Height, &row.DisplayID,
+			&row.ClientUUID, &row.Ts, &row.ByteSize, &row.Width, &row.Height,
+			&row.DisplayID, &row.CaptureGroupID,
 		); err != nil {
 			return nil, err
 		}
