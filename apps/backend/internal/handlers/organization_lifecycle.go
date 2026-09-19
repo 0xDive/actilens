@@ -6,18 +6,32 @@ import (
 	"strings"
 
 	"actilens/backend/internal/auth"
+	"actilens/backend/internal/events"
 	"actilens/backend/internal/store"
 
 	"github.com/gin-gonic/gin"
 )
 
 type OrganizationLifecycleHandler struct {
-	store *store.Store
-	tok   *auth.Manager
+	store     *store.Store
+	tok       *auth.Manager
+	publisher events.Publisher
 }
 
 func NewOrganizationLifecycleHandler(st *store.Store, tok *auth.Manager) *OrganizationLifecycleHandler {
-	return &OrganizationLifecycleHandler{store: st, tok: tok}
+	return &OrganizationLifecycleHandler{store: st, tok: tok, publisher: events.Discard{}}
+}
+
+func (h *OrganizationLifecycleHandler) SetEventPublisher(publisher events.Publisher) {
+	if publisher != nil {
+		h.publisher = publisher
+	}
+}
+
+func (h *OrganizationLifecycleHandler) publish(c *gin.Context, event events.Event) {
+	if h.publisher != nil {
+		h.publisher.Publish(c.Request.Context(), event)
+	}
 }
 
 func (h *OrganizationLifecycleHandler) requireReauth(c *gin.Context, raw string) bool {
