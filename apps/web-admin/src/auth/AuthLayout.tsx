@@ -8,16 +8,7 @@ import "../theme/auth-v1.css";
 function BrandMark() {
   return (
     <span className="auth-v1__brand-mark" aria-hidden>
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M3 12h4l2-5 4 10 2-5h6" />
-      </svg>
+      <img src="/brand/mark.svg" alt="" />
     </span>
   );
 }

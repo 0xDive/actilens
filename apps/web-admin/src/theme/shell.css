@@ -530,3 +530,8 @@
 }
 
 
+
+
+/* Production ActiLens brand mark. */
+.ds-brand-mark { border-radius: 0; background: transparent; color: inherit; }
+.ds-brand-mark img { display: block; width: 100%; height: 100%; object-fit: contain; }

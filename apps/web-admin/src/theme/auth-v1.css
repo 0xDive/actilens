@@ -449,3 +449,8 @@
   font: inherit;
   cursor: pointer;
 }
+
+
+/* Production ActiLens brand mark. */
+.auth-v1__brand-mark { border-radius: 0; background: transparent; color: inherit; }
+.auth-v1__brand-mark img { display: block; width: 100%; height: 100%; object-fit: contain; }

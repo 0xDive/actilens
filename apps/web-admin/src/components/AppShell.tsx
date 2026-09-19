@@ -106,9 +106,7 @@ const CollapseIcon = ({ collapsed }: { collapsed: boolean }) => (
 function BrandMark() {
   return (
     <span className="ds-brand-mark" aria-hidden>
-      <Icon size={20}>
-        <path d="M4 12h4l2-5 4 10 2-5h4" />
-      </Icon>
+      <img src="/brand/mark.svg" alt="" />
     </span>
   );
 }
