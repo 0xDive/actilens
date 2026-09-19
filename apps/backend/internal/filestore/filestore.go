@@ -103,6 +103,23 @@ func (s *Store) Open(rel string) (*os.File, error) {
 	return os.Open(abs)
 }
 
+// RemoveBusinessData removes organization-owned screenshot and generated-export
+// trees. The business id is UUID-validated before any recursive deletion.
+func (s *Store) RemoveBusinessData(businessID string) error {
+	if _, err := uuid.Parse(businessID); err != nil {
+		return errors.New("path component is not a uuid")
+	}
+	for _, dir := range []string{
+		filepath.Join(s.root, "screenshots", businessID),
+		filepath.Join(s.root, "exports", businessID),
+	} {
+		if err := os.RemoveAll(dir); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // RemoveMemberScreenshots deletes the entire screenshot subtree for one
 // organization member. Both path components are UUIDs, so the recursive delete
 // cannot escape the storage root.
