@@ -32,8 +32,14 @@ const MAX_CHUNK_S: i64 = 60;
 /// idle threshold) and the loop reads them each tick.
 pub struct TrackerControl {
     pub paused: AtomicBool,
-    /// Server-controlled collection switch. Independent from the user's Pause.
+    /// Managed installations cannot locally pause or weaken organization policy.
+    pub managed: AtomicBool,
+    /// Server-controlled collection switch.
     pub org_monitoring_enabled: AtomicBool,
+    /// Active/idle is mandatory in managed mode; these govern identifying details.
+    pub collect_app_activity: AtomicBool,
+    pub collect_window_titles: AtomicBool,
+    pub collect_browser_activity: AtomicBool,
     pub idle_threshold_s: AtomicU64,
     pub screenshot_interval_s: AtomicU64,
     pub screenshot_retention_days: AtomicU64,
@@ -57,7 +63,11 @@ impl TrackerControl {
     pub fn new() -> Self {
         TrackerControl {
             paused: AtomicBool::new(false),
+            managed: AtomicBool::new(false),
             org_monitoring_enabled: AtomicBool::new(true),
+            collect_app_activity: AtomicBool::new(true),
+            collect_window_titles: AtomicBool::new(true),
+            collect_browser_activity: AtomicBool::new(true),
             idle_threshold_s: AtomicU64::new(DEFAULT_IDLE_THRESHOLD_S),
             screenshot_interval_s: AtomicU64::new(DEFAULT_SCREENSHOT_INTERVAL_S),
             screenshot_retention_days: AtomicU64::new(DEFAULT_RETENTION_DAYS),
@@ -721,8 +731,25 @@ fn run(db: Arc<Db>, control: Arc<TrackerControl>) {
         let idle = crate::platform::idle_seconds();
         let active = control.collection_allowed() && idle < threshold as f64;
 
+        let collect_apps = control.collect_app_activity.load(Ordering::Relaxed);
+        let collect_titles = control.collect_window_titles.load(Ordering::Relaxed);
         let win = if active {
-            crate::platform::active_window()
+            if collect_apps {
+                crate::platform::active_window().map(|mut window| {
+                    if !collect_titles {
+                        window.title = None;
+                    }
+                    window
+                })
+            } else {
+                // Preserve mandatory active/idle duration without collecting the
+                // foreground application or window identity.
+                Some(ActiveWindowInfo {
+                    app_name: String::new(),
+                    title: None,
+                    pid: 0,
+                })
+            }
         } else {
             None
         };
