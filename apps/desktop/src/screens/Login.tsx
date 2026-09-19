@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { BrandMark } from "../ui";
 import { AuthTitleBar } from "../components/AuthTitleBar";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
+import { localizedApiError, stableApiErrorCode } from "../errorText";
 
 export type Session = {
   email: string;
@@ -115,7 +116,7 @@ export function Login({
       });
       handleResult(result);
     } catch (err) {
-      setError(String(err));
+      setError(localizedApiError(err, t("login.unexpected")));
     } finally {
       setBusy(false);
     }
@@ -141,11 +142,10 @@ export function Login({
       });
       handleResult(result);
     } catch (err) {
-      const message = String(err);
       setError(
-        message.includes("mfa_required") || message.includes("401")
+        stableApiErrorCode(err) === "mfa_required"
           ? t("mfa.invalid")
-          : message,
+          : localizedApiError(err, t("login.unexpected")),
       );
     } finally {
       setBusy(false);
