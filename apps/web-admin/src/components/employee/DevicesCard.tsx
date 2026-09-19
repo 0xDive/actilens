@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listEmployeeDevices, updateDevice } from "../../api/endpoints";
-import { ApiError, type Device } from "../../api/types";
+import { ApiError, type Device, type Employee } from "../../api/types";
 import {
   Alert,
   Badge,
