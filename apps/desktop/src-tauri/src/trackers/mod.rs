@@ -31,7 +31,12 @@ const MAX_CHUNK_S: i64 = 60;
 /// Live, shareable control surface for the trackers. The UI flips these (pause,
 /// idle threshold) and the loop reads them each tick.
 pub struct TrackerControl {
+    /// User-controlled pause. Ignored while organization policy is managed.
     pub paused: AtomicBool,
+    /// Setup/onboarding safety gate. This is independent from the user pause so a
+    /// managed installation can stay stopped until setup completes without giving
+    /// the employee a way to pause organization monitoring afterwards.
+    pub in_setup: AtomicBool,
     /// Managed installations cannot locally pause or weaken organization policy.
     pub managed: AtomicBool,
     /// Server-controlled collection switch.
@@ -63,6 +68,7 @@ impl TrackerControl {
     pub fn new() -> Self {
         TrackerControl {
             paused: AtomicBool::new(false),
+            in_setup: AtomicBool::new(true),
             managed: AtomicBool::new(false),
             org_monitoring_enabled: AtomicBool::new(true),
             collect_app_activity: AtomicBool::new(true),
@@ -80,8 +86,17 @@ impl TrackerControl {
         }
     }
 
+    pub fn effective_paused(&self) -> bool {
+        if self.in_setup.load(Ordering::Relaxed)
+            || !self.org_monitoring_enabled.load(Ordering::Relaxed)
+        {
+            return true;
+        }
+        !self.managed.load(Ordering::Relaxed) && self.paused.load(Ordering::Relaxed)
+    }
+
     pub fn collection_allowed(&self) -> bool {
-        self.org_monitoring_enabled.load(Ordering::Relaxed) && !self.paused.load(Ordering::Relaxed)
+        !self.effective_paused()
     }
 }
 
