@@ -64,6 +64,15 @@ pub struct Settings {
     /// local with no backend account. Skips the login screen entirely. Default off.
     #[serde(default)]
     pub local_only: bool,
+    /// Last organization whose managed collection owned newly-created local rows.
+    /// Kept across logout so re-auth to the same organization does not discard an
+    /// offline managed backlog.
+    #[serde(default)]
+    pub last_managed_business_id: Option<String>,
+    /// True when local/unbound collection may have created rows since the last
+    /// managed scope. The next managed binding suppresses those pending rows.
+    #[serde(default)]
+    pub collection_scope_dirty: bool,
     /// First-run onboarding flow finished (welcome → toggles → permissions). Default
     /// off so onboarding shows once per install.
     #[serde(default)]
@@ -177,11 +186,27 @@ impl Default for Settings {
             count_keystrokes: true,
             consented: false,
             local_only: false,
+            last_managed_business_id: None,
+            collection_scope_dirty: false,
             onboarding_completed: false,
             device_id: String::new(),
             locale: default_locale(),
             org_monitoring_enabled: true,
         }
+    }
+}
+
+impl Settings {
+    /// Whether pending local rows must be quarantined before binding to a managed
+    /// organization. An unknown previous scope alone is not enough: clean installs
+    /// and upgrades with no local-mode activity must not lose legitimate backlog.
+    pub fn needs_managed_scope_suppression(&self, business_id: &str) -> bool {
+        self.local_only
+            || self.collection_scope_dirty
+            || self
+                .last_managed_business_id
+                .as_deref()
+                .is_some_and(|previous| previous != business_id)
     }
 }
 
@@ -389,6 +414,23 @@ mod tests {
         let s = load(Path::new("/nonexistent/actilens/settings.json"));
         assert_eq!(s.idle_threshold_s, DEFAULT_IDLE_THRESHOLD_S);
         assert!(!s.domain_only);
+    }
+
+    #[test]
+    fn managed_scope_suppression_only_crosses_privacy_boundaries() {
+        let mut s = Settings::default();
+        assert!(!s.needs_managed_scope_suppression("business-a"));
+
+        s.local_only = true;
+        assert!(s.needs_managed_scope_suppression("business-a"));
+
+        s.local_only = false;
+        s.last_managed_business_id = Some("business-a".into());
+        assert!(!s.needs_managed_scope_suppression("business-a"));
+        assert!(s.needs_managed_scope_suppression("business-b"));
+
+        s.collection_scope_dirty = true;
+        assert!(s.needs_managed_scope_suppression("business-a"));
     }
 
     #[test]
