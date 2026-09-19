@@ -423,5 +423,38 @@
     },
     "suggestions": "Suggested sensitive applications",
     "suggestionsHelp": "Add a preset as an exact application-name rule. You can edit it afterwards."
+  },
+  "exports": {
+    "title": "Exports",
+    "description": "Generate downloadable organization data in the background. Ready files expire after 7 days.",
+    "kind": "Export type",
+    "create": "Create export",
+    "requested": "Export queued.",
+    "loadFailed": "Could not load exports.",
+    "requestFailed": "Could not create export.",
+    "downloadFailed": "Could not download export.",
+    "download": "Download",
+    "empty": "No exports yet.",
+    "expires": "expires {{value}}",
+    "failed": "Export generation failed. You can request a new export.",
+    "status": {
+      "pending": "Pending",
+      "running": "Preparing",
+      "ready": "Ready",
+      "failed": "Failed",
+      "expired": "Expired"
+    },
+    "kinds": {
+      "activity_csv": "Activity · CSV",
+      "activity_json": "Activity · JSON",
+      "browser_csv": "Browser activity · CSV",
+      "browser_json": "Browser activity · JSON",
+      "keystrokes_csv": "Keystroke counts · CSV",
+      "keystrokes_json": "Keystroke counts · JSON",
+      "audit_csv": "Audit log · CSV",
+      "audit_json": "Audit log · JSON",
+      "screenshots_archive": "Screenshots · ZIP + manifest",
+      "full": "Full organization backup · ZIP"
+    }
   }
 }
