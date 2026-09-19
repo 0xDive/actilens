@@ -2,6 +2,7 @@ import { tokenStore } from "./tokenStore";
 import { ApiError, type Tokens } from "./types";
 import { Sentry } from "../sentry";
 import { log } from "../log";
+import i18n from "../i18n";
 
 // Empty default base => same-origin relative URLs, which the Vite dev proxy
 // (and the backend serving the built SPA in prod) forwards to /v1/*. Set
@@ -117,6 +118,15 @@ function errorDetails(body: unknown): unknown {
   return b.details ?? null;
 }
 
+function localizedError(code: string | null, fallback: string): string {
+  if (!code) return fallback;
+  const key = `errors.${code}`;
+  if (i18n.exists(key, { ns: "common" })) {
+    return i18n.t(key, { ns: "common" });
+  }
+  return fallback;
+}
+
 export async function request<T>(path: string, opts: RequestOpts = {}): Promise<T> {
   const { method = "GET", body, auth = true, query } = opts;
   const headers: Record<string, string> = {};
@@ -153,16 +163,22 @@ export async function request<T>(path: string, opts: RequestOpts = {}): Promise<
       return request<T>(path, { ...opts, _retried: true });
     }
     emitLogout();
-    throw new ApiError(401, "Session expired. Please sign in again.", null, "session_revoked");
+    throw new ApiError(
+      401,
+      localizedError("session_revoked", "Session expired. Please sign in again."),
+      null,
+      "session_revoked",
+    );
   }
 
   if (!res.ok) {
     const errBody = await parseBody(res);
+    const code = errorCode(errBody);
     const apiErr = new ApiError(
       res.status,
-      errorMessage(errBody, `Request failed (${res.status})`),
+      localizedError(code, errorMessage(errBody, `Request failed (${res.status})`)),
       errBody,
-      errorCode(errBody),
+      code,
       errorDetails(errBody),
     );
     // Report server-side failures only; 4xx are expected/handled by the UI.
@@ -188,15 +204,21 @@ export async function fetchAuthenticatedBlob(
     const ok = await refreshOnce();
     if (ok) return fetchAuthenticatedBlob(path, true);
     emitLogout();
-    throw new ApiError(401, "Session expired.", null, "session_revoked");
+    throw new ApiError(
+      401,
+      localizedError("session_revoked", "Session expired."),
+      null,
+      "session_revoked",
+    );
   }
   if (!res.ok) {
     const body = await parseBody(res);
+    const code = errorCode(body);
     throw new ApiError(
       res.status,
-      errorMessage(body, `Download failed (${res.status})`),
+      localizedError(code, errorMessage(body, `Download failed (${res.status})`)),
       body,
-      errorCode(body),
+      code,
       errorDetails(body),
     );
   }
