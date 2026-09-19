@@ -92,7 +92,7 @@ const resources = {
   es: { common: esCommon, auth: esAuth, signup: esSignup, dashboard: esDashboard, settings: esSettings, ui: esUi, reports: esReports },
 };
 
-i18n
+const initPromise = i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
@@ -119,7 +119,7 @@ function syncDocumentLanguage(language?: string) {
 }
 
 i18n.on("languageChanged", syncDocumentLanguage);
-void i18n.then(() => syncDocumentLanguage());
+void initPromise.then(() => syncDocumentLanguage());
 
 /**
  * Change the UI locale explicitly and persist it independently of the detector.
