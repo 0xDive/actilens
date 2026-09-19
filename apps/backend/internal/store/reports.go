@@ -253,13 +253,14 @@ type ScreenshotMeta struct {
 	ByteSize   int    `json:"byte_size"`
 	Width      *int   `json:"width"`
 	Height     *int   `json:"height"`
-	DisplayID  *int   `json:"display_id"`
+	DisplayID      *int    `json:"display_id"`
+	CaptureGroupID *string `json:"capture_group_id"`
 }
 
 // ScreenshotsReport returns paginated screenshot metadata, most recent first.
 func (s *Store) ScreenshotsReport(ctx context.Context, employeeID, ownerID string, from, to int64, limit, offset int) ([]ScreenshotMeta, error) {
 	rows, err := s.pool.Query(ctx,
-		`SELECT client_uuid, ts, byte_size, width, height, display_id FROM screenshots
+		`SELECT client_uuid, ts, byte_size, width, height, display_id, capture_group_id FROM screenshots
 		  WHERE user_id = $1 AND `+ownedFilter+` AND ts >= $3 AND ts < $4
 		  ORDER BY ts DESC LIMIT $5 OFFSET $6`, employeeID, ownerID, from, to, limit, offset)
 	if err != nil {
@@ -270,7 +271,7 @@ func (s *Store) ScreenshotsReport(ctx context.Context, employeeID, ownerID strin
 	out := []ScreenshotMeta{}
 	for rows.Next() {
 		var m ScreenshotMeta
-		if err := rows.Scan(&m.ClientUUID, &m.Ts, &m.ByteSize, &m.Width, &m.Height, &m.DisplayID); err != nil {
+		if err := rows.Scan(&m.ClientUUID, &m.Ts, &m.ByteSize, &m.Width, &m.Height, &m.DisplayID, &m.CaptureGroupID); err != nil {
 			return nil, err
 		}
 		out = append(out, m)
