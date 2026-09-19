@@ -465,6 +465,17 @@ pub struct DesktopLoginResult {
     pub organizations: Vec<MembershipState>,
 }
 
+fn managed_policy_rejects(message: &str) -> bool {
+    [
+        "member_blocked",
+        "member_removed",
+        "organization_archived",
+        "organization_deletion_pending",
+    ]
+    .iter()
+    .any(|code| message.contains(code))
+}
+
 fn suppress_pre_managed_backlog(db: &Db) -> Result<(), String> {
     for table in [
         SyncTable::Activity,
@@ -653,8 +664,52 @@ pub async fn current_session(
     auth: State<'_, Arc<AuthState>>,
     settings: State<'_, Arc<crate::settings::SettingsState>>,
     control: State<'_, Arc<TrackerControl>>,
+    db: State<'_, Arc<Db>>,
 ) -> Result<Option<Session>, String> {
     if let Some(session) = auth.session() {
+        if session.business_id.is_some() {
+            control.managed.store(true, Ordering::Relaxed);
+            {
+                let mut managed = settings.managed.lock().unwrap();
+                managed.managed = true;
+                managed.allow_employee_override = false;
+                managed.monitoring_enabled =
+                    settings.current.lock().unwrap().org_monitoring_enabled;
+            }
+
+            let client = BackendClient::new(backend_url(), auth.inner().clone());
+            match client.fetch_policy(session.business_id.as_deref()).await {
+                Ok(policy) => {
+                    let previous = settings.managed.lock().unwrap().monitoring_enabled;
+                    let enabled = client
+                        .monitoring_enabled(session.business_id.as_deref())
+                        .await
+                        .unwrap_or(previous);
+                    crate::settings::apply_managed_policy(
+                        settings.inner(),
+                        control.inner(),
+                        &policy,
+                        enabled,
+                    );
+                }
+                Err(e) if managed_policy_rejects(&e) => {
+                    control
+                        .org_monitoring_enabled
+                        .store(false, Ordering::Relaxed);
+                    {
+                        let mut current = settings.current.lock().unwrap();
+                        current.org_monitoring_enabled = false;
+                        let _ = crate::settings::save(&settings.path, &current);
+                    }
+                    settings.managed.lock().unwrap().monitoring_enabled = false;
+                }
+                Err(e) => {
+                    crate::log_warn!("policy", "startup policy refresh failed: {e}");
+                }
+            }
+        } else {
+            control.managed.store(false, Ordering::Relaxed);
+        }
         return Ok(Some(session));
     }
 
@@ -682,6 +737,12 @@ pub async fn current_session(
             return Ok(None);
         }
     };
+
+    // An enrollment creates the privacy boundary between personal/local history
+    // and organization-managed collection.
+    if session.business_id.is_some() {
+        suppress_pre_managed_backlog(db.inner())?;
+    }
 
     if let Err(e) = auth.store(session.clone()) {
         crate::log_warn!("enrollment", "could not persist enrolled session: {e}");
