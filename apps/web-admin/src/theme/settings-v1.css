@@ -836,9 +836,14 @@
   font-weight: 650;
 }
 
+.settings-audit-list-viewport {
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
 .settings-audit-list--modal {
   min-height: 0;
-  align-self: start;
 }
 
 .settings-audit-list--modal .settings-audit-row {

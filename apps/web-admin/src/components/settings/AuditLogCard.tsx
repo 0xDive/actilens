@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   listAuditEvents,
@@ -17,7 +17,9 @@ import {
 } from "../ds";
 
 const PREVIEW_COUNT = 6;
-const PAGE_SIZE = 8;
+const DEFAULT_PAGE_SIZE = 8;
+const AUDIT_ROW_HEIGHT = 54;
+const MAX_PAGE_SIZE = 24;
 
 const ACTION_KEYS: Record<string, string> = {
   "employee.created": "employeeCreated",
@@ -90,6 +92,8 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
   const [userFilter, setUserFilter] = useState("");
   const [actionFilter, setActionFilter] = useState("");
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const listViewportRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -215,11 +219,32 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
     setPage(0);
   }, [actionFilter, search, userFilter]);
 
-  const pageCount = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+  useLayoutEffect(() => {
+    if (!open) return;
+    const viewport = listViewportRef.current;
+    if (!viewport) return;
+
+    const updatePageSize = () => {
+      const height = viewport.clientHeight;
+      if (height <= 0) return;
+      const next = Math.max(
+        1,
+        Math.min(MAX_PAGE_SIZE, Math.floor(height / AUDIT_ROW_HEIGHT)),
+      );
+      setPageSize((current) => (current === next ? current : next));
+    };
+
+    updatePageSize();
+    const observer = new ResizeObserver(updatePageSize);
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [open]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredRows.length / pageSize));
   const safePage = Math.min(page, pageCount - 1);
   const pageRows = filteredRows.slice(
-    safePage * PAGE_SIZE,
-    safePage * PAGE_SIZE + PAGE_SIZE,
+    safePage * pageSize,
+    safePage * pageSize + pageSize,
   );
 
   function renderRow({
@@ -356,18 +381,23 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
               {t("audit.results", { count: filteredRows.length })}
             </div>
 
-            {filteredRows.length === 0 ? (
-              <EmptyState
-                title={t("audit.noMatches")}
-                description={t("audit.noMatchesDescription")}
-              />
-            ) : (
-              <div className="settings-audit-list settings-audit-list--modal">
-                {pageRows.map(renderRow)}
-              </div>
-            )}
+            <div
+              ref={listViewportRef}
+              className="settings-audit-list-viewport"
+            >
+              {filteredRows.length === 0 ? (
+                <EmptyState
+                  title={t("audit.noMatches")}
+                  description={t("audit.noMatchesDescription")}
+                />
+              ) : (
+                <div className="settings-audit-list settings-audit-list--modal">
+                  {pageRows.map(renderRow)}
+                </div>
+              )}
+            </div>
 
-            {filteredRows.length > 0 && (
+            {filteredRows.length > 0 && pageCount > 1 && (
               <div className="settings-audit-pager">
                 <Button
                   variant="secondary"
