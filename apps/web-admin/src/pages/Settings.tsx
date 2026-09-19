@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   cleanupData,
+  previewCleanupRange,
   previewRetention,
   updateBusinessSettings,
   type RetentionDataClass,
@@ -31,6 +32,7 @@ import { ExportSettingsCard } from "../components/settings/ExportSettingsCard";
 import { PrivacyRulesDialog } from "../components/settings/PrivacyRulesDialog";
 import { useBusinesses } from "../useBusinesses";
 import { canManageSettings } from "../rbac";
+import { dayRangeToUnix, isoDateInTimeZone } from "../format";
 import "../theme/settings-v1.css";
 
 function formatBytes(value: number): string {
@@ -164,7 +166,10 @@ export function Settings() {
     useState<PendingRetentionChange | null>(null);
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [cleanupOpen, setCleanupOpen] = useState(false);
+  const [cleanupMode, setCleanupMode] = useState<"older" | "range">("older");
   const [cleanupDays, setCleanupDays] = useState(30);
+  const [cleanupFrom, setCleanupFrom] = useState("");
+  const [cleanupTo, setCleanupTo] = useState("");
   const [cleanupClasses, setCleanupClasses] =
     useState<RetentionDataClass[]>(["screenshots"]);
   const [cleanupPreview, setCleanupPreview] = useState<RetentionPreview[]>([]);
@@ -257,7 +262,10 @@ export function Settings() {
 
   async function refreshCleanupPreview(
     classes = cleanupClasses,
+    mode = cleanupMode,
     days = cleanupDays,
+    fromDate = cleanupFrom,
+    toDate = cleanupTo,
   ) {
     if (!selectedId || classes.length === 0) {
       setCleanupPreview([]);
@@ -267,11 +275,35 @@ export function Settings() {
     setCleanupPreviewing(true);
     setDialogError(null);
     try {
-      const previews = await Promise.all(
-        classes.map((dataClass) =>
-          previewRetention(selectedId, dataClass, days),
-        ),
-      );
+      let previews: RetentionPreview[];
+      if (mode === "range") {
+        if (!fromDate || !toDate || fromDate > toDate) {
+          setCleanupPreview([]);
+          setDialogError(t("cleanup.invalidRange"));
+          return;
+        }
+        const bounds = dayRangeToUnix(
+          fromDate,
+          toDate,
+          selected?.timezone || "UTC",
+        );
+        previews = await Promise.all(
+          classes.map((dataClass) =>
+            previewCleanupRange(
+              selectedId,
+              dataClass,
+              bounds.from,
+              bounds.to,
+            ),
+          ),
+        );
+      } else {
+        previews = await Promise.all(
+          classes.map((dataClass) =>
+            previewRetention(selectedId, dataClass, days),
+          ),
+        );
+      }
       setCleanupPreview(previews);
     } catch (error) {
       setCleanupPreview([]);
@@ -294,12 +326,75 @@ export function Settings() {
       ? Array.from(new Set([...cleanupClasses, dataClass]))
       : cleanupClasses.filter((value) => value !== dataClass);
     setCleanupClasses(next);
-    void refreshCleanupPreview(next, cleanupDays);
+    void refreshCleanupPreview(
+      next,
+      cleanupMode,
+      cleanupDays,
+      cleanupFrom,
+      cleanupTo,
+    );
   }
 
   function changeCleanupDays(days: number) {
     setCleanupDays(days);
-    void refreshCleanupPreview(cleanupClasses, days);
+    void refreshCleanupPreview(
+      cleanupClasses,
+      "older",
+      days,
+      cleanupFrom,
+      cleanupTo,
+    );
+  }
+
+  function changeCleanupMode(mode: "older" | "range") {
+    setCleanupMode(mode);
+    if (mode === "range") {
+      const today = isoDateInTimeZone(
+        new Date(),
+        selected?.timezone || "UTC",
+      );
+      const from = cleanupFrom || today;
+      const to = cleanupTo || today;
+      setCleanupFrom(from);
+      setCleanupTo(to);
+      void refreshCleanupPreview(
+        cleanupClasses,
+        mode,
+        cleanupDays,
+        from,
+        to,
+      );
+      return;
+    }
+    void refreshCleanupPreview(
+      cleanupClasses,
+      mode,
+      cleanupDays,
+      cleanupFrom,
+      cleanupTo,
+    );
+  }
+
+  function changeCleanupFrom(value: string) {
+    setCleanupFrom(value);
+    void refreshCleanupPreview(
+      cleanupClasses,
+      "range",
+      cleanupDays,
+      value,
+      cleanupTo,
+    );
+  }
+
+  function changeCleanupTo(value: string) {
+    setCleanupTo(value);
+    void refreshCleanupPreview(
+      cleanupClasses,
+      "range",
+      cleanupDays,
+      cleanupFrom,
+      value,
+    );
   }
 
   async function runCleanup() {
@@ -309,7 +404,26 @@ export function Settings() {
     setDialogError(null);
 
     try {
-      const response = await cleanupData(selectedId, cleanupClasses, cleanupDays);
+      const window =
+        cleanupMode === "range"
+          ? (() => {
+              if (!cleanupFrom || !cleanupTo || cleanupFrom > cleanupTo) {
+                throw new Error(t("cleanup.invalidRange"));
+              }
+              return dayRangeToUnix(
+                cleanupFrom,
+                cleanupTo,
+                selected?.timezone || "UTC",
+              );
+            })()
+          : null;
+      const response = await cleanupData(
+        selectedId,
+        cleanupClasses,
+        window
+          ? { from: window.from, to: window.to }
+          : { older_than_days: cleanupDays },
+      );
       setCleanupOpen(false);
       pushToast({
         title: t("cleanup.removed", {
@@ -320,7 +434,9 @@ export function Settings() {
       });
     } catch (error) {
       setDialogError(
-        error instanceof ApiError ? error.message : t("cleanup.failed"),
+        error instanceof ApiError || error instanceof Error
+          ? error.message
+          : t("cleanup.failed"),
       );
     } finally {
       setCleaning(false);
@@ -633,14 +749,21 @@ export function Settings() {
                 }
                 onClick={runCleanup}
               >
-                {t("cleanup.delete", { days: cleanupDays })}
+                {cleanupMode === "range"
+                  ? t("cleanup.deleteRange")
+                  : t("cleanup.delete", { days: cleanupDays })}
               </Button>
             </>
           }
         >
           <div className="settings-dialog-stack">
             <Alert tone="warning">
-              {t("cleanup.warning", { days: cleanupDays })}
+              {cleanupMode === "range"
+                ? t("cleanup.warningRange", {
+                    from: cleanupFrom,
+                    to: cleanupTo,
+                  })
+                : t("cleanup.warning", { days: cleanupDays })}
             </Alert>
             <div className="settings-dialog-stack">
               <div className="settings-row__title">{t("cleanup.dataClasses")}</div>
@@ -659,15 +782,61 @@ export function Settings() {
               ))}
             </div>
             <Segmented
-              value={cleanupDays}
-              ariaLabel={t("cleanup.olderThanAriaLabel")}
+              value={cleanupMode}
+              ariaLabel={t("cleanup.modeAriaLabel")}
               disabled={cleaning}
-              options={CLEANUP_PRESETS.map((days) => ({
-                value: days,
-                label: t("presets.days", { count: days }),
-              }))}
-              onChange={changeCleanupDays}
+              options={[
+                { value: "older" as const, label: t("cleanup.modeOlder") },
+                { value: "range" as const, label: t("cleanup.modeRange") },
+              ]}
+              onChange={changeCleanupMode}
             />
+            {cleanupMode === "older" ? (
+              <Segmented
+                value={cleanupDays}
+                ariaLabel={t("cleanup.olderThanAriaLabel")}
+                disabled={cleaning}
+                options={CLEANUP_PRESETS.map((days) => ({
+                  value: days,
+                  label: t("presets.days", { count: days }),
+                }))}
+                onChange={changeCleanupDays}
+              />
+            ) : (
+              <div className="settings-cleanup-range">
+                <label>
+                  <span>{t("cleanup.from")}</span>
+                  <input
+                    className="ds-input"
+                    type="date"
+                    value={cleanupFrom}
+                    max={cleanupTo || undefined}
+                    disabled={cleaning}
+                    onChange={(event) =>
+                      changeCleanupFrom(event.currentTarget.value)
+                    }
+                  />
+                </label>
+                <label>
+                  <span>{t("cleanup.to")}</span>
+                  <input
+                    className="ds-input"
+                    type="date"
+                    value={cleanupTo}
+                    min={cleanupFrom || undefined}
+                    disabled={cleaning}
+                    onChange={(event) =>
+                      changeCleanupTo(event.currentTarget.value)
+                    }
+                  />
+                </label>
+                <div className="settings-row__description">
+                  {t("cleanup.rangeTimezone", {
+                    timezone: selected.timezone || "UTC",
+                  })}
+                </div>
+              </div>
+            )}
             <div className="settings-cleanup-preview">
               <div className="settings-row__title">{t("cleanup.previewTitle")}</div>
               {cleanupPreviewing ? (
