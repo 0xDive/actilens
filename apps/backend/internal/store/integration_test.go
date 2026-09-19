@@ -1215,3 +1215,93 @@ func TestIntegrationMFARecoveryAndManagedReset(t *testing.T) {
 		t.Fatalf("owner self-reset mfa = %v, want ErrForbidden", err)
 	}
 }
+
+
+func TestIntegrationArchivedOrganizationIsReadOnly(t *testing.T) {
+	st, _ := integrationStore(t)
+	ctx := context.Background()
+
+	owner, err := st.CreateUser(ctx, "readonly-owner@example.test", "", "hash", "Readonly Owner", "manager")
+	if err != nil {
+		t.Fatalf("create owner: %v", err)
+	}
+	biz, err := st.CreateBusiness(ctx, owner.ID, "Readonly team", "team")
+	if err != nil {
+		t.Fatalf("create business: %v", err)
+	}
+	admin, _, err := st.CreateEmployee(ctx, owner.ID, &biz.ID, "readonly-admin@example.test", "", "hash", "Readonly Admin")
+	if err != nil {
+		t.Fatalf("create admin account fixture: %v", err)
+	}
+	if err := st.UpdateMembershipRole(ctx, owner.ID, biz.ID, admin.ID, RoleAdmin); err != nil {
+		t.Fatalf("promote admin fixture: %v", err)
+	}
+	employee, _, err := st.CreateEmployee(ctx, owner.ID, &biz.ID, "", "readonly_employee", "hash", "Readonly Employee")
+	if err != nil {
+		t.Fatalf("create employee: %v", err)
+	}
+	deviceID := uuid.NewString()
+	if err := st.TouchDevice(ctx, employee.ID, biz.ID, deviceID, DeviceMetadata{}); err != nil {
+		t.Fatalf("seed employee device: %v", err)
+	}
+
+	if _, err := st.ArchiveOrganization(ctx, owner.ID, biz.ID); err != nil {
+		t.Fatalf("archive organization: %v", err)
+	}
+
+	assertArchived := func(name string, err error) {
+		t.Helper()
+		if !errors.Is(err, ErrOrganizationArchived) {
+			t.Fatalf("%s = %v, want ErrOrganizationArchived", name, err)
+		}
+	}
+
+	assertArchived("role change", st.UpdateMembershipRole(ctx, owner.ID, biz.ID, employee.ID, RoleManager))
+	assertArchived("monitoring change", st.UpdateMembershipMonitoring(ctx, owner.ID, biz.ID, employee.ID, false))
+	assertArchived("member removal", st.RemoveMember(ctx, owner.ID, biz.ID, employee.ID))
+	assertArchived("password reset", st.ResetManagedMemberPassword(ctx, owner.ID, biz.ID, employee.ID, "new-hash"))
+	assertArchived("mfa reset", st.ResetManagedMemberMFA(ctx, owner.ID, biz.ID, employee.ID))
+	_, err = st.UpdateManagedMemberIdentity(
+		ctx, owner.ID, biz.ID, employee.ID, nil, nil, func() *string {
+			v := "Changed Name"
+			return &v
+		}(),
+	)
+	assertArchived("identity change", err)
+	revoke := true
+	_, err = st.UpdateDevice(ctx, owner.ID, deviceID, nil, &revoke, biz.ID)
+	assertArchived("device change", err)
+	_, err = st.CreatePrivacyRule(ctx, owner.ID, biz.ID, "app", "exact", "Private App")
+	assertArchived("privacy rule create", err)
+	_, err = st.UpdateDefaultMonitoring(ctx, owner.ID, biz.ID, false, true)
+	assertArchived("default monitoring change", err)
+	assertArchived(
+		"settings change",
+		st.UpdateBusinessSettingsAudited(ctx, owner.ID, biz.ID, map[string]any{
+			"collect_browser_activity": false,
+		}),
+	)
+	_, _, err = st.CreateEmployee(
+		ctx, owner.ID, &biz.ID, "", "blocked_new_member", "hash", "Blocked New Member",
+	)
+	assertArchived("member creation", err)
+	_, err = st.PurgeMemberFromBusiness(ctx, owner.ID, biz.ID, employee.ID, nil)
+	assertArchived("member purge", err)
+
+	// Archive is read-only for mutations, but export remains intentionally available.
+	exportJob, err := st.CreateOrganizationExport(ctx, owner.ID, biz.ID, ExportFull)
+	if err != nil {
+		t.Fatalf("create export while archived: %v", err)
+	}
+	if exportJob.BusinessID != biz.ID || exportJob.Status != "pending" {
+		t.Fatalf("unexpected archived export job: %+v", exportJob)
+	}
+
+	// Admins can still read historical data/audit while archived.
+	if _, err := st.ListAuditEvents(ctx, admin.ID, biz.ID, 20); err != nil {
+		t.Fatalf("admin read audit while archived: %v", err)
+	}
+	if _, err := st.ListPrivacyRules(ctx, admin.ID, biz.ID); err != nil {
+		t.Fatalf("admin read privacy rules while archived: %v", err)
+	}
+}
