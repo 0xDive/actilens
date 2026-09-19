@@ -16,7 +16,7 @@ use serde::Serialize;
 use uuid::Uuid;
 
 /// Latest schema version. Bump when adding a migration below.
-const SCHEMA_VERSION: i64 = 2;
+const SCHEMA_VERSION: i64 = 3;
 
 /// A fresh client-generated UUID (v4), the backend's natural sync key.
 fn new_uuid() -> String {
@@ -112,6 +112,7 @@ pub struct PendingScreenshot {
     pub display_id: Option<i64>,
     pub width: Option<i64>,
     pub height: Option<i64>,
+    pub capture_group_id: Option<String>,
     pub updated_at: i64,
 }
 
@@ -151,6 +152,11 @@ impl Db {
         if version < 2 {
             Self::migrate_2(&conn)?;
             version = 2;
+        }
+
+        if version < 3 {
+            Self::migrate_3(&conn)?;
+            version = 3;
         }
 
         conn.pragma_update(None, "user_version", version)?;
@@ -211,6 +217,17 @@ impl Db {
         Ok(())
     }
 
+    /// Migration v3: group the per-display files produced by one all-displays
+    /// capture tick. Existing screenshots remain valid with a null group id.
+    fn migrate_3(conn: &Connection) -> Result<()> {
+        conn.execute_batch(
+            "ALTER TABLE screenshot ADD COLUMN capture_group_id TEXT;
+             CREATE INDEX idx_screenshot_capture_group
+               ON screenshot(capture_group_id) WHERE capture_group_id IS NOT NULL;",
+        )?;
+        Ok(())
+    }
+
     // ---------- inserts ----------
 
     pub fn insert_activity_sample(&self, s: &ActivitySample) -> Result<i64> {
@@ -252,17 +269,26 @@ impl Db {
     }
 
     pub fn insert_screenshot(&self, s: &Screenshot) -> Result<i64> {
+        self.insert_screenshot_with_group(s, None)
+    }
+
+    pub fn insert_screenshot_with_group(
+        &self,
+        s: &Screenshot,
+        capture_group_id: Option<&str>,
+    ) -> Result<i64> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
             "INSERT INTO screenshot
-               (ts, file_path, display_id, width, height, client_uuid, synced, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, ?7)",
+               (ts, file_path, display_id, width, height, capture_group_id, client_uuid, synced, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, ?8)",
             params![
                 s.ts,
                 s.file_path,
                 s.display_id,
                 s.width,
                 s.height,
+                capture_group_id,
                 new_uuid(),
                 now_secs()
             ],
@@ -453,7 +479,7 @@ impl Db {
     pub fn pending_screenshots(&self, limit: i64) -> Result<Vec<PendingScreenshot>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT client_uuid, ts, file_path, display_id, width, height, updated_at
+            "SELECT client_uuid, ts, file_path, display_id, width, height, capture_group_id, updated_at
              FROM screenshot WHERE synced = 0 ORDER BY id LIMIT ?1",
         )?;
         let rows = stmt
@@ -465,7 +491,8 @@ impl Db {
                     display_id: r.get(3)?,
                     width: r.get(4)?,
                     height: r.get(5)?,
-                    updated_at: r.get(6)?,
+                    capture_group_id: r.get(6)?,
+                    updated_at: r.get(7)?,
                 })
             })?
             .collect::<Result<Vec<_>>>()?;
@@ -713,6 +740,26 @@ mod tests {
         assert!(!pend[0].client_uuid.is_empty());
         assert!(pend[0].updated_at > 0);
         assert_eq!(db.pending_count().unwrap(), 1);
+    }
+
+    #[test]
+    fn screenshot_capture_group_round_trips_to_pending_sync() {
+        let db = db();
+        let group = uuid::Uuid::new_v4().to_string();
+        db.insert_screenshot_with_group(
+            &Screenshot {
+                ts: 123,
+                file_path: "/tmp/group.webp".into(),
+                display_id: Some(1),
+                width: Some(100),
+                height: Some(80),
+            },
+            Some(&group),
+        )
+        .unwrap();
+        let pending = db.pending_screenshots(10).unwrap();
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].capture_group_id.as_deref(), Some(group.as_str()));
     }
 
     #[test]
