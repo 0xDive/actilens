@@ -27,7 +27,6 @@ import {
   Card,
   Dialog,
   EmptyState,
-  PageHeader,
   Skeleton,
   TextField,
 } from "../components/ds";
@@ -252,7 +251,6 @@ export function Account() {
   if (loading) {
     return (
       <div className="account-v1">
-        <PageHeader title={t("accountSecurity.title")} />
         <Skeleton width="100%" height={420} />
       </div>
     );
@@ -261,7 +259,6 @@ export function Account() {
   if (!account) {
     return (
       <div className="account-v1">
-        <PageHeader title={t("accountSecurity.title")} />
         <Alert tone="danger">{error || t("accountSecurity.loadFailed")}</Alert>
       </div>
     );
@@ -269,11 +266,6 @@ export function Account() {
 
   return (
     <div className="account-v1">
-      <PageHeader
-        title={t("accountSecurity.title")}
-        subtitle={t("accountSecurity.subtitle")}
-      />
-
       {error && <div className="account-v1__alert"><Alert tone="danger">{error}</Alert></div>}
 
       <div className="account-v1__stack">

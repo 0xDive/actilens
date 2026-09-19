@@ -233,8 +233,8 @@ func (s *Store) ListEmployees(ctx context.Context, businessID string) ([]Employe
 		  JOIN users u ON u.id = m.user_id
 		 WHERE m.business_id = $1
 		   AND m.status IN ('active','blocked')
-		   AND m.role IN ('admin','manager','employee')
-		 ORDER BY CASE m.role WHEN 'admin' THEN 0 WHEN 'manager' THEN 1 ELSE 2 END,
+		   AND m.role IN ('owner','admin','manager','employee')
+		 ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 WHEN 'manager' THEN 2 ELSE 3 END,
 		          CASE m.status WHEN 'active' THEN 0 ELSE 1 END,
 		          u.display_name`, businessID)
 	if err != nil {

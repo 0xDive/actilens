@@ -34,19 +34,6 @@
   padding: 0 4px;
 }
 
-.ds-sidebar__collapse {
-  position: absolute;
-  top: 5px;
-  right: -27px;
-  z-index: 45;
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--ds-border-default);
-  border-radius: var(--ds-radius-pill);
-  background: var(--ds-bg-surface);
-  color: var(--ds-text-secondary);
-  box-shadow: var(--ds-shadow-popover);
-}
 
 .ds-brand-link {
   min-width: 0;
@@ -436,6 +423,32 @@
   flex-direction: column;
   overflow: hidden;
   background: var(--ds-bg-app);
+}
+
+.ds-shell-topbar {
+  height: 52px;
+  flex: 0 0 52px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--ds-border-subtle);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--ds-bg-surface);
+}
+
+.ds-shell-topbar__toggle {
+  flex: 0 0 auto;
+}
+
+.ds-shell-page-title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ds-text-primary);
+  font-size: var(--ds-text-md);
+  font-weight: 700;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ds-shell-content {

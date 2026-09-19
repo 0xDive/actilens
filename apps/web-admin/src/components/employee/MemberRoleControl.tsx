@@ -21,6 +21,10 @@ export function MemberRoleControl({
   const { t } = useTranslation("dashboard");
   const { pushToast } = useToast();
   const [busy, setBusy] = useState(false);
+  if (employee.role === "owner") {
+    return <Badge tone="brand">{t("employees.roles.owner")}</Badge>;
+  }
+
   const role: Exclude<BusinessRole, "owner"> =
     employee.role === "admin" || employee.role === "manager" ? employee.role : "employee";
 

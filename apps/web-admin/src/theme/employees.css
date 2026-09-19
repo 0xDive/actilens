@@ -4,6 +4,21 @@
   width: 100%;
 }
 
+.employees-toolbar {
+  min-height: 40px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.employees-toolbar__count {
+  color: var(--ds-text-secondary);
+  font-size: var(--ds-text-sm);
+  font-weight: 600;
+}
+
 .employees-table-wrap {
   overflow-x: auto;
   overflow-y: visible;
@@ -83,6 +98,15 @@
 
 .employees-person__copy {
   min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.employees-person__name-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
 }
 
 .employees-person__name {
@@ -96,9 +120,16 @@
 }
 
 .employees-person__status {
-  margin-top: 2px;
+  display: block;
   color: var(--ds-text-tertiary);
   font-size: var(--ds-text-xs);
+  line-height: 16px;
+}
+
+.employees-self-badge {
+  min-height: 18px;
+  padding: 0 6px;
+  font-size: 10px;
   line-height: 16px;
 }
 

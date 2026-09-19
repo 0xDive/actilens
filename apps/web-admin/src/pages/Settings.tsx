@@ -18,7 +18,6 @@ import {
   Card,
   Dialog,
   EmptyState,
-  PageHeader,
   Skeleton,
 } from "../components/ds";
 import { useToast } from "../components/ToastProvider";
@@ -516,15 +515,6 @@ export function Settings() {
 
   return (
     <div className="settings-v1">
-      <PageHeader
-        title={t("title")}
-        subtitle={
-          selected
-            ? t("v1.subtitle", { name: selected.name })
-            : undefined
-        }
-      />
-
       {loading && (
         <div className="settings-layout" aria-hidden>
           <Skeleton width={180} height={220} />

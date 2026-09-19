@@ -21,7 +21,7 @@ import {
   Dialog,
   EmptyState,
   IconButton,
-  PageHeader,
+  Badge,
   Skeleton,
   TextField,
 } from "../components/ds";
@@ -963,27 +963,24 @@ export function Employees() {
 
   return (
     <div className="employees-page">
-      <PageHeader
-        title={terms.many}
-        subtitle={
-          selected
-            ? `${selected.name} · ${t("employees.total", {
+      <div className="employees-toolbar">
+        <span className="employees-toolbar__count">
+          {selected
+            ? t("employees.total", {
                 count: view === "former" ? formerEmployees.length : employees.length,
-              })}`
-            : undefined
-        }
-        actions={
-          mayManageMembers ? (
-            <Button
-              variant="primary"
-              leadingIcon={<PlusIcon />}
-              onClick={() => setShowEmployee(true)}
-            >
-              {terms.addCta}
-            </Button>
-          ) : undefined
-        }
-      />
+              })
+            : ""}
+        </span>
+        {mayManageMembers && (
+          <Button
+            variant="primary"
+            leadingIcon={<PlusIcon />}
+            onClick={() => setShowEmployee(true)}
+          >
+            {terms.addCta}
+          </Button>
+        )}
+      </div>
 
       {selectedId && mayViewFormer && (
         <div className="employees-view-tabs" role="tablist" aria-label={t("employees.lifecycle.viewLabel")}>
@@ -1059,9 +1056,12 @@ export function Employees() {
             <tbody>
               {employees.map((employee) => {
                 const state = presence(employee);
+                const isOwner = employee.role === "owner";
+                const isSelf = employee.id === selected?.owner_user_id;
                 const isPeerAdmin =
                   selected?.role === "admin" && employee.role === "admin";
-                const mayManageThis = mayManageMembers && !isPeerAdmin;
+                const mayManageThis = mayManageMembers && !isPeerAdmin && !isOwner;
+                const mayChangeRole = mayManageRoles && !isOwner;
                 const statusLabel = t(`employees.status.${state}`);
                 const showCurrentApp =
                   (state === "active" || state === "idle") && employee.current_app;
@@ -1080,8 +1080,15 @@ export function Employees() {
                           />
                         </span>
                         <span className="employees-person__copy">
-                          <span className="employees-person__name">
-                            {employee.display_name}
+                          <span className="employees-person__name-row">
+                            <span className="employees-person__name">
+                              {employee.display_name}
+                            </span>
+                            {isSelf && (
+                              <Badge tone="neutral" className="employees-self-badge">
+                                {t("dashboard.selfBadge")}
+                              </Badge>
+                            )}
                           </span>
                           <span className="employees-person__status">{statusLabel}</span>
                         </span>
@@ -1094,7 +1101,7 @@ export function Employees() {
                       <MemberRoleControl
                         employee={employee}
                         businessId={selectedId}
-                        canChange={mayManageRoles && employee.status !== "blocked"}
+                        canChange={mayChangeRole && employee.status !== "blocked"}
                         onChanged={() => loadEmployees(selectedId)}
                       />
                     </td>
@@ -1126,7 +1133,7 @@ export function Employees() {
                         employee={employee}
                         businessId={selectedId}
                         canManage={mayManageThis}
-                        canDelete={mayManageRoles}
+                        canDelete={mayManageRoles && !isOwner}
                         onChanged={() => loadEmployees(selectedId)}
                       />
                     </td>

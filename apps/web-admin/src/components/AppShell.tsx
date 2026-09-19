@@ -5,7 +5,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 import { useTheme, type ThemeMode } from "../theme/ThemeProvider";
@@ -345,6 +345,7 @@ export function AppShell() {
   const { t } = useTranslation();
   const { selected } = useBusinesses();
   const terms = memberTerms(selected?.kind);
+  const location = useLocation();
 
   const [collapsed, setCollapsed] = useState(() => {
     const saved = localStorage.getItem(SIDEBAR_KEY);
@@ -360,7 +361,18 @@ export function AppShell() {
       : []),
   ];
 
-  const detailHeader = useMemo(() => ({ setTitle: () => {} }), []);
+  const activeNav = nav.find((item) =>
+    item.end ? location.pathname === item.to : location.pathname.startsWith(item.to),
+  );
+  const isDetail = /^\/employees\/[^/]+/.test(location.pathname);
+  const [detailTitle, setDetailTitle] = useState<string | null>(null);
+  const detailHeader = useMemo(() => ({ setTitle: setDetailTitle }), []);
+
+  const currentTitle = isDetail
+    ? detailTitle || terms.one
+    : location.pathname.startsWith("/account")
+      ? t("shell.account")
+      : activeNav?.label || t("nav.dashboard");
 
   function toggleSidebar() {
     setCollapsed((current) => {
@@ -378,13 +390,6 @@ export function AppShell() {
             <BrandMark />
             <span className="ds-brand-wordmark">ActiLens</span>
           </NavLink>
-          <IconButton
-            label={collapsed ? t("shell.expand") : t("shell.collapse")}
-            className="ds-sidebar__collapse"
-            onClick={toggleSidebar}
-          >
-            <CollapseIcon collapsed={collapsed} />
-          </IconButton>
         </div>
 
         <OrganizationPicker />
@@ -411,6 +416,17 @@ export function AppShell() {
       </aside>
 
       <main className="ds-shell-main">
+        <header className="ds-shell-topbar">
+          <IconButton
+            label={collapsed ? t("shell.expand") : t("shell.collapse")}
+            className="ds-shell-topbar__toggle"
+            onClick={toggleSidebar}
+          >
+            <CollapseIcon collapsed={collapsed} />
+          </IconButton>
+          <div className="ds-shell-page-title">{currentTitle}</div>
+        </header>
+
         <div className="ds-shell-content">
           <div className="ds-shell-content__inner">
             <DetailHeaderContext.Provider value={detailHeader}>

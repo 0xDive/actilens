@@ -11,7 +11,7 @@ import type {
   Employee,
   ReportEmployee,
 } from "../api/types";
-import { Alert, Card, EmptyState, PageHeader, Skeleton } from "../components/ds";
+import { Alert, Card, EmptyState, Skeleton } from "../components/ds";
 import { fmtRelative } from "../format";
 import { useBusinesses } from "../useBusinesses";
 import { memberTerms } from "../terms";
@@ -342,15 +342,6 @@ export function Dashboard() {
 
   return (
     <div className="dashboard-v1">
-      <PageHeader
-        title={t("dashboard.title")}
-        subtitle={
-          selected
-            ? `${selected.name} · ${t("dashboard.v1.totalMembers", { count: rows.length })}`
-            : undefined
-        }
-      />
-
       {(businessLoading || loading) && <DashboardSkeleton />}
 
       {!businessLoading && businesses.length === 0 && (

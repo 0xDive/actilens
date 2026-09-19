@@ -81,6 +81,20 @@ func TestIntegrationManagedMemberLifecycle(t *testing.T) {
 		t.Fatalf("create employee: %v", err)
 	}
 
+	managementRoster, err := st.ListEmployees(ctx, biz.ID)
+	if err != nil {
+		t.Fatalf("list management roster: %v", err)
+	}
+	if len(managementRoster) != 2 {
+		t.Fatalf("management roster length = %d, want 2: %+v", len(managementRoster), managementRoster)
+	}
+	if managementRoster[0].ID != owner.ID || managementRoster[0].Role != RoleOwner {
+		t.Fatalf("owner missing or not first in management roster: %+v", managementRoster)
+	}
+	if managementRoster[1].ID != employee.ID || managementRoster[1].Role != RoleEmployee {
+		t.Fatalf("employee missing from management roster: %+v", managementRoster)
+	}
+
 	if _, err := st.CreateEnrollmentToken(ctx, owner.ID, biz.ID, employee.ID, "token-hash-1", time.Now().Add(time.Hour)); err != nil {
 		t.Fatalf("create enrollment token: %v", err)
 	}
