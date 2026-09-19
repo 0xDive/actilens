@@ -60,6 +60,42 @@ type BusinessAccess struct {
 	Role     BusinessRole `json:"role"`
 }
 
+type LoginOrganization struct {
+	BusinessID   string       `json:"business_id"`
+	BusinessName string       `json:"business_name"`
+	Kind         string       `json:"kind"`
+	Role         BusinessRole `json:"role"`
+	Status       string       `json:"status"`
+}
+
+func (s *Store) LoginOrganizations(ctx context.Context, userID string) ([]LoginOrganization, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT b.id, b.name, b.kind, m.role, m.status
+		  FROM memberships m
+		  JOIN businesses b ON b.id = m.business_id
+		 WHERE m.user_id = $1
+		   AND m.status IN ('active','blocked')
+		 ORDER BY b.name, b.id`,
+		userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := []LoginOrganization{}
+	for rows.Next() {
+		var item LoginOrganization
+		if err := rows.Scan(
+			&item.BusinessID, &item.BusinessName, &item.Kind, &item.Role, &item.Status,
+		); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
 func ValidBusinessRole(role BusinessRole) bool {
 	switch role {
 	case RoleOwner, RoleAdmin, RoleManager, RoleEmployee:
