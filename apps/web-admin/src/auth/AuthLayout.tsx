@@ -5,10 +5,12 @@ import { SelectMenu } from "../components/ds";
 import { useTheme, type ThemeMode } from "../theme/ThemeProvider";
 import "../theme/auth-v1.css";
 
+const BRAND_MARK_URL = `${import.meta.env.BASE_URL}brand/mark.svg`;
+
 function BrandMark() {
   return (
     <span className="auth-v1__brand-mark" aria-hidden>
-      <img src="/brand/mark.svg" alt="" />
+      <img src={BRAND_MARK_URL} alt="" />
     </span>
   );
 }

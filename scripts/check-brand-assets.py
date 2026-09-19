@@ -51,8 +51,9 @@ LEGACY_MUST_NOT_EXIST = [
 ]
 
 TEXT_EXPECTATIONS = {
-    "apps/web-admin/src/components/AppShell.tsx": '/brand/mark.svg',
-    "apps/web-admin/src/auth/AuthLayout.tsx": '/brand/mark.svg',
+    "apps/web-admin/src/components/AppShell.tsx": 'import.meta.env.BASE_URL',
+    "apps/web-admin/src/auth/AuthLayout.tsx": 'import.meta.env.BASE_URL',
+    "apps/web-admin/index.html": '%BASE_URL%brand/app-icon.svg',
     "apps/desktop/src/App.tsx": 'assets/brand-mark.svg',
     "apps/desktop/src/ui.tsx": 'assets/brand-mark.svg',
     "apps/extension/popup.html": 'icons/brand-mark.svg',
@@ -65,6 +66,12 @@ FORBIDDEN_TEXT = [
     "M3 12h4l2-5 4 10 2-5h6",
     "M4.5 12 h3.2 l1.8 -4.4 l2.4 8.8 l1.8 -4.4 h4.5",
     "PULSE = [(4.5, 12)",
+]
+
+ROOT_ABSOLUTE_WEB_BRAND_REFS = [
+    "/brand/mark.svg",
+    'href="/brand/',
+    'href="/favicon.ico"',
 ]
 
 ACTIVE_TEXT = [
@@ -116,6 +123,19 @@ for relative in ACTIVE_TEXT:
     for needle in FORBIDDEN_TEXT:
         if needle in source:
             fail(f"legacy pulse mark found in {relative}: {needle}")
+
+for relative in (
+    "apps/web-admin/src/components/AppShell.tsx",
+    "apps/web-admin/src/auth/AuthLayout.tsx",
+    "apps/web-admin/index.html",
+):
+    source = (ROOT / relative).read_text(encoding="utf-8")
+    for needle in ROOT_ABSOLUTE_WEB_BRAND_REFS:
+        if needle in source:
+            fail(
+                f"{relative} uses root-absolute brand URL {needle!r}; "
+                "web-admin is served from /admin/ and must use Vite BASE_URL"
+            )
 
 for relative in PNG_FILES:
     if (ROOT / relative).read_bytes()[:8] != PNG_MAGIC:

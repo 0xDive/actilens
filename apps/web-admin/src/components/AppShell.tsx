@@ -17,6 +17,7 @@ import { LOCALES } from "../i18n";
 import { cx, IconButton, SelectMenu } from "./ds";
 
 const SIDEBAR_KEY = "actilens.admin.sidebarCollapsed";
+const BRAND_MARK_URL = `${import.meta.env.BASE_URL}brand/mark.svg`;
 
 function Icon({
   children,
@@ -106,7 +107,7 @@ const CollapseIcon = ({ collapsed }: { collapsed: boolean }) => (
 function BrandMark() {
   return (
     <span className="ds-brand-mark" aria-hidden>
-      <img src="/brand/mark.svg" alt="" />
+      <img src={BRAND_MARK_URL} alt="" />
     </span>
   );
 }
