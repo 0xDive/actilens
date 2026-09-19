@@ -64,6 +64,10 @@ func (h *OwnerHandler) UpdateManagedMemberIdentity(c *gin.Context) {
 		notFound(c, "member not found")
 	case errors.Is(err, store.ErrForbidden):
 		forbidden(c, "insufficient permission")
+	case errors.Is(err, store.ErrOrganizationArchived):
+		apiError(c, http.StatusConflict, ErrCodeOrganizationArchived, "organization is archived", nil)
+	case errors.Is(err, store.ErrOrganizationDeletionPending):
+		apiError(c, http.StatusConflict, ErrCodeOrganizationDeletionPending, "organization deletion is pending", nil)
 	default:
 		serverError(c, err)
 	}
@@ -101,6 +105,10 @@ func (h *OwnerHandler) ResetManagedMemberPassword(c *gin.Context) {
 		notFound(c, "member not found")
 	case errors.Is(err, store.ErrForbidden):
 		forbidden(c, "insufficient permission")
+	case errors.Is(err, store.ErrOrganizationArchived):
+		apiError(c, http.StatusConflict, ErrCodeOrganizationArchived, "organization is archived", nil)
+	case errors.Is(err, store.ErrOrganizationDeletionPending):
+		apiError(c, http.StatusConflict, ErrCodeOrganizationDeletionPending, "organization deletion is pending", nil)
 	default:
 		serverError(c, err)
 	}
