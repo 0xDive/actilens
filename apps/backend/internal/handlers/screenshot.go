@@ -98,16 +98,28 @@ func (h *ScreenshotHandler) Upload(c *gin.Context) {
 	}
 
 	monitoringEnabled, err := h.store.MembershipMonitoringEnabled(c.Request.Context(), userID, bizID)
-	if errors.Is(err, store.ErrNotFound) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "membership is unavailable"})
+	switch {
+	case errors.Is(err, store.ErrMemberBlocked):
+		apiError(c, http.StatusForbidden, ErrCodeMemberBlocked, "organization access is suspended", nil)
 		return
-	}
-	if err != nil {
+	case errors.Is(err, store.ErrMemberRemoved):
+		apiError(c, http.StatusForbidden, ErrCodeMemberRemoved, "organization membership was removed", nil)
+		return
+	case errors.Is(err, store.ErrOrganizationArchived):
+		apiError(c, http.StatusConflict, ErrCodeOrganizationArchived, "organization is archived", nil)
+		return
+	case errors.Is(err, store.ErrOrganizationDeletionPending):
+		apiError(c, http.StatusConflict, ErrCodeOrganizationDeletionPending, "organization deletion is pending", nil)
+		return
+	case errors.Is(err, store.ErrNotFound), errors.Is(err, store.ErrMembershipUnavailable):
+		forbidden(c, "membership is unavailable")
+		return
+	case err != nil:
 		serverError(c, err)
 		return
 	}
 	if !monitoringEnabled {
-		c.JSON(http.StatusForbidden, gin.H{"error": "monitoring is disabled for this membership"})
+		forbidden(c, "monitoring is disabled for this membership")
 		return
 	}
 
@@ -200,9 +212,9 @@ func (h *ScreenshotHandler) resolveBusiness(c *gin.Context, userID string, expli
 	bizID, err := h.store.ResolveBusinessForUser(c.Request.Context(), userID, explicit)
 	switch {
 	case errors.Is(err, store.ErrNotFound):
-		c.JSON(http.StatusForbidden, gin.H{"error": "user belongs to no business"})
+		forbidden(c, "user belongs to no organization")
 	case errors.Is(err, store.ErrForbidden):
-		c.JSON(http.StatusForbidden, gin.H{"error": "not a member of that business"})
+		forbidden(c, "not a member of that organization")
 	case errors.Is(err, store.ErrAmbiguousBusiness):
 		badRequest(c, "multiple businesses: specify business_id")
 	case err != nil:
