@@ -523,9 +523,11 @@ type CapturePolicy struct {
 func (s *Store) PolicyForUserInBusiness(ctx context.Context, userID, businessID string) (*CapturePolicy, error) {
 	var p CapturePolicy
 	var status string
+	var archived, deletionPending bool
 	err := s.pool.QueryRow(ctx, `
 		SELECT b.id, m.status,
-		       b.archived_at IS NOT NULL OR b.deletion_scheduled_at IS NOT NULL,
+		       b.archived_at IS NOT NULL,
+		       b.deletion_scheduled_at IS NOT NULL,
 		       b.default_member_monitoring_enabled,
 		       b.collect_app_activity, b.collect_window_titles, b.collect_screenshots,
 		       b.collect_browser_activity, b.collect_keystroke_counts,
@@ -536,7 +538,7 @@ func (s *Store) PolicyForUserInBusiness(ctx context.Context, userID, businessID 
 		 WHERE m.user_id = $1 AND m.business_id = $2`,
 		userID, businessID,
 	).Scan(
-		&p.BusinessID, &status, &p.Archived, &p.DefaultMemberMonitoringEnabled,
+		&p.BusinessID, &status, &archived, &deletionPending, &p.DefaultMemberMonitoringEnabled,
 		&p.CollectAppActivity, &p.CollectWindowTitles, &p.CollectScreenshots,
 		&p.CollectBrowserActivity, &p.CollectKeystrokeCounts,
 		&p.ScreenshotIntervalS, &p.ScreenshotCaptureScope, &p.IdleThresholdS,
@@ -553,6 +555,12 @@ func (s *Store) PolicyForUserInBusiness(ctx context.Context, userID, businessID 
 	}
 	if status == "removed" {
 		return nil, ErrMemberRemoved
+	}
+	if deletionPending {
+		return nil, ErrOrganizationDeletionPending
+	}
+	if archived {
+		return nil, ErrOrganizationArchived
 	}
 	rules, err := s.privacyRulesForBusiness(ctx, businessID)
 	if err != nil {
