@@ -259,7 +259,10 @@ fn version_label(app: &AppHandle, loc: &str) -> String {
 /// tracking accordingly; on the dashboard tracking resumes and Start becomes usable.
 pub fn set_in_setup(app: &AppHandle, in_setup: bool) {
     IN_SETUP.store(in_setup, Ordering::Relaxed);
-    set_paused(app, in_setup);
+    if let Some(control) = app.try_state::<Arc<TrackerControl>>() {
+        control.in_setup.store(in_setup, Ordering::Relaxed);
+    }
+    refresh(app);
 }
 
 /// Show + focus the main window (it may be hidden in menu-bar-only mode).
@@ -295,11 +298,11 @@ pub fn set_paused(app: &AppHandle, paused: bool) {
 pub fn refresh(app: &AppHandle) {
     let (paused, org_enabled, threshold) = match app.try_state::<Arc<TrackerControl>>() {
         Some(c) => (
-            c.paused.load(Ordering::Relaxed),
+            c.effective_paused(),
             c.org_monitoring_enabled.load(Ordering::Relaxed),
             c.idle_threshold_s.load(Ordering::Relaxed) as f64,
         ),
-        None => (false, true, 60.0),
+        None => (true, true, 60.0),
     };
     let state = if paused || !org_enabled {
         State::Paused
