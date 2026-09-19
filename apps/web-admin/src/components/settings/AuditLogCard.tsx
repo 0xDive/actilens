@@ -241,6 +241,11 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
   }, [open]);
 
   const pageCount = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, pageCount - 1));
+  }, [pageCount]);
+
   const safePage = Math.min(page, pageCount - 1);
   const pageRows = filteredRows.slice(
     safePage * pageSize,
