@@ -169,7 +169,11 @@ pub fn set_settings(
         value.screenshot_interval_s = cur.screenshot_interval_s;
         value.idle_threshold_s = cur.idle_threshold_s;
         value.screenshot_retention_days = cur.screenshot_retention_days;
+        value.collect_app_activity = cur.collect_app_activity;
+        value.collect_window_titles = cur.collect_window_titles;
+        value.collect_browser_activity = cur.collect_browser_activity;
         value.capture_screenshots = cur.capture_screenshots;
+        value.count_keystrokes = cur.count_keystrokes;
         value.screenshot_mode = cur.screenshot_mode;
         value.screenshot_capture_scope = cur.screenshot_capture_scope;
         value.screenshot_privacy_rules = cur.screenshot_privacy_rules;
@@ -192,71 +196,25 @@ pub async fn apply_org_policy(
     control: State<'_, Arc<TrackerControl>>,
 ) -> Result<crate::settings::CaptureManaged, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    let business_id = auth.session().and_then(|s| s.business_id);
+    let business_id = auth.session().and_then(|session| session.business_id);
     let policy = client.fetch_policy(business_id.as_deref()).await?;
-    let previous_monitoring = settings.managed.lock().unwrap().monitoring_enabled;
-    let monitoring_enabled = client
-        .monitoring_enabled(business_id.as_deref())
-        .await
-        .unwrap_or(previous_monitoring);
 
-    control
-        .org_monitoring_enabled
-        .store(monitoring_enabled, Ordering::Relaxed);
-    {
-        let mut current = settings.current.lock().unwrap();
-        if current.org_monitoring_enabled != monitoring_enabled {
-            current.org_monitoring_enabled = monitoring_enabled;
-            let _ = crate::settings::save(&settings.path, &current);
-        }
-    }
-
-    let status = crate::settings::CaptureManaged {
-        managed: policy.managed,
-        allow_employee_override: policy.allow_employee_override,
-        family: policy.kind.as_deref() == Some("family"),
-        monitoring_enabled,
+    let previous = settings.managed.lock().unwrap().monitoring_enabled;
+    let monitoring_enabled = if policy.managed {
+        client
+            .monitoring_enabled(business_id.as_deref())
+            .await
+            .unwrap_or(previous)
+    } else {
+        true
     };
-    *settings.managed.lock().unwrap() = status;
 
-    if status.locked() {
-        let mut s = settings.current.lock().unwrap().clone();
-        if let Some(v) = policy.screenshot_interval_s {
-            s.screenshot_interval_s = v;
-        }
-        if let Some(v) = policy.idle_threshold_s {
-            s.idle_threshold_s = v;
-        }
-        // None retention = "keep forever" on the backend; leave the local value.
-        if let Some(v) = policy.screenshot_retention_days {
-            s.screenshot_retention_days = v;
-        }
-        s.capture_screenshots = policy.collect_screenshots;
-        if let Some(v) = policy.screenshot_capture_scope.clone() {
-            s.screenshot_capture_scope = v.clone();
-            // Keep the legacy UI field coherent until the personal-mode settings
-            // screen is migrated to the explicit three-way scope.
-            s.screenshot_mode = if v == "active_window" {
-                "privacy".into()
-            } else {
-                "normal".into()
-            };
-        } else if let Some(v) = policy.screenshot_mode.clone() {
-            s.screenshot_mode = v.clone();
-            s.screenshot_capture_scope = match v.as_str() {
-                "normal" | "full_screen" => "all_displays".into(),
-                _ => "active_window".into(),
-            };
-        }
-        if let Some(v) = policy.screenshot_skip_apps.clone() {
-            s.screenshot_skip_apps = v;
-        }
-        s.screenshot_privacy_rules = policy.privacy_rules.clone();
-        crate::settings::apply(&s, &control);
-        let _ = crate::settings::save(&settings.path, &s);
-        *settings.current.lock().unwrap() = s;
-    }
-    Ok(status)
+    Ok(crate::settings::apply_managed_policy(
+        &settings,
+        &control,
+        &policy,
+        monitoring_enabled,
+    ))
 }
 
 /// Current org capture-policy status for the UI (to lock/unlock the controls).
@@ -561,6 +519,7 @@ pub fn logout(
         crate::settings::save(&settings.path, &current).map_err(err)?;
     }
     *settings.managed.lock().unwrap() = crate::settings::CaptureManaged::default();
+    control.managed.store(false, Ordering::Relaxed);
     Ok(())
 }
 
