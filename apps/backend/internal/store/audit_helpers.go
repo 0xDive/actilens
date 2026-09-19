@@ -192,3 +192,31 @@ func normalizeAuditDetailsTx(
 	}
 	return out, nil
 }
+
+func insertOrganizationCreatedAuditTx(
+	ctx context.Context,
+	tx pgx.Tx,
+	actorUserID string,
+	business Business,
+) error {
+	return insertAuditTx(
+		ctx,
+		tx,
+		business.ID,
+		actorUserID,
+		"organization.created",
+		"organization",
+		business.ID,
+		map[string]any{
+			"name":     business.Name,
+			"kind":     business.Kind,
+			"timezone": business.Timezone,
+			"changes": auditChanges(
+				auditChange("organization_name", nil, business.Name),
+				auditChange("organization_kind", nil, business.Kind),
+				auditChange("timezone", nil, business.Timezone),
+				auditChange("week_starts_on", nil, business.WeekStartsOn),
+			),
+		},
+	)
+}

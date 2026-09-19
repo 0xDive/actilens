@@ -83,6 +83,9 @@ func (s *Store) CreateBusiness(ctx context.Context, ownerID, name, kind string) 
 	if err != nil {
 		return Business{}, err
 	}
+	if err := insertOrganizationCreatedAuditTx(ctx, tx, ownerID, biz); err != nil {
+		return Business{}, err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return Business{}, err
 	}
@@ -146,6 +149,7 @@ func (s *Store) CreateEmployee(ctx context.Context, ownerID string, businessID *
 	defer tx.Rollback(ctx)
 
 	var biz Business
+	autoCreatedBusiness := false
 	if businessID != nil {
 		biz, err = getBusiness(ctx, tx, *businessID)
 		if err != nil {
@@ -169,6 +173,7 @@ func (s *Store) CreateEmployee(ctx context.Context, ownerID string, businessID *
 				kind, suffix = "family", "'s Family"
 			}
 			biz, err = createBusinessTx(ctx, tx, ownerID, ownerName+suffix, kind)
+			autoCreatedBusiness = err == nil
 		}
 		if err != nil {
 			return Employee{}, Business{}, err
@@ -177,6 +182,11 @@ func (s *Store) CreateEmployee(ctx context.Context, ownerID string, businessID *
 
 	if err := lockMutableOrganizationTx(ctx, tx, biz.ID); err != nil {
 		return Employee{}, Business{}, err
+	}
+	if autoCreatedBusiness {
+		if err := insertOrganizationCreatedAuditTx(ctx, tx, ownerID, biz); err != nil {
+			return Employee{}, Business{}, err
+		}
 	}
 
 	// Store NULL (not "") for a missing identifier so unique constraints don't
