@@ -264,10 +264,42 @@ export function updateMemberMonitoring(businessId: string, userId: string, enabl
   );
 }
 
-export function updateBusinessSettings(id: string, patch: BusinessSettingsPatch) {
+export function updateBusinessSettings(
+  id: string,
+  patch: BusinessSettingsPatch,
+  confirmRetentionReduction = false,
+) {
   return request<{ status: string }>(`/v1/businesses/${id}/settings`, {
     method: "PATCH",
-    body: patch,
+    body: {
+      ...patch,
+      ...(confirmRetentionReduction
+        ? { confirm_retention_reduction: true }
+        : {}),
+    },
+  });
+}
+
+export type RetentionDataClass =
+  | "activity"
+  | "screenshots"
+  | "browser"
+  | "keystrokes";
+
+export interface RetentionPreview {
+  data_class: RetentionDataClass;
+  days: number;
+  affected_count: number;
+  bytes_freed: number;
+}
+
+export function previewRetention(
+  id: string,
+  dataClass: RetentionDataClass,
+  days: number,
+) {
+  return request<RetentionPreview>(`/v1/businesses/${id}/retention/preview`, {
+    query: { class: dataClass, days },
   });
 }
 
