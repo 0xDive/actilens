@@ -171,18 +171,45 @@ func (s *Store) SyncBatch(ctx context.Context, userID, businessID, deviceID stri
 		return err
 	}
 
+	// Defense in depth for older agents: collection policy is enforced at ingest,
+	// not trusted to the desktop alone. Disabled optional categories are acknowledged
+	// by the handler but are not persisted; activity duration remains mandatory while
+	// app/window identity is redacted according to policy.
+	var collectApps, collectTitles, collectKeystrokes, collectBrowser bool
+	if err := tx.QueryRow(ctx, `
+		SELECT collect_app_activity, collect_window_titles,
+		       collect_keystroke_counts, collect_browser_activity
+		  FROM businesses
+		 WHERE id = $1
+		 FOR SHARE`, businessID,
+	).Scan(&collectApps, &collectTitles, &collectKeystrokes, &collectBrowser); err != nil {
+		return err
+	}
+
 	batch := &pgx.Batch{}
 	for _, a := range act {
+		appName, windowTitle, pid := a.AppName, a.WindowTitle, a.Pid
+		if !collectApps {
+			appName = ""
+			pid = nil
+		}
+		if !collectTitles {
+			windowTitle = nil
+		}
 		batch.Queue(activityUpsert, a.ClientUUID, userID, businessID, deviceID,
-			a.Ts, a.AppName, a.WindowTitle, a.Pid, a.DurationS, a.ClientUpdatedAt)
+			a.Ts, appName, windowTitle, pid, a.DurationS, a.ClientUpdatedAt)
 	}
-	for _, k := range ks {
-		batch.Queue(keystrokeUpsert, k.ClientUUID, userID, businessID, deviceID,
-			k.TsBucket, k.Count, k.ClientUpdatedAt)
+	if collectKeystrokes {
+		for _, k := range ks {
+			batch.Queue(keystrokeUpsert, k.ClientUUID, userID, businessID, deviceID,
+				k.TsBucket, k.Count, k.ClientUpdatedAt)
+		}
 	}
-	for _, b := range br {
-		batch.Queue(browserUpsert, b.ClientUUID, userID, businessID, deviceID,
-			b.Ts, b.URL, b.PageTitle, b.Browser, b.DurationS, b.ClientUpdatedAt)
+	if collectBrowser {
+		for _, b := range br {
+			batch.Queue(browserUpsert, b.ClientUUID, userID, businessID, deviceID,
+				b.Ts, b.URL, b.PageTitle, b.Browser, b.DurationS, b.ClientUpdatedAt)
+		}
 	}
 
 	if batch.Len() > 0 {
