@@ -54,6 +54,14 @@ func (h *ScreenshotHandler) Upload(c *gin.Context) {
 	if v := c.PostForm("business_id"); v != "" {
 		businessID = &v
 	}
+	var captureGroupID *string
+	if v := strings.TrimSpace(c.PostForm("capture_group_id")); v != "" {
+		if _, err := uuid.Parse(v); err != nil {
+			badRequest(c, "capture_group_id must be a uuid")
+			return
+		}
+		captureGroupID = &v
+	}
 
 	fileHeader, err := c.FormFile("image")
 	if err != nil {
@@ -134,6 +142,7 @@ func (h *ScreenshotHandler) Upload(c *gin.Context) {
 		Width:           optInt(c.PostForm("width")),
 		Height:          optInt(c.PostForm("height")),
 		DisplayID:       optInt(c.PostForm("display_id")),
+		CaptureGroupID:  captureGroupID,
 		ClientUpdatedAt: updatedAt,
 	}
 	if err := h.store.UpsertScreenshot(c.Request.Context(), userID, bizID, row); err != nil {
