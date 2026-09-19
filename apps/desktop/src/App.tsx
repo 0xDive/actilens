@@ -19,6 +19,7 @@ import { Welcome } from "./screens/Welcome";
 import { Onboarding } from "./screens/Onboarding";
 import { LanguageSwitcher } from "./components/LanguageSwitcher";
 import { AppTrayMenu } from "./components/AppTrayMenu";
+import brandMark from "./assets/brand-mark.svg";
 
 type Screen =
   | "Dashboard"
@@ -390,10 +391,7 @@ function App() {
       <aside className="sidebar">
         <div className="brand">
           <span className="brand-logo" aria-hidden>
-            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M4.5 12 h3.2 l1.8 -4.4 l2.4 8.8 l1.8 -4.4 h4.5" />
-            </svg>
+            <img src={brandMark} alt="" />
           </span>
           <span className="brand-text">
             <span className="brand-name">Acti<span className="brand-accent">Lens</span></span>
