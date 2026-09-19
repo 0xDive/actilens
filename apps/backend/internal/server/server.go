@@ -115,6 +115,7 @@ func New(cfg *config.Config, st *store.Store, files *filestore.Store, ret *reten
 	authed.GET("/businesses/:id/deletion-preview", lifecycleH.DeletionPreview)
 	authed.POST("/businesses/:id/schedule-deletion", lifecycleH.ScheduleDeletion)
 	authed.POST("/businesses/:id/cancel-deletion", lifecycleH.CancelDeletion)
+	authed.POST("/businesses/:id/members", ownerH.CreateOrganizationMember)
 	authed.GET("/businesses/:id/employees", ownerH.ListEmployees)
 	authed.GET("/businesses/:id/audit", ownerH.ListAuditEvents)
 	authed.PATCH("/businesses/:id/settings", ownerH.UpdateSettings)
