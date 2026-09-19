@@ -396,6 +396,7 @@ func (h *OwnerHandler) Policy(c *gin.Context) {
 		"allow_employee_override": false,
 		"screenshot_mode":         p.ScreenshotMode,
 		"screenshot_skip_apps":    p.ScreenshotSkipApps,
+		"privacy_rules":           p.PrivacyRules,
 	})
 }
 
