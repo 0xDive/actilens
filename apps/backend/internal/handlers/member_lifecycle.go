@@ -82,6 +82,10 @@ func (h *OwnerHandler) memberLifecycleMutation(
 		notFound(c, "member not found")
 	case errors.Is(err, store.ErrConflict):
 		apiError(c, http.StatusConflict, ErrCodeConflict, "member state conflict", nil)
+	case errors.Is(err, store.ErrOrganizationArchived):
+		apiError(c, http.StatusConflict, ErrCodeOrganizationArchived, "organization is archived", nil)
+	case errors.Is(err, store.ErrOrganizationDeletionPending):
+		apiError(c, http.StatusConflict, ErrCodeOrganizationDeletionPending, "organization deletion is pending", nil)
 	default:
 		serverError(c, err)
 	}
