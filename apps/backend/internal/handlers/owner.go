@@ -393,7 +393,7 @@ func (h *OwnerHandler) Policy(c *gin.Context) {
 		"screenshot_retention_days":          p.ScreenshotRetentionDays,
 		"kind":                               p.Kind,
 		// compatibility for old desktop builds
-		"allow_employee_override": p.AllowEmployeeOverride,
+		"allow_employee_override": false,
 		"screenshot_mode":         p.ScreenshotMode,
 		"screenshot_skip_apps":    p.ScreenshotSkipApps,
 	})
