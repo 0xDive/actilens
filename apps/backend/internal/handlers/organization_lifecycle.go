@@ -108,7 +108,8 @@ func (h *OrganizationLifecycleHandler) DeletionPreview(c *gin.Context) {
 }
 
 type scheduleDeletionReq struct {
-	ReauthToken string `json:"reauth_token"`
+	ReauthToken      string `json:"reauth_token"`
+	ConfirmationName string `json:"confirmation_name"`
 }
 
 func (h *OrganizationLifecycleHandler) ScheduleDeletion(c *gin.Context) {
@@ -119,6 +120,19 @@ func (h *OrganizationLifecycleHandler) ScheduleDeletion(c *gin.Context) {
 		return
 	}
 	if !h.requireReauth(c, req.ReauthToken) {
+		return
+	}
+	businessState, err := h.store.GetBusiness(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			notFound(c, "organization not found")
+		} else {
+			serverError(c, err)
+		}
+		return
+	}
+	if strings.TrimSpace(req.ConfirmationName) != businessState.Name {
+		badRequest(c, "confirmation_name must exactly match the organization name")
 		return
 	}
 	business, err := h.store.ScheduleOrganizationDeletion(
