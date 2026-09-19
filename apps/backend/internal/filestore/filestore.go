@@ -62,6 +62,35 @@ func (s *Store) Write(businessID, userID string, ts int64, clientUUID string, da
 	return rel, nil
 }
 
+// WriteExport stores one generated organization export under a UUID-only path.
+// extension is an internal value selected by the exporter, never client input.
+func (s *Store) WriteExport(businessID, exportID, extension string, data []byte) (string, error) {
+	for _, id := range []string{businessID, exportID} {
+		if _, err := uuid.Parse(id); err != nil {
+			return "", errors.New("path component is not a uuid")
+		}
+	}
+	switch extension {
+	case "csv", "json", "zip":
+	default:
+		return "", errors.New("unsupported export extension")
+	}
+	rel := filepath.Join("exports", businessID, exportID+"."+extension)
+	abs := filepath.Join(s.root, rel)
+	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
+		return "", err
+	}
+	tmp := abs + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o600); err != nil {
+		return "", err
+	}
+	if err := os.Rename(tmp, abs); err != nil {
+		_ = os.Remove(tmp)
+		return "", err
+	}
+	return rel, nil
+}
+
 // Open opens a stored screenshot by its DB-recorded relative path. The path is
 // cleaned and confined to the storage root, so a tampered DB value still can't
 // escape it.
