@@ -1118,7 +1118,30 @@ export function Employees() {
             </thead>
             <tbody>
               {formerEmployees.map((employee) => (
-                <tr key={employee.id}>
+                <tr
+                  key={employee.id}
+                  className="employees-row employees-row--former"
+                  tabIndex={0}
+                  onClick={(event) => {
+                    if (
+                      (event.target as HTMLElement).closest(
+                        "button, a, input, select, label",
+                      )
+                    ) {
+                      return;
+                    }
+                    navigate(
+                      `/employees/${employee.id}?business=${selectedId}&former=1`,
+                    );
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      navigate(
+                        `/employees/${employee.id}?business=${selectedId}&former=1`,
+                      );
+                    }
+                  }}
+                >
                   <td>
                     <div className="employees-person">
                       <span className="employees-avatar employees-avatar--former">
