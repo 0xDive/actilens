@@ -1305,3 +1305,78 @@ func TestIntegrationArchivedOrganizationIsReadOnly(t *testing.T) {
 		t.Fatalf("admin read privacy rules while archived: %v", err)
 	}
 }
+
+
+func TestIntegrationArchivedRetentionIsFrozen(t *testing.T) {
+	st, _ := integrationStore(t)
+	ctx := context.Background()
+
+	owner, err := st.CreateUser(ctx, "retention-freeze-owner@example.test", "", "hash", "Retention Freeze Owner", "manager")
+	if err != nil {
+		t.Fatalf("create owner: %v", err)
+	}
+	biz, err := st.CreateBusiness(ctx, owner.ID, "Retention freeze", "team")
+	if err != nil {
+		t.Fatalf("create business: %v", err)
+	}
+	member, _, err := st.CreateEmployee(ctx, owner.ID, &biz.ID, "", "retention_freeze_member", "hash", "Retention Member")
+	if err != nil {
+		t.Fatalf("create member: %v", err)
+	}
+	deviceID := uuid.NewString()
+	if err := st.SyncBatch(
+		ctx, member.ID, biz.ID, deviceID, DeviceMetadata{},
+		[]ActivityRow{{ClientUUID: uuid.NewString(), Ts: 100, AppName: "Old app", DurationS: 10, ClientUpdatedAt: 100}},
+		[]KeystrokeRow{{ClientUUID: uuid.NewString(), TsBucket: 100, Count: 3, ClientUpdatedAt: 100}},
+		[]BrowserRow{{ClientUUID: uuid.NewString(), Ts: 100, URL: "https://old.example", DurationS: 5, ClientUpdatedAt: 100}},
+	); err != nil {
+		t.Fatalf("seed retention rows: %v", err)
+	}
+
+	if _, err := st.ArchiveOrganization(ctx, owner.ID, biz.ID); err != nil {
+		t.Fatalf("archive organization: %v", err)
+	}
+	if err := st.EnsureBusinessMutable(ctx, biz.ID); !errors.Is(err, ErrOrganizationArchived) {
+		t.Fatalf("mutable check = %v, want ErrOrganizationArchived", err)
+	}
+	policies, err := st.BusinessesWithRetentionPolicies(ctx)
+	if err != nil {
+		t.Fatalf("list retention policies: %v", err)
+	}
+	for _, policy := range policies {
+		if policy.ID == biz.ID {
+			t.Fatal("archived organization remained eligible for automatic retention")
+		}
+	}
+
+	cutoff := int64(1_000_000)
+	if _, err := st.DeleteActivityBefore(ctx, biz.ID, cutoff); !errors.Is(err, ErrOrganizationArchived) {
+		t.Fatalf("activity delete = %v, want ErrOrganizationArchived", err)
+	}
+	if _, err := st.DeleteBrowserBefore(ctx, biz.ID, cutoff); !errors.Is(err, ErrOrganizationArchived) {
+		t.Fatalf("browser delete = %v, want ErrOrganizationArchived", err)
+	}
+	if _, err := st.DeleteKeystrokesBefore(ctx, biz.ID, cutoff); !errors.Is(err, ErrOrganizationArchived) {
+		t.Fatalf("keystroke delete = %v, want ErrOrganizationArchived", err)
+	}
+
+	activity, err := st.CountActivityBefore(ctx, biz.ID, cutoff)
+	if err != nil || activity != 1 {
+		t.Fatalf("activity count after blocked cleanup = %d err=%v, want 1", activity, err)
+	}
+	browser, err := st.CountBrowserBefore(ctx, biz.ID, cutoff)
+	if err != nil || browser != 1 {
+		t.Fatalf("browser count after blocked cleanup = %d err=%v, want 1", browser, err)
+	}
+	keys, err := st.CountKeystrokesBefore(ctx, biz.ID, cutoff)
+	if err != nil || keys != 1 {
+		t.Fatalf("keystroke count after blocked cleanup = %d err=%v, want 1", keys, err)
+	}
+
+	if _, err := st.ScheduleOrganizationDeletion(ctx, owner.ID, biz.ID); err != nil {
+		t.Fatalf("schedule deletion: %v", err)
+	}
+	if err := st.EnsureBusinessMutable(ctx, biz.ID); !errors.Is(err, ErrOrganizationDeletionPending) {
+		t.Fatalf("mutable check while deletion pending = %v, want ErrOrganizationDeletionPending", err)
+	}
+}
