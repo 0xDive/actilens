@@ -23,6 +23,7 @@ import {
 import { useToast } from "../components/ToastProvider";
 import { AuditLogCard } from "../components/settings/AuditLogCard";
 import { OrganizationSettingsCard } from "../components/settings/OrganizationSettingsCard";
+import { OrganizationLifecycleCard } from "../components/settings/OrganizationLifecycleCard";
 import { MonitoringSettingsCard } from "../components/settings/MonitoringSettingsCard";
 import { ScreenshotPolicyCard } from "../components/settings/ScreenshotPolicyCard";
 import { DeviceEnrollmentSettingsCard } from "../components/settings/DeviceEnrollmentSettingsCard";
@@ -397,6 +398,10 @@ export function Settings() {
               description={t("v1.organization.description")}
             >
               <OrganizationSettingsCard
+                access={{ business: selected, role: selected.role }}
+                onReload={reload}
+              />
+              <OrganizationLifecycleCard
                 access={{ business: selected, role: selected.role }}
                 onReload={reload}
               />
