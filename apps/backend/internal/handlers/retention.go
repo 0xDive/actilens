@@ -23,6 +23,22 @@ func NewRetentionHandler(s *store.Store, r *retention.Service) *RetentionHandler
 	return &RetentionHandler{store: s, retention: r}
 }
 
+func retentionMutationError(c *gin.Context, err error) bool {
+	switch {
+	case err == nil:
+		return false
+	case errors.Is(err, store.ErrOrganizationArchived):
+		apiError(c, http.StatusConflict, ErrCodeOrganizationArchived, "organization is archived", nil)
+	case errors.Is(err, store.ErrOrganizationDeletionPending):
+		apiError(c, http.StatusConflict, ErrCodeOrganizationDeletionPending, "organization deletion is pending", nil)
+	case errors.Is(err, store.ErrNotFound):
+		notFound(c, "organization not found")
+	default:
+		serverError(c, err)
+	}
+	return true
+}
+
 // Preview returns the exact row count (and screenshot bytes) that would be
 // removed by a retention window. It is read-only and is used before destructive
 // retention reductions.
@@ -90,15 +106,7 @@ func (h *RetentionHandler) CleanupData(c *gin.Context) {
 		forbidden(c, "insufficient permission")
 		return
 	}
-	if err := h.store.EnsureBusinessMutable(c.Request.Context(), businessID); err != nil {
-		switch {
-		case errors.Is(err, store.ErrOrganizationArchived):
-			apiError(c, http.StatusConflict, ErrCodeOrganizationArchived, "organization is archived", nil)
-		case errors.Is(err, store.ErrOrganizationDeletionPending):
-			apiError(c, http.StatusConflict, ErrCodeOrganizationDeletionPending, "organization deletion is pending", nil)
-		default:
-			serverError(c, err)
-		}
+	if retentionMutationError(c, h.store.EnsureBusinessMutable(c.Request.Context(), businessID)) {
 		return
 	}
 
@@ -168,8 +176,7 @@ func (h *RetentionHandler) CleanupData(c *gin.Context) {
 		classes,
 		req.OlderThanDays,
 	)
-	if err != nil {
-		serverError(c, err)
+	if retentionMutationError(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, result)
@@ -190,15 +197,7 @@ func (h *RetentionHandler) Cleanup(c *gin.Context) {
 		forbidden(c, "insufficient permission")
 		return
 	}
-	if err := h.store.EnsureBusinessMutable(c.Request.Context(), businessID); err != nil {
-		switch {
-		case errors.Is(err, store.ErrOrganizationArchived):
-			apiError(c, http.StatusConflict, ErrCodeOrganizationArchived, "organization is archived", nil)
-		case errors.Is(err, store.ErrOrganizationDeletionPending):
-			apiError(c, http.StatusConflict, ErrCodeOrganizationDeletionPending, "organization deletion is pending", nil)
-		default:
-			serverError(c, err)
-		}
+	if retentionMutationError(c, h.store.EnsureBusinessMutable(c.Request.Context(), businessID)) {
 		return
 	}
 
@@ -209,8 +208,7 @@ func (h *RetentionHandler) Cleanup(c *gin.Context) {
 	}
 
 	res, err := h.retention.CleanupBusiness(c.Request.Context(), businessID, days)
-	if err != nil {
-		serverError(c, err)
+	if retentionMutationError(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, res)
