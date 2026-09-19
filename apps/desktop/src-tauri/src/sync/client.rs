@@ -83,26 +83,51 @@ struct RefreshReq<'a> {
 /// `GET /v1/policy` — the org's capture policy for the signed-in employee.
 /// `managed` is false for standalone users (no org), in which case the desktop
 /// keeps its local defaults.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PrivacyRule {
+    pub id: String,
+    pub kind: String,
+    pub match_type: String,
+    pub pattern: String,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+}
+
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct Policy {
     pub managed: bool,
     #[serde(default)]
+    pub business_id: Option<String>,
+    #[serde(default)]
+    pub archived: bool,
+    #[serde(default)]
     pub allow_employee_override: bool,
+    #[serde(default = "default_true")]
+    pub collect_app_activity: bool,
+    #[serde(default = "default_true")]
+    pub collect_window_titles: bool,
+    #[serde(default = "default_true")]
+    pub collect_screenshots: bool,
+    #[serde(default = "default_true")]
+    pub collect_browser_activity: bool,
+    #[serde(default = "default_true")]
+    pub collect_keystroke_counts: bool,
     #[serde(default)]
     pub screenshot_interval_s: Option<u64>,
     #[serde(default)]
     pub idle_threshold_s: Option<u64>,
     #[serde(default)]
     pub screenshot_retention_days: Option<u64>,
-    /// 'team' | 'family' — drives the onboarding copy (employee vs kid).
     #[serde(default)]
     pub kind: Option<String>,
-    /// "full_screen" | "active_window" — org-set screenshot capture mode.
+    #[serde(default)]
+    pub screenshot_capture_scope: Option<String>,
     #[serde(default)]
     pub screenshot_mode: Option<String>,
-    /// App names whose capture ticks are skipped entirely while frontmost.
     #[serde(default)]
     pub screenshot_skip_apps: Option<Vec<String>>,
+    #[serde(default)]
+    pub privacy_rules: Vec<PrivacyRule>,
 }
 
 /// One category of the backend's curated sensitive-app list
