@@ -40,6 +40,9 @@ func (s *Store) setMemberStatus(
 	if err != nil {
 		return err
 	}
+	if err := lockMutableOrganizationTx(ctx, tx, businessID); err != nil {
+		return err
+	}
 
 	var targetRole BusinessRole
 	var currentStatus string
