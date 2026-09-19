@@ -90,6 +90,12 @@ func (h *OrganizationLifecycleHandler) TransferOwnership(c *gin.Context) {
 	)
 	switch {
 	case err == nil:
+		h.publish(c, events.Event{
+			Type: events.OwnershipTransferred,
+			OrganizationID: c.Param("id"),
+			ActorUserID: actorID,
+			TargetUserID: req.TargetUserID,
+		})
 		c.JSON(http.StatusOK, gin.H{"status": "transferred", "reauth_required": true})
 	case errors.Is(err, store.ErrForbidden):
 		forbidden(c, "only the owner can transfer ownership")
@@ -154,6 +160,16 @@ func (h *OrganizationLifecycleHandler) ScheduleDeletion(c *gin.Context) {
 	)
 	switch {
 	case err == nil:
+		if businessState.DeletionScheduledAt == nil {
+			h.publish(c, events.Event{
+				Type: events.OrganizationDeletionPending,
+				OrganizationID: business.ID,
+				ActorUserID: actorID,
+				Details: map[string]any{
+					"deletion_scheduled_at": business.DeletionScheduledAt,
+				},
+			})
+		}
 		c.JSON(http.StatusOK, gin.H{"business": business})
 	case errors.Is(err, store.ErrForbidden):
 		forbidden(c, "only the owner can schedule organization deletion")
@@ -166,9 +182,17 @@ func (h *OrganizationLifecycleHandler) ScheduleDeletion(c *gin.Context) {
 
 func (h *OrganizationLifecycleHandler) CancelDeletion(c *gin.Context) {
 	actorID, _ := auth.UserID(c)
+	previous, _ := h.store.GetBusiness(c.Request.Context(), c.Param("id"))
 	business, err := h.store.CancelOrganizationDeletion(
 		c.Request.Context(), actorID, c.Param("id"),
 	)
+	if err == nil && previous.DeletionScheduledAt != nil {
+		h.publish(c, events.Event{
+			Type: events.OrganizationDeletionCancelled,
+			OrganizationID: business.ID,
+			ActorUserID: actorID,
+		})
+	}
 	h.writeBusinessMutation(c, business, err)
 }
 
