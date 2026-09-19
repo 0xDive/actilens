@@ -18,7 +18,7 @@ import {
 
 const PREVIEW_COUNT = 6;
 const DEFAULT_PAGE_SIZE = 8;
-const AUDIT_ROW_HEIGHT = 54;
+const AUDIT_ROW_HEIGHT = 58;
 const MAX_PAGE_SIZE = 24;
 
 const ACTION_KEYS: Record<string, string> = {
