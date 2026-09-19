@@ -564,7 +564,7 @@ func (s *Store) ListAuditEventsPage(
 
 	rows, err := s.pool.Query(ctx, `
 		SELECT a.id, a.business_id, a.actor_user_id, a.action, a.target_type,
-		       COALESCE(a.target_id, ''), a.details,
+		       COALESCE(a.target_id::text, ''), a.details,
 		       extract(epoch FROM a.created_at)::bigint
 		  FROM audit_events a
 		  LEFT JOIN users actor ON actor.id = a.actor_user_id

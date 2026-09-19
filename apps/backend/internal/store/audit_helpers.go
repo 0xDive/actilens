@@ -126,6 +126,23 @@ func auditTargetSnapshotTx(
 		}
 		out["label"], out["hostname"], out["platform"] = label, hostname, platform
 		out["arch"], out["app_version"], out["user_id"], out["revoked"] = arch, appVersion, userID, revoked
+	case "organization_export":
+		var kind, status string
+		err := tx.QueryRow(ctx, `
+			SELECT kind, status
+			  FROM organization_exports
+			 WHERE id = $1 AND business_id = $2`,
+			targetID, businessID,
+		).Scan(&kind, &status)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return out, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		out["kind"] = kind
+		out["status"] = status
+
 	case "privacy_rule":
 		var kind, matchType, pattern string
 		var enabled bool

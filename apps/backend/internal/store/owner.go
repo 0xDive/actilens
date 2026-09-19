@@ -439,6 +439,9 @@ func (s *Store) UpdateBusinessSettingsAudited(
 		return tx.Commit(ctx)
 	}
 	sort.Strings(fieldNames)
+	sort.Slice(changes, func(i, j int) bool {
+		return changes[i].Field < changes[j].Field
+	})
 	sets = append(sets, "updated_at = now()")
 	q := fmt.Sprintf("UPDATE businesses SET %s WHERE id = $1", strings.Join(sets, ", "))
 	ct, err := tx.Exec(ctx, q, args...)
