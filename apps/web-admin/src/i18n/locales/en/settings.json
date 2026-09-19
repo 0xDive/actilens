@@ -64,7 +64,22 @@
     "title": "Screenshot retention",
     "desc": "How long the backend keeps uploaded screenshots for {{name}}. \"Never\" keeps them indefinitely.",
     "ariaLabel": "Retention",
-    "saved": "Screenshot retention updated."
+    "saved": "Screenshot retention updated.",
+    "activity": "Activity retention",
+    "activityDesc": "Keep active/idle and application activity for this many days.",
+    "screenshots": "Screenshot retention",
+    "screenshotsDesc": "Keep uploaded screenshots for this many days. “Never” keeps them indefinitely.",
+    "browser": "Browser retention",
+    "browserDesc": "Keep managed browser activity for this many days.",
+    "keystrokes": "Keystroke-count retention",
+    "keystrokesDesc": "Keep aggregate keystroke counts for this many days.",
+    "previewFailed": "Could not preview the retention change.",
+    "confirmTitle": "Shorten retention period?",
+    "cancel": "Cancel",
+    "confirm": "Confirm shorter retention",
+    "previewRows": "A {{days}}-day policy makes {{count}} existing records eligible for deletion.",
+    "previewScreenshots": "A {{days}}-day policy makes {{count}} screenshots ({{size}}) eligible for deletion.",
+    "workerNotice": "Saving the shorter period does not delete data in this dialog. The retention worker removes eligible data according to the new policy."
   },
   "cleanup": {
     "title": "Manual cleanup",
