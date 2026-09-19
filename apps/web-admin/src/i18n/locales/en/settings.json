@@ -290,8 +290,8 @@
     },
     "devices": {
       "limit": "Active-device limit",
-      "limitHelp": "Only non-revoked devices count. Leave empty for unlimited. A revoked device frees its slot immediately.",
-      "limitField": "Devices per member",
+      "limitHelp": "Only non-revoked devices in this organization count. Leave empty for unlimited. Revoking a device frees one organization slot immediately.",
+      "limitField": "Devices in organization",
       "unlimited": "Unlimited",
       "limitInvalid": "Enter a whole number from 1 to 1000, or leave it empty for unlimited.",
       "limitSaved": "Device limit updated.",
@@ -305,7 +305,7 @@
       },
       "ttlSaved": "Enrollment-code lifetime updated.",
       "enrollmentBehavior": "New-device enrollment",
-      "enrollmentBehaviorHelp": "A valid one-time enrollment code accepts the device automatically, subject to the active-device limit.",
+      "enrollmentBehaviorHelp": "A valid one-time enrollment code accepts a new device automatically while the organization-wide active-device limit has capacity.",
       "automaticEnrollment": "Automatic after valid code"
     }
   },
