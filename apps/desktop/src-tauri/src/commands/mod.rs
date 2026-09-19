@@ -157,6 +157,9 @@ pub fn set_settings(
     // state, so preserve both instead of letting serde defaults reset them.
     let current = state.current.lock().unwrap().clone();
     value.locale = current.locale;
+    value.last_managed_business_id = current.last_managed_business_id.clone();
+    value.collection_scope_dirty =
+        current.collection_scope_dirty || current.local_only || value.local_only;
     value.org_monitoring_enabled = if value.local_only {
         true
     } else {
@@ -495,17 +498,24 @@ async fn activate_authenticated_session(
     control: &Arc<TrackerControl>,
     db: &Arc<Db>,
 ) -> Result<DesktopLoginResult, String> {
-    let managed = session.business_id.is_some();
+    let managed_business_id = session.business_id.clone();
 
-    if managed {
-        // Privacy boundary: rows collected before organization binding remain local
-        // and are never silently uploaded into the new organization.
-        suppress_pre_managed_backlog(db)?;
+    if let Some(business_id) = managed_business_id.as_deref() {
+        let suppress = settings
+            .current
+            .lock()
+            .unwrap()
+            .needs_managed_scope_suppression(business_id);
+        if suppress {
+            // Privacy boundary: rows collected in personal/unbound mode or for a
+            // different organization remain local and are never silently uploaded.
+            suppress_pre_managed_backlog(db)?;
+        }
     }
 
     auth.store(session.clone())?;
 
-    if managed {
+    if let Some(business_id) = managed_business_id.as_deref() {
         control.managed.store(true, Ordering::Relaxed);
         control
             .org_monitoring_enabled
@@ -513,6 +523,8 @@ async fn activate_authenticated_session(
         {
             let mut current = settings.current.lock().unwrap();
             current.local_only = false;
+            current.last_managed_business_id = Some(business_id.to_string());
+            current.collection_scope_dirty = false;
             current.org_monitoring_enabled = false;
             let _ = crate::settings::save(&settings.path, &current);
         }
@@ -524,10 +536,10 @@ async fn activate_authenticated_session(
         }
 
         let client = BackendClient::new(backend_url(), auth.clone());
-        match client.fetch_policy(session.business_id.as_deref()).await {
+        match client.fetch_policy(Some(business_id)).await {
             Ok(policy) => {
                 let enabled = client
-                    .monitoring_enabled(session.business_id.as_deref())
+                    .monitoring_enabled(Some(business_id))
                     .await
                     .unwrap_or(false);
                 crate::settings::apply_managed_policy(settings, control, &policy, enabled);
@@ -543,6 +555,9 @@ async fn activate_authenticated_session(
             .store(true, Ordering::Relaxed);
         *settings.managed.lock().unwrap() = crate::settings::CaptureManaged::default();
         let mut current = settings.current.lock().unwrap();
+        // Rows created by an authenticated-but-unbound account are still outside
+        // any organization privacy boundary and must not later flow into one.
+        current.collection_scope_dirty = true;
         current.org_monitoring_enabled = true;
         crate::settings::apply(&current, control);
         let _ = crate::settings::save(&settings.path, &current);
@@ -643,6 +658,7 @@ pub fn logout(
     control: State<Arc<TrackerControl>>,
 ) -> Result<(), String> {
     auth.clear()?;
+    control.in_setup.store(true, Ordering::Relaxed);
     control
         .org_monitoring_enabled
         .store(true, Ordering::Relaxed);
@@ -667,7 +683,22 @@ pub async fn current_session(
     db: State<'_, Arc<Db>>,
 ) -> Result<Option<Session>, String> {
     if let Some(session) = auth.session() {
-        if session.business_id.is_some() {
+        if let Some(business_id) = session.business_id.as_deref() {
+            let suppress = settings
+                .current
+                .lock()
+                .unwrap()
+                .needs_managed_scope_suppression(business_id);
+            if suppress {
+                suppress_pre_managed_backlog(db.inner())?;
+            }
+            {
+                let mut current = settings.current.lock().unwrap();
+                current.local_only = false;
+                current.last_managed_business_id = Some(business_id.to_string());
+                current.collection_scope_dirty = false;
+                let _ = crate::settings::save(&settings.path, &current);
+            }
             control.managed.store(true, Ordering::Relaxed);
             {
                 let mut managed = settings.managed.lock().unwrap();
@@ -709,6 +740,9 @@ pub async fn current_session(
             }
         } else {
             control.managed.store(false, Ordering::Relaxed);
+            let mut current = settings.current.lock().unwrap();
+            current.collection_scope_dirty = true;
+            let _ = crate::settings::save(&settings.path, &current);
         }
         return Ok(Some(session));
     }
@@ -740,13 +774,28 @@ pub async fn current_session(
 
     // An enrollment creates the privacy boundary between personal/local history
     // and organization-managed collection.
-    if session.business_id.is_some() {
-        suppress_pre_managed_backlog(db.inner())?;
+    if let Some(business_id) = session.business_id.as_deref() {
+        let suppress = settings
+            .current
+            .lock()
+            .unwrap()
+            .needs_managed_scope_suppression(business_id);
+        if suppress {
+            suppress_pre_managed_backlog(db.inner())?;
+        }
     }
 
     if let Err(e) = auth.store(session.clone()) {
         crate::log_warn!("enrollment", "could not persist enrolled session: {e}");
         return Err(e);
+    }
+    if let Some(business_id) = session.business_id.as_deref() {
+        let mut current = settings.current.lock().unwrap();
+        current.local_only = false;
+        current.last_managed_business_id = Some(business_id.to_string());
+        current.collection_scope_dirty = false;
+        current.org_monitoring_enabled = false;
+        let _ = crate::settings::save(&settings.path, &current);
     }
 
     // Do not keep the raw secret in this process after it has been consumed.
