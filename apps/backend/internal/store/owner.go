@@ -210,6 +210,11 @@ func (s *Store) CreateEmployee(ctx context.Context, ownerID string, businessID *
 
 	if err := insertAuditTx(ctx, tx, biz.ID, ownerID, "employee.created", "employee", emp.ID, map[string]any{
 		"display_name": emp.DisplayName,
+		"changes": auditChanges(
+			auditChange("exists", false, true),
+			auditChange("role", nil, string(emp.Role)),
+			auditChange("monitoring_enabled", nil, emp.MonitoringEnabled),
+		),
 	}); err != nil {
 		return Employee{}, Business{}, err
 	}

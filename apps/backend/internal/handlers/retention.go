@@ -300,5 +300,25 @@ func (h *RetentionHandler) Cleanup(c *gin.Context) {
 	if retentionMutationError(c, err) {
 		return
 	}
+	if err := h.store.RecordSettingsAudit(
+		c.Request.Context(),
+		ownerID,
+		businessID,
+		"data.cleanup_completed",
+		"organization",
+		businessID,
+		map[string]any{
+			"data_classes":            []string{"screenshots"},
+			"mode":                    "older_than",
+			"older_than_days":         days,
+			"deleted_count":           res.Deleted,
+			"bytes_freed":             res.BytesFreed,
+			"screenshots_deleted":     res.Deleted,
+			"screenshots_bytes_freed": res.BytesFreed,
+		},
+	); err != nil {
+		serverError(c, err)
+		return
+	}
 	c.JSON(http.StatusOK, res)
 }
