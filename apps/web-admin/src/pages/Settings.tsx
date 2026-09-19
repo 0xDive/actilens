@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  cleanupScreenshots,
+  cleanupData,
   previewRetention,
   updateBusinessSettings,
   type RetentionDataClass,
@@ -38,6 +38,13 @@ function formatBytes(value: number): string {
 }
 
 const CLEANUP_PRESETS = [7, 14, 30, 90];
+
+const CLEANUP_DATA_CLASSES: RetentionDataClass[] = [
+  "activity",
+  "screenshots",
+  "browser",
+  "keystrokes",
+];
 
 type RetentionField =
   | "activity_retention_days"
@@ -153,6 +160,10 @@ export function Settings() {
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [cleanupOpen, setCleanupOpen] = useState(false);
   const [cleanupDays, setCleanupDays] = useState(30);
+  const [cleanupClasses, setCleanupClasses] =
+    useState<RetentionDataClass[]>(["screenshots"]);
+  const [cleanupPreview, setCleanupPreview] = useState<RetentionPreview[]>([]);
+  const [cleanupPreviewing, setCleanupPreviewing] = useState(false);
   const [cleaning, setCleaning] = useState(false);
   const [dialogError, setDialogError] = useState<string | null>(null);
 
@@ -239,14 +250,61 @@ export function Settings() {
     }
   }
 
+  async function refreshCleanupPreview(
+    classes = cleanupClasses,
+    days = cleanupDays,
+  ) {
+    if (!selectedId || classes.length === 0) {
+      setCleanupPreview([]);
+      return;
+    }
+
+    setCleanupPreviewing(true);
+    setDialogError(null);
+    try {
+      const previews = await Promise.all(
+        classes.map((dataClass) =>
+          previewRetention(selectedId, dataClass, days),
+        ),
+      );
+      setCleanupPreview(previews);
+    } catch (error) {
+      setCleanupPreview([]);
+      setDialogError(
+        error instanceof ApiError ? error.message : t("cleanup.previewFailed"),
+      );
+    } finally {
+      setCleanupPreviewing(false);
+    }
+  }
+
+  function openCleanupDialog() {
+    setDialogError(null);
+    setCleanupOpen(true);
+    void refreshCleanupPreview();
+  }
+
+  function toggleCleanupClass(dataClass: RetentionDataClass, checked: boolean) {
+    const next = checked
+      ? Array.from(new Set([...cleanupClasses, dataClass]))
+      : cleanupClasses.filter((value) => value !== dataClass);
+    setCleanupClasses(next);
+    void refreshCleanupPreview(next, cleanupDays);
+  }
+
+  function changeCleanupDays(days: number) {
+    setCleanupDays(days);
+    void refreshCleanupPreview(cleanupClasses, days);
+  }
+
   async function runCleanup() {
-    if (!selectedId) return;
+    if (!selectedId || cleanupClasses.length === 0) return;
 
     setCleaning(true);
     setDialogError(null);
 
     try {
-      const response = await cleanupScreenshots(selectedId, cleanupDays);
+      const response = await cleanupData(selectedId, cleanupClasses, cleanupDays);
       setCleanupOpen(false);
       pushToast({
         title: t("cleanup.removed", {
@@ -451,10 +509,7 @@ export function Settings() {
                     variant="danger-ghost"
                     size="sm"
                     disabled={cleaning}
-                    onClick={() => {
-                      setDialogError(null);
-                      setCleanupOpen(true);
-                    }}
+                    onClick={openCleanupDialog}
                   >
                     {t("cleanup.button")}
                   </Button>
@@ -547,6 +602,11 @@ export function Settings() {
               <Button
                 variant="danger"
                 loading={cleaning}
+                disabled={
+                  cleanupPreviewing ||
+                  cleanupClasses.length === 0 ||
+                  cleanupPreview.length !== cleanupClasses.length
+                }
                 onClick={runCleanup}
               >
                 {t("cleanup.delete", { days: cleanupDays })}
@@ -558,6 +618,22 @@ export function Settings() {
             <Alert tone="warning">
               {t("cleanup.warning", { days: cleanupDays })}
             </Alert>
+            <div className="settings-dialog-stack">
+              <div className="settings-row__title">{t("cleanup.dataClasses")}</div>
+              {CLEANUP_DATA_CLASSES.map((dataClass) => (
+                <label key={dataClass} className="settings-cleanup-check">
+                  <input
+                    type="checkbox"
+                    checked={cleanupClasses.includes(dataClass)}
+                    disabled={cleaning}
+                    onChange={(event) =>
+                      toggleCleanupClass(dataClass, event.currentTarget.checked)
+                    }
+                  />
+                  <span>{t(`cleanup.classes.${dataClass}`)}</span>
+                </label>
+              ))}
+            </div>
             <Segmented
               value={cleanupDays}
               ariaLabel={t("cleanup.olderThanAriaLabel")}
@@ -566,8 +642,33 @@ export function Settings() {
                 value: days,
                 label: t("presets.days", { count: days }),
               }))}
-              onChange={setCleanupDays}
+              onChange={changeCleanupDays}
             />
+            <div className="settings-cleanup-preview">
+              <div className="settings-row__title">{t("cleanup.previewTitle")}</div>
+              {cleanupPreviewing ? (
+                <div className="settings-row__description">
+                  {t("cleanup.previewing")}
+                </div>
+              ) : cleanupClasses.length === 0 ? (
+                <div className="settings-row__description">
+                  {t("cleanup.selectClass")}
+                </div>
+              ) : (
+                cleanupPreview.map((item) => (
+                  <div key={item.data_class} className="settings-row__description">
+                    {t("cleanup.previewLine", {
+                      dataClass: t(`cleanup.classes.${item.data_class}`),
+                      count: item.affected_count,
+                      size:
+                        item.data_class === "screenshots"
+                          ? formatBytes(item.bytes_freed)
+                          : "",
+                    })}
+                  </div>
+                ))
+              )}
+            </div>
             {dialogError && <Alert tone="danger">{dialogError}</Alert>}
           </div>
         </Dialog>
