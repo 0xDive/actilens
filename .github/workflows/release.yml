@@ -56,7 +56,7 @@ jobs:
           --health-timeout 5s
           --health-retries 20
     env:
-      ACTILENS_INTEGRATION_DATABASE_URL: postgres://actilens:actilens@127.0.0.1:5432/actilens?sslmode=disable
+      ACTILENS_TEST_DATABASE_URL: postgres://actilens:actilens@127.0.0.1:5432/actilens?sslmode=disable
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
