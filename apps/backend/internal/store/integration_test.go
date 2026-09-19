@@ -881,3 +881,107 @@ func TestIntegrationProductionUpgradeToProductFoundation(t *testing.T) {
 		t.Fatalf("imported privacy rules = %d, want 2", privacyRuleCount)
 	}
 }
+
+
+func TestIntegrationFourRoleCapabilityMatrix(t *testing.T) {
+	st, pool := integrationStore(t)
+	ctx := context.Background()
+
+	owner, err := st.CreateUser(ctx, "matrix-owner@example.test", "", "hash", "Matrix Owner", "manager")
+	if err != nil {
+		t.Fatalf("create owner: %v", err)
+	}
+	biz, err := st.CreateBusiness(ctx, owner.ID, "Capability matrix", "team")
+	if err != nil {
+		t.Fatalf("create business: %v", err)
+	}
+
+	users := map[BusinessRole]User{RoleOwner: owner}
+	for _, role := range []BusinessRole{RoleAdmin, RoleManager, RoleEmployee} {
+		user, err := st.CreateUser(
+			ctx,
+			"matrix-"+string(role)+"@example.test",
+			"",
+			"hash",
+			"Matrix "+string(role),
+			"manager",
+		)
+		if err != nil {
+			t.Fatalf("create %s: %v", role, err)
+		}
+		if _, err := pool.Exec(ctx,
+			`INSERT INTO memberships (user_id, business_id, role)
+			 VALUES ($1, $2, $3)`,
+			user.ID, biz.ID, role,
+		); err != nil {
+			t.Fatalf("add %s membership: %v", role, err)
+		}
+		users[role] = user
+	}
+
+	all := []Capability{
+		CapabilityReportsView,
+		CapabilityMembersView,
+		CapabilityMembersManage,
+		CapabilityMembersPurge,
+		CapabilityDevicesView,
+		CapabilityDevicesManage,
+		CapabilitySettingsView,
+		CapabilitySettingsManage,
+		CapabilityAuditView,
+		CapabilityRolesManage,
+		CapabilityOrganizationManage,
+		CapabilityOrganizationTransfer,
+		CapabilityOrganizationDelete,
+	}
+	expected := map[BusinessRole]map[Capability]bool{
+		RoleOwner: {
+			CapabilityReportsView: true, CapabilityMembersView: true,
+			CapabilityMembersManage: true, CapabilityMembersPurge: true,
+			CapabilityDevicesView: true, CapabilityDevicesManage: true,
+			CapabilitySettingsView: true, CapabilitySettingsManage: true,
+			CapabilityAuditView: true, CapabilityRolesManage: true,
+			CapabilityOrganizationManage: true, CapabilityOrganizationTransfer: true,
+			CapabilityOrganizationDelete: true,
+		},
+		RoleAdmin: {
+			CapabilityReportsView: true, CapabilityMembersView: true,
+			CapabilityMembersManage: true,
+			CapabilityDevicesView: true, CapabilityDevicesManage: true,
+			CapabilitySettingsView: true, CapabilitySettingsManage: true,
+			CapabilityAuditView: true, CapabilityOrganizationManage: true,
+		},
+		RoleManager: {
+			CapabilityReportsView: true,
+			CapabilityMembersView: true,
+		},
+		RoleEmployee: {},
+	}
+
+	for role, user := range users {
+		for _, capability := range all {
+			got, err := st.HasBusinessPermission(ctx, user.ID, biz.ID, capability)
+			if err != nil {
+				t.Fatalf("%s %s permission error: %v", role, capability, err)
+			}
+			want := expected[role][capability]
+			if got != want {
+				t.Fatalf("%s capability %s = %v, want %v", role, capability, got, want)
+			}
+		}
+	}
+
+	// Membership lifecycle state also gates all role capabilities.
+	manager := users[RoleManager]
+	if _, err := pool.Exec(ctx,
+		`UPDATE memberships SET status = 'blocked' WHERE user_id = $1 AND business_id = $2`,
+		manager.ID, biz.ID,
+	); err != nil {
+		t.Fatalf("block manager fixture: %v", err)
+	}
+	if _, err := st.HasBusinessPermission(
+		ctx, manager.ID, biz.ID, CapabilityReportsView,
+	); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("blocked manager permission error = %v, want ErrForbidden", err)
+	}
+}
