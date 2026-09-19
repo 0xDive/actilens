@@ -1718,7 +1718,10 @@ func TestIntegrationOrganizationMetadataChangesPreserveHistory(t *testing.T) {
 	deviceID := uuid.NewString()
 	activityID := uuid.NewString()
 	if err := st.SyncBatch(
-		ctx, member.ID, biz.ID, deviceID, DeviceMetadata{Hostname: "metadata-device"},
+		ctx, member.ID, biz.ID, deviceID, DeviceMetadata{Hostname: func() *string {
+			v := "metadata-device"
+			return &v
+		}()},
 		[]ActivityRow{{
 			ClientUUID: activityID,
 			Ts: 200,
