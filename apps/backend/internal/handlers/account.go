@@ -460,6 +460,10 @@ func (h *AuthHandler) ResetMemberMFA(c *gin.Context) {
 		forbidden(c, "insufficient permission to reset mfa")
 	case errors.Is(err, store.ErrNotFound):
 		notFound(c, "member not found")
+	case errors.Is(err, store.ErrOrganizationArchived):
+		apiError(c, http.StatusConflict, ErrCodeOrganizationArchived, "organization is archived", nil)
+	case errors.Is(err, store.ErrOrganizationDeletionPending):
+		apiError(c, http.StatusConflict, ErrCodeOrganizationDeletionPending, "organization deletion is pending", nil)
 	default:
 		serverError(c, err)
 	}
