@@ -1492,7 +1492,7 @@ func TestIntegrationCleanupDateRangeBoundaries(t *testing.T) {
 			ClientUUID: uuid.NewString(),
 			DeviceID: deviceID,
 			Ts: ts,
-			FilePath: "screenshots/range-" + string(rune('a'+i)) + ".webp",
+			FilePath: "screenshots/" + uuid.NewString() + ".webp",
 			ByteSize: (i + 1) * 10,
 			ClientUpdatedAt: ts,
 		}); err != nil {
