@@ -192,7 +192,11 @@ export function OrganizationLifecycleCard({
     setDialogError(null);
     try {
       const grant = await createReauthGrant(currentPassword, mfaCode);
-      await scheduleOrganizationDeletion(business.id, grant.reauth_token);
+      await scheduleOrganizationDeletion(
+        business.id,
+        grant.reauth_token,
+        confirmation,
+      );
       setDeleteOpen(false);
       await onReload();
       pushToast({ title: t("lifecycle.deletionScheduled"), tone: "success" });
