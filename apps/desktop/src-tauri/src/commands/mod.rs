@@ -169,7 +169,10 @@ pub fn set_settings(
         value.screenshot_interval_s = cur.screenshot_interval_s;
         value.idle_threshold_s = cur.idle_threshold_s;
         value.screenshot_retention_days = cur.screenshot_retention_days;
+        value.capture_screenshots = cur.capture_screenshots;
         value.screenshot_mode = cur.screenshot_mode;
+        value.screenshot_capture_scope = cur.screenshot_capture_scope;
+        value.screenshot_privacy_rules = cur.screenshot_privacy_rules;
         value.screenshot_skip_apps = cur.screenshot_skip_apps;
     }
     crate::settings::apply(&value, &control);
@@ -189,8 +192,8 @@ pub async fn apply_org_policy(
     control: State<'_, Arc<TrackerControl>>,
 ) -> Result<crate::settings::CaptureManaged, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    let policy = client.fetch_policy().await?;
     let business_id = auth.session().and_then(|s| s.business_id);
+    let policy = client.fetch_policy(business_id.as_deref()).await?;
     let previous_monitoring = settings.managed.lock().unwrap().monitoring_enabled;
     let monitoring_enabled = client
         .monitoring_enabled(business_id.as_deref())
@@ -228,12 +231,27 @@ pub async fn apply_org_policy(
         if let Some(v) = policy.screenshot_retention_days {
             s.screenshot_retention_days = v;
         }
-        if let Some(v) = policy.screenshot_mode {
-            s.screenshot_mode = v;
+        s.capture_screenshots = policy.collect_screenshots;
+        if let Some(v) = policy.screenshot_capture_scope.clone() {
+            s.screenshot_capture_scope = v.clone();
+            // Keep the legacy UI field coherent until the personal-mode settings
+            // screen is migrated to the explicit three-way scope.
+            s.screenshot_mode = if v == "active_window" {
+                "privacy".into()
+            } else {
+                "normal".into()
+            };
+        } else if let Some(v) = policy.screenshot_mode.clone() {
+            s.screenshot_mode = v.clone();
+            s.screenshot_capture_scope = match v.as_str() {
+                "normal" | "full_screen" => "all_displays".into(),
+                _ => "active_window".into(),
+            };
         }
-        if let Some(v) = policy.screenshot_skip_apps {
+        if let Some(v) = policy.screenshot_skip_apps.clone() {
             s.screenshot_skip_apps = v;
         }
+        s.screenshot_privacy_rules = policy.privacy_rules.clone();
         crate::settings::apply(&s, &control);
         let _ = crate::settings::save(&settings.path, &s);
         *settings.current.lock().unwrap() = s;
