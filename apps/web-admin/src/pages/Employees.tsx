@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Trans, useTranslation } from "react-i18next";
 import {
@@ -109,26 +110,76 @@ function genTempPassword(): string {
   return out;
 }
 
-function useDismiss(open: boolean, close: () => void) {
-  const ref = useRef<HTMLDivElement>(null);
+function useAnchoredMenu(
+  open: boolean,
+  setOpen: (open: boolean) => void,
+) {
+  const anchorRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [style, setStyle] = useState<CSSProperties>({
+    position: "fixed",
+    top: 0,
+    left: 0,
+    visibility: "hidden",
+  });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) return;
+
+    const gap = 6;
+    const margin = 8;
+
+    function updatePosition() {
+      const anchor = anchorRef.current;
+      if (!anchor) return;
+
+      const rect = anchor.getBoundingClientRect();
+      const width = menuRef.current?.offsetWidth || 232;
+      const height = menuRef.current?.offsetHeight || 0;
+      const maxLeft = Math.max(margin, window.innerWidth - width - margin);
+      const left = Math.min(Math.max(margin, rect.right - width), maxLeft);
+      const below = rect.bottom + gap;
+      const above = rect.top - height - gap;
+      const maxTop = Math.max(margin, window.innerHeight - height - margin);
+      const top =
+        height > 0 && below + height > window.innerHeight - margin && above >= margin
+          ? above
+          : Math.min(Math.max(margin, below), maxTop);
+
+      setStyle({
+        position: "fixed",
+        top,
+        left,
+        zIndex: 1000,
+        visibility: "visible",
+      });
+    }
+
     function onPointerDown(event: MouseEvent) {
-      if (ref.current && !ref.current.contains(event.target as Node)) close();
+      const target = event.target as Node;
+      if (anchorRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setOpen(false);
     }
+
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") close();
+      if (event.key === "Escape") setOpen(false);
     }
+
+    const frame = requestAnimationFrame(updatePosition);
+    window.addEventListener("resize", updatePosition);
+    document.addEventListener("scroll", updatePosition, true);
     document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
     return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", updatePosition);
+      document.removeEventListener("scroll", updatePosition, true);
       document.removeEventListener("mousedown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [open, close]);
+  }, [open, setOpen]);
 
-  return ref;
+  return { anchorRef, menuRef, style };
 }
 
 function EmployeesSkeleton() {
@@ -174,7 +225,7 @@ function EmployeeActionsMenu({
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [dialogError, setDialogError] = useState<string | null>(null);
-  const ref = useDismiss(open, () => setOpen(false));
+  const menu = useAnchoredMenu(open, setOpen);
 
   async function saveEdit() {
     const name = editName.trim();
@@ -253,8 +304,9 @@ function EmployeeActionsMenu({
   }
 
   return (
-    <div className="employees-actions" ref={ref}>
+    <div className="employees-actions">
       <IconButton
+        ref={menu.anchorRef}
         label={t("employees.actions.more")}
         onClick={(event) => {
           event.stopPropagation();
@@ -264,8 +316,13 @@ function EmployeeActionsMenu({
         <MoreIcon />
       </IconButton>
 
-      {open && (
-        <div className="ds-shell-popover employees-actions__menu" role="menu">
+      {open && createPortal(
+        <div
+          ref={menu.menuRef}
+          className="ds-shell-popover employees-actions__menu"
+          role="menu"
+          style={menu.style}
+        >
           <Link
             className="ds-menu__item"
             to={`/employees/${employee.id}?business=${businessId}`}
@@ -350,7 +407,8 @@ function EmployeeActionsMenu({
               />
             </>
           )}
-        </div>
+        </div>,
+        document.body,
       )}
 
       {editOpen && (
@@ -505,7 +563,7 @@ function FormerMemberActions({
   const [monitoringEnabled, setMonitoringEnabled] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const ref = useDismiss(open, () => setOpen(false));
+  const menu = useAnchoredMenu(open, setOpen);
 
   async function restore() {
     setBusy(true);
@@ -523,8 +581,9 @@ function FormerMemberActions({
   }
 
   return (
-    <div className="employees-actions" ref={ref}>
+    <div className="employees-actions">
       <IconButton
+        ref={menu.anchorRef}
         label={t("employees.actions.more")}
         onClick={(event) => {
           event.stopPropagation();
@@ -534,8 +593,13 @@ function FormerMemberActions({
         <MoreIcon />
       </IconButton>
 
-      {open && (
-        <div className="ds-shell-popover employees-actions__menu" role="menu">
+      {open && createPortal(
+        <div
+          ref={menu.menuRef}
+          className="ds-shell-popover employees-actions__menu"
+          role="menu"
+          style={menu.style}
+        >
           <Link
             className="ds-menu__item"
             to={`/employees/${employee.id}?business=${businessId}&former=1`}
@@ -572,7 +636,8 @@ function FormerMemberActions({
               />
             </>
           )}
-        </div>
+        </div>,
+        document.body,
       )}
 
       {restoreOpen && (
@@ -920,12 +985,6 @@ export function Employees() {
           ) : undefined
         }
       />
-
-      {selected && organizationReadOnly && (
-        <div className="employees-readonly-alert">
-          <Alert tone="info">{t("employees.lifecycle.readOnly")}</Alert>
-        </div>
-      )}
 
       {selectedId && mayViewFormer && (
         <div className="employees-view-tabs" role="tablist" aria-label={t("employees.lifecycle.viewLabel")}>

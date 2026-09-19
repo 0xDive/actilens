@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   cleanupData,
@@ -457,6 +457,54 @@ export function Settings() {
         ["storage", t("v1.sections.storage")],
         ["audit", t("v1.sections.audit")],
       ] as const);
+
+  useEffect(() => {
+    if (!selectedId) return;
+
+    const root = document.querySelector<HTMLElement>(".ds-shell-content");
+    if (!root) return;
+
+    const ids = organizationReadOnly
+      ? ["organization", "storage", "audit"]
+      : ["organization", "monitoring", "screenshots", "devices", "storage", "audit"];
+    const sections = ids
+      .map((id) => document.getElementById(id))
+      .filter((section): section is HTMLElement => Boolean(section));
+    if (sections.length === 0) return;
+
+    let frame = 0;
+    const updateActiveSection = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const markerY = root.getBoundingClientRect().top + 112;
+        let current = sections[0].id;
+
+        for (const section of sections) {
+          if (section.getBoundingClientRect().top <= markerY) {
+            current = section.id;
+          } else {
+            break;
+          }
+        }
+
+        if (root.scrollTop + root.clientHeight >= root.scrollHeight - 12) {
+          current = sections[sections.length - 1].id;
+        }
+
+        setActiveSection(current);
+      });
+    };
+
+    updateActiveSection();
+    root.addEventListener("scroll", updateActiveSection, { passive: true });
+    window.addEventListener("resize", updateActiveSection);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      root.removeEventListener("scroll", updateActiveSection);
+      window.removeEventListener("resize", updateActiveSection);
+    };
+  }, [organizationReadOnly, selectedId]);
 
   function goToSection(id: string) {
     setActiveSection(id);

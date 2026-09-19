@@ -431,7 +431,8 @@
       "windowTitles": "Window-title rules"
     },
     "suggestions": "Suggested sensitive applications",
-    "suggestionsHelp": "Add a preset as an exact application-name rule. You can edit it afterwards."
+    "suggestionsHelp": "Add a preset as an exact application-name rule. You can edit it afterwards.",
+    "windowTitlesHelp": "Optional: skip a screenshot when the active window title contains the specified text."
   },
   "exports": {
     "title": "Exports",

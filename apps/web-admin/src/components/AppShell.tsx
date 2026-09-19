@@ -14,7 +14,7 @@ import { memberTerms } from "../terms";
 import { DetailHeaderContext } from "../detailHeader";
 import { canManageSettings } from "../rbac";
 import { LOCALES } from "../i18n";
-import { cx, IconButton } from "./ds";
+import { Badge, cx, IconButton } from "./ds";
 
 const SIDEBAR_KEY = "actilens.admin.sidebarCollapsed";
 
@@ -422,6 +422,15 @@ export function AppShell() {
             {selected && (
               <>
                 <span className="ds-shell-breadcrumb__segment">{selected.name}</span>
+                {selected.deletion_scheduled_at ? (
+                  <Badge tone="danger" className="ds-shell-breadcrumb__status">
+                    {t("shell.deletionPending")}
+                  </Badge>
+                ) : selected.archived_at ? (
+                  <Badge tone="neutral" className="ds-shell-breadcrumb__status">
+                    {t("shell.archived")}
+                  </Badge>
+                ) : null}
                 <ChevronRightIcon />
               </>
             )}

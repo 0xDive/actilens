@@ -287,12 +287,6 @@ export function EmployeeDetail() {
         ← {terms.many}
       </Link>
 
-      {business && organizationReadOnly && (
-        <div className="employee-detail__alert">
-          <Alert tone="info">{t("employees.lifecycle.readOnly")}</Alert>
-        </div>
-      )}
-
       {identityLoading ? (
         <DetailSkeleton />
       ) : !employee && !liveEmployee ? (

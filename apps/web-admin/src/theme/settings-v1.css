@@ -763,3 +763,38 @@
     grid-column: auto;
   }
 }
+
+
+/* Privacy app picker keeps the compact category/chip interaction from Settings v1. */
+.privacy-rules__app-input {
+  align-items: flex-end;
+}
+
+.privacy-rules__loading {
+  display: grid;
+  gap: 8px;
+}
+
+.privacy-rules__advanced {
+  padding-top: 14px;
+  border-top: 1px solid var(--ds-border-subtle);
+}
+
+.privacy-rules__advanced summary {
+  width: fit-content;
+  color: var(--ds-text-secondary);
+  font-size: var(--ds-text-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.privacy-rules__advanced > p {
+  margin: 8px 0 12px;
+  color: var(--ds-text-tertiary);
+  font-size: var(--ds-text-xs);
+  line-height: 17px;
+}
+
+.privacy-rules__advanced .settings-chip-group {
+  margin-top: 10px;
+}

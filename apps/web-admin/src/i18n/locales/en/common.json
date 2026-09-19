@@ -61,7 +61,9 @@
     "expand": "Expand navigation",
     "context": "Page context",
     "appearance": "Appearance",
-    "account": "Account & security"
+    "account": "Account & security",
+    "archived": "Archived",
+    "deletionPending": "Deletion scheduled"
   },
   "errors": {
     "validation_error": "Check the entered values and try again.",

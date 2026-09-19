@@ -7,25 +7,12 @@ import {
   listPrivacyRules,
   updatePrivacyRule,
 } from "../../api/endpoints";
-import type {
-  PrivacyAppCategory,
-  PrivacyRule,
-  PrivacyRuleKind,
-  PrivacyRuleMatchType,
-} from "../../api/types";
-import {
-  Alert,
-  Button,
-  Dialog,
-  EmptyState,
-  Skeleton,
-  Switch,
-  TextField,
-} from "../ds";
+import type { PrivacyAppCategory, PrivacyRule } from "../../api/types";
+import { Alert, Button, Dialog, Skeleton, TextField } from "../ds";
 import { useToast } from "../ToastProvider";
 
-function ruleKey(rule: Pick<PrivacyRule, "kind" | "match_type" | "pattern">) {
-  return `${rule.kind}:${rule.match_type}:${rule.pattern.trim().toLowerCase()}`;
+function normalized(value: string) {
+  return value.trim().toLowerCase();
 }
 
 export function PrivacyRulesDialog({
@@ -43,22 +30,10 @@ export function PrivacyRulesDialog({
   const [rules, setRules] = useState<PrivacyRule[]>([]);
   const [categories, setCategories] = useState<PrivacyAppCategory[]>([]);
   const [loading, setLoading] = useState(false);
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const [kind, setKind] = useState<PrivacyRuleKind>("app");
-  const [matchType, setMatchType] = useState<PrivacyRuleMatchType>("exact");
-  const [pattern, setPattern] = useState("");
-
-  const [editRule, setEditRule] = useState<PrivacyRule | null>(null);
-  const [editKind, setEditKind] = useState<PrivacyRuleKind>("app");
-  const [editMatch, setEditMatch] = useState<PrivacyRuleMatchType>("exact");
-  const [editPattern, setEditPattern] = useState("");
-
-  const existingKeys = useMemo(
-    () => new Set(rules.map((rule) => ruleKey(rule))),
-    [rules],
-  );
+  const [customApp, setCustomApp] = useState("");
+  const [windowTitle, setWindowTitle] = useState("");
 
   async function reload() {
     setLoading(true);
@@ -79,69 +54,161 @@ export function PrivacyRulesDialog({
 
   useEffect(() => {
     if (!open) return;
-    reload();
+    void reload();
   }, [businessId, open]);
 
-  useEffect(() => {
-    if (kind === "window_title") setMatchType("contains");
-  }, [kind]);
+  const suggestedApps = useMemo(
+    () =>
+      new Set(
+        categories.flatMap((category) =>
+          category.apps.map((app) => normalized(app)),
+        ),
+      ),
+    [categories],
+  );
 
-  if (!open) return null;
+  const exactAppRules = rules.filter(
+    (rule) => rule.kind === "app" && rule.match_type === "exact",
+  );
+  const customAppRules = exactAppRules.filter(
+    (rule) => rule.enabled && !suggestedApps.has(normalized(rule.pattern)),
+  );
+  const titleRules = rules.filter(
+    (rule) => rule.kind === "window_title" && rule.enabled,
+  );
 
-  async function addRule(event: FormEvent) {
-    event.preventDefault();
-    const value = pattern.trim();
-    if (!value) return;
-    setBusyId("new");
-    setError(null);
-    try {
+  function findAppRule(app: string) {
+    const key = normalized(app);
+    return exactAppRules.find((rule) => normalized(rule.pattern) === key);
+  }
+
+  function hasApp(app: string) {
+    return Boolean(findAppRule(app)?.enabled);
+  }
+
+  async function applyAppSelection(app: string, selected: boolean) {
+    const existing = findAppRule(app);
+
+    if (selected) {
+      if (existing) {
+        if (existing.enabled) return;
+        const response = await updatePrivacyRule(businessId, existing.id, {
+          enabled: true,
+        });
+        setRules((current) =>
+          current.map((rule) =>
+            rule.id === existing.id ? response.rule : rule,
+          ),
+        );
+        return;
+      }
+
       const response = await createPrivacyRule(businessId, {
-        kind,
-        match_type: kind === "window_title" ? "contains" : matchType,
-        pattern: value,
+        kind: "app",
+        match_type: "exact",
+        pattern: app,
       });
       setRules((current) => [...current, response.rule]);
-      setPattern("");
+      return;
+    }
+
+    if (!existing) return;
+    await deletePrivacyRule(businessId, existing.id);
+    setRules((current) => current.filter((rule) => rule.id !== existing.id));
+  }
+
+  async function toggleApp(app: string) {
+    setSaving(true);
+    setError(null);
+    try {
+      await applyAppSelection(app, !hasApp(app));
+      pushToast({ title: t("skipApps.saved"), tone: "success" });
+    } catch {
+      setError(t("privacyRules.saveFailed"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function setCategory(category: PrivacyAppCategory, selected: boolean) {
+    setSaving(true);
+    setError(null);
+    try {
+      await Promise.all(
+        category.apps.map((app) => applyAppSelection(app, selected)),
+      );
+      pushToast({ title: t("skipApps.saved"), tone: "success" });
+    } catch {
+      setError(t("privacyRules.saveFailed"));
+      await reload();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function addCustomApp(event: FormEvent) {
+    event.preventDefault();
+    const app = customApp.trim();
+    if (!app) return;
+
+    setSaving(true);
+    setError(null);
+    try {
+      await applyAppSelection(app, true);
+      setCustomApp("");
+      pushToast({ title: t("skipApps.saved"), tone: "success" });
+    } catch {
+      setError(t("privacyRules.saveFailed"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function addWindowTitle(event: FormEvent) {
+    event.preventDefault();
+    const pattern = windowTitle.trim();
+    if (!pattern) return;
+
+    const existing = rules.find(
+      (rule) =>
+        rule.kind === "window_title" &&
+        rule.match_type === "contains" &&
+        normalized(rule.pattern) === normalized(pattern),
+    );
+
+    setSaving(true);
+    setError(null);
+    try {
+      if (existing) {
+        if (!existing.enabled) {
+          const response = await updatePrivacyRule(businessId, existing.id, {
+            enabled: true,
+          });
+          setRules((current) =>
+            current.map((rule) =>
+              rule.id === existing.id ? response.rule : rule,
+            ),
+          );
+        }
+      } else {
+        const response = await createPrivacyRule(businessId, {
+          kind: "window_title",
+          match_type: "contains",
+          pattern,
+        });
+        setRules((current) => [...current, response.rule]);
+      }
+      setWindowTitle("");
       pushToast({ title: t("privacyRules.created"), tone: "success" });
     } catch {
       setError(t("privacyRules.saveFailed"));
     } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function addSuggested(app: string) {
-    const candidate = { kind: "app" as const, match_type: "exact" as const, pattern: app };
-    if (existingKeys.has(ruleKey(candidate))) return;
-    setBusyId(`preset:${app}`);
-    setError(null);
-    try {
-      const response = await createPrivacyRule(businessId, candidate);
-      setRules((current) => [...current, response.rule]);
-    } catch {
-      setError(t("privacyRules.saveFailed"));
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function toggleRule(rule: PrivacyRule, enabled: boolean) {
-    setBusyId(rule.id);
-    setError(null);
-    try {
-      const response = await updatePrivacyRule(businessId, rule.id, { enabled });
-      setRules((current) =>
-        current.map((item) => (item.id === rule.id ? response.rule : item)),
-      );
-    } catch {
-      setError(t("privacyRules.saveFailed"));
-    } finally {
-      setBusyId(null);
+      setSaving(false);
     }
   }
 
   async function removeRule(rule: PrivacyRule) {
-    setBusyId(rule.id);
+    setSaving(true);
     setError(null);
     try {
       await deletePrivacyRule(businessId, rule.id);
@@ -150,292 +217,187 @@ export function PrivacyRulesDialog({
     } catch {
       setError(t("privacyRules.deleteFailed"));
     } finally {
-      setBusyId(null);
+      setSaving(false);
     }
   }
 
-  function startEdit(rule: PrivacyRule) {
-    setEditRule(rule);
-    setEditKind(rule.kind);
-    setEditMatch(rule.match_type);
-    setEditPattern(rule.pattern);
-  }
-
-  async function saveEdit(event: FormEvent) {
-    event.preventDefault();
-    if (!editRule || !editPattern.trim()) return;
-    setBusyId(editRule.id);
-    setError(null);
-    try {
-      const response = await updatePrivacyRule(businessId, editRule.id, {
-        kind: editKind,
-        match_type: editKind === "window_title" ? "contains" : editMatch,
-        pattern: editPattern.trim(),
-      });
-      setRules((current) =>
-        current.map((item) => (item.id === editRule.id ? response.rule : item)),
-      );
-      setEditRule(null);
-      pushToast({ title: t("privacyRules.saved"), tone: "success" });
-    } catch {
-      setError(t("privacyRules.saveFailed"));
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  const appRules = rules.filter((rule) => rule.kind === "app");
-  const titleRules = rules.filter((rule) => rule.kind === "window_title");
+  if (!open) return null;
 
   return (
-    <>
-      <Dialog
-        title={t("privacyRules.title")}
-        size="complex"
-        onClose={() => busyId === null && onClose()}
-        closeOnBackdrop={busyId === null}
-        footer={
-          <Button variant="primary" disabled={busyId !== null} onClick={onClose}>
-            {t("privacyRules.done")}
-          </Button>
-        }
-      >
-        <div className="settings-dialog-stack privacy-rules">
-          <Alert tone="info">{t("privacyRules.preventCapture")}</Alert>
+    <Dialog
+      title={t("skipApps.modalTitle")}
+      size="complex"
+      onClose={() => !saving && onClose()}
+      closeOnBackdrop={!saving}
+      footer={
+        <Button variant="primary" disabled={saving} onClick={onClose}>
+          {t("skipApps.done")}
+        </Button>
+      }
+    >
+      <div className="settings-dialog-stack privacy-rules">
+        <p className="settings-section__description">{t("skipApps.desc")}</p>
 
-          <form className="privacy-rules__new" onSubmit={addRule}>
-            <div className="privacy-rules__selectors">
-              <label className="privacy-rules__field">
-                <span>{t("privacyRules.kind")}</span>
-                <select
-                  className="ds-select"
-                  value={kind}
-                  disabled={busyId !== null}
-                  onChange={(event) =>
-                    setKind(event.currentTarget.value as PrivacyRuleKind)
-                  }
-                >
-                  <option value="app">{t("privacyRules.kinds.app")}</option>
-                  <option value="window_title">{t("privacyRules.kinds.windowTitle")}</option>
-                </select>
-              </label>
-
-              <label className="privacy-rules__field">
-                <span>{t("privacyRules.match")}</span>
-                <select
-                  className="ds-select"
-                  value={kind === "window_title" ? "contains" : matchType}
-                  disabled={busyId !== null || kind === "window_title"}
-                  onChange={(event) =>
-                    setMatchType(event.currentTarget.value as PrivacyRuleMatchType)
-                  }
-                >
-                  <option value="exact">{t("privacyRules.matches.exact")}</option>
-                  <option value="contains">{t("privacyRules.matches.contains")}</option>
-                </select>
-              </label>
-            </div>
-
-            <div className="privacy-rules__pattern">
-              <TextField
-                id="privacy-rule-pattern"
-                label={t("privacyRules.pattern")}
-                value={pattern}
-                maxLength={200}
-                disabled={busyId !== null}
-                placeholder={
-                  kind === "app"
-                    ? t("privacyRules.appPlaceholder")
-                    : t("privacyRules.titlePlaceholder")
-                }
-                onChange={(event) => setPattern(event.target.value)}
-              />
-              <Button
-                type="submit"
-                variant="secondary"
-                loading={busyId === "new"}
-                disabled={busyId !== null || !pattern.trim()}
-              >
-                {t("privacyRules.add")}
-              </Button>
-            </div>
-          </form>
-
-          {error && <Alert tone="danger">{error}</Alert>}
-
-          {loading ? (
-            <div className="privacy-rules__list">
-              <Skeleton height={62} />
-              <Skeleton height={62} />
-              <Skeleton height={62} />
-            </div>
-          ) : rules.length === 0 ? (
-            <EmptyState
-              title={t("privacyRules.empty")}
-              description={t("privacyRules.emptyDescription")}
+        <form
+          className="settings-inline privacy-rules__app-input"
+          onSubmit={addCustomApp}
+        >
+          <div className="settings-skip-input">
+            <TextField
+              id="privacy-app-custom"
+              label={t("skipApps.custom")}
+              value={customApp}
+              placeholder={t("skipApps.placeholder")}
+              disabled={saving}
+              onChange={(event) => setCustomApp(event.target.value)}
             />
-          ) : (
-            <div className="privacy-rules__groups">
-              {[
-                ["app", appRules, t("privacyRules.groups.apps")],
-                ["window_title", titleRules, t("privacyRules.groups.windowTitles")],
-              ].map(([groupKey, groupRules, label]) => {
-                const list = groupRules as PrivacyRule[];
-                if (!list.length) return null;
+          </div>
+          <Button
+            type="submit"
+            variant="secondary"
+            disabled={saving || !customApp.trim()}
+          >
+            {t("skipApps.add")}
+          </Button>
+        </form>
+
+        {error && <Alert tone="danger">{error}</Alert>}
+
+        {loading ? (
+          <div className="privacy-rules__loading">
+            <Skeleton height={36} />
+            <Skeleton height={110} />
+            <Skeleton height={110} />
+          </div>
+        ) : (
+          <>
+            {customAppRules.length > 0 && (
+              <div>
+                <div className="settings-row__title">{t("skipApps.custom")}</div>
+                <div className="settings-chip-group settings-chip-group--top">
+                  {customAppRules.map((rule) => (
+                    <button
+                      key={rule.id}
+                      type="button"
+                      className="settings-chip is-active"
+                      disabled={saving}
+                      aria-label={t("skipApps.remove", { name: rule.pattern })}
+                      onClick={() => void removeRule(rule)}
+                    >
+                      {rule.pattern} ×
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="settings-skip-list">
+              {categories.map((category) => {
+                const selectedCount = category.apps.filter(hasApp).length;
                 return (
-                  <section className="privacy-rules__group" key={String(groupKey)}>
-                    <h3>{String(label)}</h3>
-                    <div className="privacy-rules__list">
-                      {list.map((rule) => (
-                        <div className="privacy-rules__row" key={rule.id}>
-                          <div className="privacy-rules__copy">
-                            <strong>{rule.pattern}</strong>
-                            <span>
-                              {t(`privacyRules.kinds.${rule.kind === "app" ? "app" : "windowTitle"}`)}
-                              {" · "}
-                              {t(`privacyRules.matches.${rule.match_type}`)}
-                            </span>
-                          </div>
-                          <div className="privacy-rules__actions">
-                            <Switch
-                              checked={rule.enabled}
-                              disabled={busyId !== null}
-                              label={
-                                rule.enabled
-                                  ? t("foundation.enabled")
-                                  : t("foundation.disabled")
-                              }
-                              onCheckedChange={(enabled) => toggleRule(rule, enabled)}
-                            />
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={busyId !== null}
-                              onClick={() => startEdit(rule)}
-                            >
-                              {t("privacyRules.edit")}
-                            </Button>
-                            <Button
-                              variant="danger-ghost"
-                              size="sm"
-                              loading={busyId === rule.id}
-                              disabled={busyId !== null && busyId !== rule.id}
-                              onClick={() => removeRule(rule)}
-                            >
-                              {t("privacyRules.delete")}
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
+                  <div className="settings-skip-category" key={category.key}>
+                    <div className="settings-skip-category__head">
+                      <span className="settings-skip-category__name">
+                        {t("skipApps.cat" + category.key)} ({selectedCount}/
+                        {category.apps.length})
+                      </span>
+
+                      {selectedCount < category.apps.length && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={saving}
+                          onClick={() => void setCategory(category, true)}
+                        >
+                          {t("skipApps.addAll")}
+                        </Button>
+                      )}
+
+                      {selectedCount > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={saving}
+                          onClick={() => void setCategory(category, false)}
+                        >
+                          {t("skipApps.removeAll")}
+                        </Button>
+                      )}
                     </div>
-                  </section>
+
+                    <div className="settings-chip-group">
+                      {category.apps.map((app) => {
+                        const active = hasApp(app);
+                        return (
+                          <button
+                            key={app}
+                            type="button"
+                            role="checkbox"
+                            aria-checked={active}
+                            className={
+                              active ? "settings-chip is-active" : "settings-chip"
+                            }
+                            disabled={saving}
+                            onClick={() => void toggleApp(app)}
+                          >
+                            {active ? "✓ " : "+ "}
+                            {app}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 );
               })}
             </div>
-          )}
 
-          {categories.length > 0 && (
-            <section className="privacy-rules__suggestions">
-              <h3>{t("privacyRules.suggestions")}</h3>
-              <p>{t("privacyRules.suggestionsHelp")}</p>
-              {categories.map((category) => (
-                <div className="privacy-rules__suggestion-group" key={category.key}>
-                  <strong>{t(`skipApps.cat${category.key}`)}</strong>
-                  <div className="settings-chip-group">
-                    {category.apps.map((app) => {
-                      const exists = existingKeys.has(
-                        ruleKey({ kind: "app", match_type: "exact", pattern: app }),
-                      );
-                      return (
-                        <button
-                          key={app}
-                          type="button"
-                          className={`settings-chip${exists ? " is-active" : ""}`}
-                          disabled={exists || busyId !== null}
-                          onClick={() => addSuggested(app)}
-                        >
-                          {exists ? "✓ " : "+ "}
-                          {app}
-                        </button>
-                      );
-                    })}
-                  </div>
+            <details className="privacy-rules__advanced">
+              <summary>{t("privacyRules.groups.windowTitles")}</summary>
+              <p>{t("privacyRules.windowTitlesHelp")}</p>
+
+              <form
+                className="settings-inline privacy-rules__app-input"
+                onSubmit={addWindowTitle}
+              >
+                <div className="settings-skip-input">
+                  <TextField
+                    id="privacy-window-title"
+                    label={t("privacyRules.pattern")}
+                    value={windowTitle}
+                    placeholder={t("privacyRules.titlePlaceholder")}
+                    disabled={saving}
+                    onChange={(event) => setWindowTitle(event.target.value)}
+                  />
                 </div>
-              ))}
-            </section>
-          )}
-        </div>
-      </Dialog>
+                <Button
+                  type="submit"
+                  variant="secondary"
+                  disabled={saving || !windowTitle.trim()}
+                >
+                  {t("privacyRules.add")}
+                </Button>
+              </form>
 
-      {editRule && (
-        <Dialog
-          title={t("privacyRules.editTitle")}
-          size="confirm"
-          onClose={() => busyId === null && setEditRule(null)}
-          closeOnBackdrop={busyId === null}
-          footer={
-            <>
-              <Button
-                variant="secondary"
-                disabled={busyId !== null}
-                onClick={() => setEditRule(null)}
-              >
-                {t("foundation.cancel")}
-              </Button>
-              <Button
-                type="submit"
-                form="privacy-rule-edit"
-                variant="primary"
-                loading={busyId === editRule.id}
-                disabled={!editPattern.trim()}
-              >
-                {t("foundation.save")}
-              </Button>
-            </>
-          }
-        >
-          <form id="privacy-rule-edit" className="account-v1__form" onSubmit={saveEdit}>
-            <label className="privacy-rules__field">
-              <span>{t("privacyRules.kind")}</span>
-              <select
-                className="ds-select"
-                value={editKind}
-                disabled={busyId !== null}
-                onChange={(event) => {
-                  const next = event.currentTarget.value as PrivacyRuleKind;
-                  setEditKind(next);
-                  if (next === "window_title") setEditMatch("contains");
-                }}
-              >
-                <option value="app">{t("privacyRules.kinds.app")}</option>
-                <option value="window_title">{t("privacyRules.kinds.windowTitle")}</option>
-              </select>
-            </label>
-            <label className="privacy-rules__field">
-              <span>{t("privacyRules.match")}</span>
-              <select
-                className="ds-select"
-                value={editKind === "window_title" ? "contains" : editMatch}
-                disabled={busyId !== null || editKind === "window_title"}
-                onChange={(event) =>
-                  setEditMatch(event.currentTarget.value as PrivacyRuleMatchType)
-                }
-              >
-                <option value="exact">{t("privacyRules.matches.exact")}</option>
-                <option value="contains">{t("privacyRules.matches.contains")}</option>
-              </select>
-            </label>
-            <TextField
-              id="privacy-rule-edit-pattern"
-              label={t("privacyRules.pattern")}
-              value={editPattern}
-              maxLength={200}
-              disabled={busyId !== null}
-              onChange={(event) => setEditPattern(event.target.value)}
-            />
-          </form>
-        </Dialog>
-      )}
-    </>
+              {titleRules.length > 0 && (
+                <div className="settings-chip-group">
+                  {titleRules.map((rule) => (
+                    <button
+                      key={rule.id}
+                      type="button"
+                      className="settings-chip is-active"
+                      disabled={saving}
+                      aria-label={t("skipApps.remove", { name: rule.pattern })}
+                      onClick={() => void removeRule(rule)}
+                    >
+                      {rule.pattern} ×
+                    </button>
+                  ))}
+                </div>
+              )}
+            </details>
+          </>
+        )}
+      </div>
+    </Dialog>
   );
 }

@@ -143,8 +143,6 @@
 }
 
 .employees-actions__menu {
-  top: calc(100% + 6px);
-  right: 0;
   width: 232px;
   text-align: left;
 }
@@ -311,6 +309,3 @@
 }
 
 
-.employees-readonly-alert {
-  margin-bottom: 16px;
-}

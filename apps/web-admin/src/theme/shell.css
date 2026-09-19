@@ -520,3 +520,11 @@
     transition: none;
   }
 }
+
+
+.ds-shell-breadcrumb__status {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  font-size: 10px;
+  line-height: 16px;
+}
