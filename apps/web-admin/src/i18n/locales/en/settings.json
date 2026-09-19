@@ -360,5 +360,41 @@
       "copyAll": "Copy all",
       "savedCodes": "I saved these codes"
     }
+  },
+  "privacyRules": {
+    "title": "Screenshot privacy rules",
+    "done": "Done",
+    "preventCapture": "Rules are checked before capture. When a rule matches the active app or window title, ActiLens does not create a screenshot.",
+    "loadFailed": "Could not load privacy rules.",
+    "saveFailed": "Could not save the privacy rule.",
+    "deleteFailed": "Could not delete the privacy rule.",
+    "created": "Privacy rule added.",
+    "saved": "Privacy rule updated.",
+    "deleted": "Privacy rule deleted.",
+    "kind": "Match source",
+    "match": "Match type",
+    "pattern": "Pattern",
+    "kinds": {
+      "app": "Application",
+      "windowTitle": "Window title"
+    },
+    "matches": {
+      "exact": "Equals",
+      "contains": "Contains"
+    },
+    "appPlaceholder": "Example: 1Password",
+    "titlePlaceholder": "Example: Private",
+    "add": "Add rule",
+    "edit": "Edit",
+    "delete": "Delete",
+    "editTitle": "Edit privacy rule",
+    "empty": "No privacy rules",
+    "emptyDescription": "Add rules for applications or window titles that must never be captured.",
+    "groups": {
+      "apps": "Application rules",
+      "windowTitles": "Window-title rules"
+    },
+    "suggestions": "Suggested sensitive applications",
+    "suggestionsHelp": "Add a preset as an exact application-name rule. You can edit it afterwards."
   }
 }
