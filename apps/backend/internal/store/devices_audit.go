@@ -466,7 +466,7 @@ func (s *Store) auditFacets(ctx context.Context, businessID string) ([]AuditUser
 			         a.target_id::text
 			       ) AS name
 			  FROM audit_events a
-			  LEFT JOIN users u ON u.id = a.target_id
+			  LEFT JOIN users u ON u.id::text = a.target_id
 			 WHERE a.business_id = $1
 			   AND a.target_id IS NOT NULL
 			   AND a.target_type IN ('member', 'employee')
@@ -494,7 +494,8 @@ func (s *Store) auditFacets(ctx context.Context, businessID string) ([]AuditUser
 		}
 		users = append(users, facet)
 	}
-	if err := rows.Close(); err != nil {
+	rows.Close()
+	if err := rows.Err(); err != nil {
 		return nil, nil, err
 	}
 
@@ -538,7 +539,7 @@ func (s *Store) ListAuditEventsPage(
 		SELECT count(*)
 		  FROM audit_events a
 		  LEFT JOIN users actor ON actor.id = a.actor_user_id
-		  LEFT JOIN users target ON target.id = a.target_id
+		  LEFT JOIN users target ON target.id::text = a.target_id
 		 WHERE a.business_id = $1
 		   AND (
 		     $2 = ''
