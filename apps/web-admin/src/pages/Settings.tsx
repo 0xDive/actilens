@@ -154,6 +154,9 @@ export function Settings() {
   const { pushToast } = useToast();
   const { businesses, selected, selectedId, loading, reload } = useBusinesses();
   const mayManageSettings = canManageSettings(selected?.role);
+  const organizationReadOnly = Boolean(
+    selected?.archived_at || selected?.deletion_scheduled_at,
+  );
 
   const [activeSection, setActiveSection] = useState("organization");
   const [saving, setSaving] = useState(false);
@@ -324,14 +327,20 @@ export function Settings() {
     }
   }
 
-  const nav = [
-    ["organization", t("v1.sections.organization")],
-    ["monitoring", t("v1.sections.monitoring")],
-    ["screenshots", t("v1.sections.screenshots")],
-    ["devices", t("v1.sections.devices")],
-    ["storage", t("v1.sections.storage")],
-    ["audit", t("v1.sections.audit")],
-  ] as const;
+  const nav = organizationReadOnly
+    ? ([
+        ["organization", t("v1.sections.organization")],
+        ["storage", t("v1.sections.storage")],
+        ["audit", t("v1.sections.audit")],
+      ] as const)
+    : ([
+        ["organization", t("v1.sections.organization")],
+        ["monitoring", t("v1.sections.monitoring")],
+        ["screenshots", t("v1.sections.screenshots")],
+        ["devices", t("v1.sections.devices")],
+        ["storage", t("v1.sections.storage")],
+        ["audit", t("v1.sections.audit")],
+      ] as const);
 
   function goToSection(id: string) {
     setActiveSection(id);
@@ -397,56 +406,63 @@ export function Settings() {
               title={t("v1.sections.organization")}
               description={t("v1.organization.description")}
             >
-              <OrganizationSettingsCard
-                access={{ business: selected, role: selected.role }}
-                onReload={reload}
-              />
+              {!organizationReadOnly && (
+                <OrganizationSettingsCard
+                  access={{ business: selected, role: selected.role }}
+                  onReload={reload}
+                />
+              )}
               <OrganizationLifecycleCard
                 access={{ business: selected, role: selected.role }}
                 onReload={reload}
               />
             </SettingsSection>
 
-            <SettingsSection
-              id="monitoring"
-              title={t("v1.sections.monitoring")}
-              description={t("v1.monitoring.description")}
-            >
-              <MonitoringSettingsCard
-                access={{ business: selected, role: selected.role }}
-                onReload={reload}
-              />
-            </SettingsSection>
+            {!organizationReadOnly && (
+              <>
+                <SettingsSection
+                  id="monitoring"
+                  title={t("v1.sections.monitoring")}
+                  description={t("v1.monitoring.description")}
+                >
+                  <MonitoringSettingsCard
+                    access={{ business: selected, role: selected.role }}
+                    onReload={reload}
+                  />
+                </SettingsSection>
 
-            <SettingsSection
-              id="screenshots"
-              title={t("v1.sections.screenshots")}
-              description={t("v1.screenshots.description")}
-            >
-              <ScreenshotPolicyCard
-                access={{ business: selected, role: selected.role }}
-                onReload={reload}
-                onManagePrivacy={() => setPrivacyOpen(true)}
-              />
-            </SettingsSection>
+                <SettingsSection
+                  id="screenshots"
+                  title={t("v1.sections.screenshots")}
+                  description={t("v1.screenshots.description")}
+                >
+                  <ScreenshotPolicyCard
+                    access={{ business: selected, role: selected.role }}
+                    onReload={reload}
+                    onManagePrivacy={() => setPrivacyOpen(true)}
+                  />
+                </SettingsSection>
 
-            <SettingsSection
-              id="devices"
-              title={t("v1.sections.devices")}
-              description={t("v1.devices.description")}
-            >
-              <DeviceEnrollmentSettingsCard
-                access={{ business: selected, role: selected.role }}
-                onReload={reload}
-              />
-            </SettingsSection>
+                <SettingsSection
+                  id="devices"
+                  title={t("v1.sections.devices")}
+                  description={t("v1.devices.description")}
+                >
+                  <DeviceEnrollmentSettingsCard
+                    access={{ business: selected, role: selected.role }}
+                    onReload={reload}
+                  />
+                </SettingsSection>
+              </>
+            )}
 
             <SettingsSection
               id="storage"
               title={t("v1.sections.storage")}
               description={t("v1.storage.description")}
             >
-              <Card className="settings-card">
+              {!organizationReadOnly && (
+                <Card className="settings-card">
                 {([
                   {
                     field: "activity_retention_days",
@@ -520,7 +536,8 @@ export function Settings() {
                     {t("cleanup.button")}
                   </Button>
                 </SettingsRow>
-              </Card>
+                </Card>
+              )}
               {selectedId && <ExportSettingsCard businessId={selectedId} />}
             </SettingsSection>
 
@@ -538,7 +555,7 @@ export function Settings() {
         </div>
       )}
 
-      {selectedId && (
+      {selectedId && !organizationReadOnly && (
         <PrivacyRulesDialog
           businessId={selectedId}
           open={privacyOpen}
@@ -546,7 +563,7 @@ export function Settings() {
         />
       )}
 
-      {pendingRetention && (
+      {!organizationReadOnly && pendingRetention && (
         <Dialog
           title={t("retention.confirmTitle")}
           size="confirm"
@@ -591,7 +608,7 @@ export function Settings() {
         </Dialog>
       )}
 
-      {cleanupOpen && selected && (
+      {!organizationReadOnly && cleanupOpen && selected && (
         <Dialog
           title={t("cleanup.modalTitle")}
           size="confirm"
