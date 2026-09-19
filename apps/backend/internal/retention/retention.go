@@ -30,6 +30,20 @@ type Result struct {
 	BytesFreed int64 `json:"bytes_freed"`
 }
 
+// ClassResult reports cleanup output for one data class.
+type ClassResult struct {
+	DataClass  string `json:"data_class"`
+	Deleted    int64  `json:"deleted_count"`
+	BytesFreed int64  `json:"bytes_freed"`
+}
+
+// MultiResult reports a unified cleanup operation across selected classes.
+type MultiResult struct {
+	Results    []ClassResult `json:"results"`
+	Deleted    int64         `json:"deleted_count"`
+	BytesFreed int64         `json:"bytes_freed"`
+}
+
 // Preview reports what would be deleted for one data class at the requested
 // retention window. Bytes are meaningful for screenshots and zero otherwise.
 type Preview struct {
@@ -71,6 +85,60 @@ func (s *Service) PreviewClass(ctx context.Context, businessID, dataClass string
 	default:
 		return Preview{}, fmt.Errorf("unsupported retention data class %q", dataClass)
 	}
+}
+
+// CleanupClass deletes one selected data class older than the requested window.
+func (s *Service) CleanupClass(
+	ctx context.Context,
+	businessID, dataClass string,
+	olderThanDays int,
+) (ClassResult, error) {
+	if olderThanDays < 0 {
+		return ClassResult{}, fmt.Errorf("cleanup days must be non-negative")
+	}
+	cutoff := cutoffForDays(olderThanDays)
+	out := ClassResult{DataClass: dataClass}
+
+	switch dataClass {
+	case "activity":
+		deleted, err := s.store.DeleteActivityBefore(ctx, businessID, cutoff)
+		out.Deleted = deleted
+		return out, err
+	case "screenshots":
+		result, err := s.CleanupBusiness(ctx, businessID, olderThanDays)
+		out.Deleted, out.BytesFreed = result.Deleted, result.BytesFreed
+		return out, err
+	case "browser":
+		deleted, err := s.store.DeleteBrowserBefore(ctx, businessID, cutoff)
+		out.Deleted = deleted
+		return out, err
+	case "keystrokes":
+		deleted, err := s.store.DeleteKeystrokesBefore(ctx, businessID, cutoff)
+		out.Deleted = deleted
+		return out, err
+	default:
+		return ClassResult{}, fmt.Errorf("unsupported cleanup data class %q", dataClass)
+	}
+}
+
+// CleanupClasses executes one manual cleanup over the selected data classes.
+func (s *Service) CleanupClasses(
+	ctx context.Context,
+	businessID string,
+	dataClasses []string,
+	olderThanDays int,
+) (MultiResult, error) {
+	out := MultiResult{Results: make([]ClassResult, 0, len(dataClasses))}
+	for _, dataClass := range dataClasses {
+		result, err := s.CleanupClass(ctx, businessID, dataClass, olderThanDays)
+		if err != nil {
+			return out, err
+		}
+		out.Results = append(out.Results, result)
+		out.Deleted += result.Deleted
+		out.BytesFreed += result.BytesFreed
+	}
+	return out, nil
 }
 
 // CleanupBusiness deletes a business's screenshots older than olderThanDays. With 0,
