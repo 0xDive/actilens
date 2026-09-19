@@ -197,6 +197,9 @@ func (s *Store) ResetManagedMemberMFA(ctx context.Context, actorID, businessID, 
 	if actorID == targetUserID || access.TargetRole == RoleOwner || (access.ActorRole == RoleAdmin && access.TargetRole == RoleAdmin) {
 		return ErrForbidden
 	}
+	if err := lockMutableOrganizationTx(ctx, tx, businessID); err != nil {
+		return err
+	}
 
 	if _, err := tx.Exec(ctx, `DELETE FROM user_mfa WHERE user_id = $1`, targetUserID); err != nil {
 		return err
