@@ -501,9 +501,45 @@ export function downloadOrganizationExport(businessId: string, exportId: string)
   );
 }
 
-export function listAuditEvents(businessId: string, limit = 100) {
-  return request<{ events: AuditEvent[] }>(`/v1/businesses/${businessId}/audit`, {
-    query: { limit },
+export interface AuditUserFacet {
+  id: string;
+  name: string;
+}
+
+export interface AuditListResponse {
+  events: AuditEvent[];
+  total: number;
+  users: AuditUserFacet[];
+  actions: string[];
+}
+
+export interface AuditListOptions {
+  limit?: number;
+  offset?: number;
+  userId?: string;
+  action?: string;
+  search?: string;
+}
+
+export function listAuditEvents(
+  businessId: string,
+  options: AuditListOptions = {},
+) {
+  const {
+    limit = 50,
+    offset = 0,
+    userId = "",
+    action = "",
+    search = "",
+  } = options;
+  return request<AuditListResponse>(`/v1/businesses/${businessId}/audit`, {
+    query: {
+      limit,
+      offset,
+      user_id: userId || undefined,
+      action: action || undefined,
+      search: search || undefined,
+    },
   });
 }
 
