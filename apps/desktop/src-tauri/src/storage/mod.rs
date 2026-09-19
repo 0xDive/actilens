@@ -807,6 +807,53 @@ mod tests {
     }
 
     #[test]
+    fn suppress_pending_keeps_local_history_but_removes_upload_eligibility() {
+        let db = db();
+        db.insert_activity_sample(&ActivitySample {
+            ts: 10,
+            app_name: "Local app".into(),
+            window_title: Some("Local title".into()),
+            pid: Some(7),
+            duration_s: 5,
+        })
+        .unwrap();
+        db.add_keystrokes(60, 4).unwrap();
+        db.insert_browser_visit(&BrowserVisit {
+            ts: 10,
+            url: "https://example.test/private".into(),
+            page_title: Some("Private".into()),
+            browser: Some("browser".into()),
+            duration_s: 5,
+        })
+        .unwrap();
+        db.insert_screenshot(&Screenshot {
+            ts: 10,
+            file_path: "/tmp/local.webp".into(),
+            display_id: Some(0),
+            width: Some(100),
+            height: Some(80),
+        })
+        .unwrap();
+
+        assert_eq!(db.pending_count().unwrap(), 4);
+        for table in [
+            SyncTable::Activity,
+            SyncTable::Keystroke,
+            SyncTable::Browser,
+            SyncTable::Screenshot,
+        ] {
+            assert_eq!(db.suppress_pending(table).unwrap(), 1);
+        }
+        assert_eq!(db.pending_count().unwrap(), 0);
+
+        // Suppression is a privacy/upload state transition, not local data deletion.
+        assert_eq!(db.activity_between(0, 100).unwrap().len(), 1);
+        assert_eq!(db.keystrokes_between(0, 100).unwrap(), vec![(60, 4)]);
+        assert_eq!(db.browser_visits_between(0, 100).unwrap().len(), 1);
+        assert_eq!(db.screenshots_between(0, 100).unwrap().len(), 1);
+    }
+
+    #[test]
     fn time_range_filters() {
         let db = db();
         for ts in [10, 100, 1000] {
