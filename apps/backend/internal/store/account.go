@@ -220,6 +220,9 @@ func (s *Store) UpdateManagedMemberIdentity(
 	if err != nil {
 		return Employee{}, err
 	}
+	if err := lockMutableOrganizationTx(ctx, tx, businessID); err != nil {
+		return Employee{}, err
+	}
 
 	var curEmail, curUsername, curName string
 	var active bool
@@ -377,6 +380,9 @@ func (s *Store) ResetManagedMemberPassword(
 		ctx, tx, actorID, targetUserID, businessID, CapabilityMembersManage,
 	)
 	if err != nil {
+		return err
+	}
+	if err := lockMutableOrganizationTx(ctx, tx, businessID); err != nil {
 		return err
 	}
 
