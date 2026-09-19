@@ -294,6 +294,9 @@ func (s *Store) UpdateDevice(ctx context.Context, actorID, deviceID string, labe
 	if err != nil {
 		return Device{}, err
 	}
+	if err := lockMutableOrganizationTx(ctx, tx, access.BusinessID); err != nil {
+		return Device{}, err
+	}
 
 	nextLabel := currentLabel
 	if label != nil {
