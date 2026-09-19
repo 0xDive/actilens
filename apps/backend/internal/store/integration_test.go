@@ -519,3 +519,153 @@ func TestIntegrationOrganizationExportJobs(t *testing.T) {
 		t.Fatalf("expired status = %q, want expired", got.Status)
 	}
 }
+
+
+func TestIntegrationOrganizationLifecycle(t *testing.T) {
+	st, pool := integrationStore(t)
+	ctx := context.Background()
+
+	owner, err := st.CreateUser(ctx, "lifecycle-owner@example.test", "", "hash", "Lifecycle Owner", "manager")
+	if err != nil {
+		t.Fatalf("create owner: %v", err)
+	}
+	biz, err := st.CreateBusiness(ctx, owner.ID, "Lifecycle team", "team")
+	if err != nil {
+		t.Fatalf("create business: %v", err)
+	}
+	admin, err := st.CreateUser(ctx, "lifecycle-admin@example.test", "", "hash", "Lifecycle Admin", "manager")
+	if err != nil {
+		t.Fatalf("create admin: %v", err)
+	}
+	if _, err := pool.Exec(ctx,
+		`INSERT INTO memberships (user_id, business_id, role) VALUES ($1, $2, 'admin')`,
+		admin.ID, biz.ID,
+	); err != nil {
+		t.Fatalf("add admin: %v", err)
+	}
+	employee, _, err := st.CreateEmployee(ctx, owner.ID, &biz.ID, "", "lifecycle_member", "hash", "Lifecycle Member")
+	if err != nil {
+		t.Fatalf("create employee: %v", err)
+	}
+
+	archived, err := st.ArchiveOrganization(ctx, admin.ID, biz.ID)
+	if err != nil {
+		t.Fatalf("admin archive: %v", err)
+	}
+	if archived.ArchivedAt == nil {
+		t.Fatal("archive did not set archived_at")
+	}
+	if _, err := st.ScheduleOrganizationDeletion(ctx, admin.ID, biz.ID); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("admin schedule deletion = %v, want ErrForbidden", err)
+	}
+	restored, err := st.RestoreOrganization(ctx, admin.ID, biz.ID)
+	if err != nil {
+		t.Fatalf("admin restore: %v", err)
+	}
+	if restored.ArchivedAt != nil {
+		t.Fatal("restore did not clear archived_at")
+	}
+
+	if err := st.CreateAuthSession(
+		ctx, owner.ID, uuid.NewString(), "lifecycle-owner-refresh", "web", "Owner browser",
+		1, time.Now().Add(time.Hour),
+	); err != nil {
+		t.Fatalf("create owner session: %v", err)
+	}
+	adminSessionID := uuid.NewString()
+	if err := st.CreateAuthSession(
+		ctx, admin.ID, adminSessionID, "lifecycle-admin-refresh", "web", "Admin browser",
+		1, time.Now().Add(time.Hour),
+	); err != nil {
+		t.Fatalf("create admin session: %v", err)
+	}
+
+	if err := st.TransferOrganizationOwnership(ctx, owner.ID, biz.ID, admin.ID); err != nil {
+		t.Fatalf("transfer ownership: %v", err)
+	}
+	updated, err := st.GetBusiness(ctx, biz.ID)
+	if err != nil {
+		t.Fatalf("get transferred business: %v", err)
+	}
+	if updated.OwnerUserID != admin.ID {
+		t.Fatalf("owner_user_id = %s, want %s", updated.OwnerUserID, admin.ID)
+	}
+	oldRole, err := st.MembershipRole(ctx, owner.ID, biz.ID)
+	if err != nil || oldRole != RoleAdmin {
+		t.Fatalf("previous owner role = %q err=%v, want admin", oldRole, err)
+	}
+	newRole, err := st.MembershipRole(ctx, admin.ID, biz.ID)
+	if err != nil || newRole != RoleOwner {
+		t.Fatalf("new owner role = %q err=%v, want owner", newRole, err)
+	}
+	sessionActive, err := st.SessionActive(ctx, admin.ID, adminSessionID)
+	if err != nil {
+		t.Fatalf("check new owner session: %v", err)
+	}
+	if sessionActive {
+		t.Fatal("ownership transfer did not revoke new owner session")
+	}
+
+	if _, err := st.ArchiveOrganization(ctx, admin.ID, biz.ID); err != nil {
+		t.Fatalf("new owner archive: %v", err)
+	}
+	preview, err := st.OrganizationDeletionPreview(ctx, admin.ID, biz.ID)
+	if err != nil {
+		t.Fatalf("deletion preview: %v", err)
+	}
+	if preview.Members != 3 {
+		t.Fatalf("preview members = %d, want 3", preview.Members)
+	}
+
+	scheduled, err := st.ScheduleOrganizationDeletion(ctx, admin.ID, biz.ID)
+	if err != nil {
+		t.Fatalf("schedule deletion: %v", err)
+	}
+	if scheduled.DeletionScheduledAt == nil {
+		t.Fatal("schedule deletion did not set deadline")
+	}
+	cancelled, err := st.CancelOrganizationDeletion(ctx, admin.ID, biz.ID)
+	if err != nil {
+		t.Fatalf("cancel deletion: %v", err)
+	}
+	if cancelled.DeletionScheduledAt != nil || cancelled.ArchivedAt == nil {
+		t.Fatalf("cancelled state = %+v, want archived with no deletion deadline", cancelled)
+	}
+	if _, err := st.ScheduleOrganizationDeletion(ctx, admin.ID, biz.ID); err != nil {
+		t.Fatalf("reschedule deletion: %v", err)
+	}
+
+	// Give the new owner another organization so hard deletion must preserve the account.
+	if _, err := st.CreateBusiness(ctx, admin.ID, "Other lifecycle team", "team"); err != nil {
+		t.Fatalf("create second business: %v", err)
+	}
+	if _, err := pool.Exec(ctx,
+		`UPDATE businesses SET deletion_scheduled_at = now() - interval '1 minute' WHERE id = $1`,
+		biz.ID,
+	); err != nil {
+		t.Fatalf("force deletion deadline: %v", err)
+	}
+	removedFiles := false
+	deletedAccounts, err := st.DeleteScheduledOrganization(ctx, biz.ID, func() error {
+		removedFiles = true
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("hard delete organization: %v", err)
+	}
+	if !removedFiles {
+		t.Fatal("hard delete did not remove organization files")
+	}
+	if deletedAccounts < 1 {
+		t.Fatalf("deleted orphan accounts = %d, want at least 1", deletedAccounts)
+	}
+	if _, err := st.GetBusiness(ctx, biz.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("deleted business lookup = %v, want ErrNotFound", err)
+	}
+	if _, err := st.GetUserByID(ctx, employee.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("orphan employee lookup = %v, want ErrNotFound", err)
+	}
+	if _, err := st.GetUserByID(ctx, admin.ID); err != nil {
+		t.Fatalf("multi-organization owner was deleted: %v", err)
+	}
+}
