@@ -1380,3 +1380,66 @@ func TestIntegrationArchivedRetentionIsFrozen(t *testing.T) {
 		t.Fatalf("mutable check while deletion pending = %v, want ErrOrganizationDeletionPending", err)
 	}
 }
+
+
+func TestIntegrationPolicyStopsOnOrganizationLifecycle(t *testing.T) {
+	st, _ := integrationStore(t)
+	ctx := context.Background()
+
+	owner, err := st.CreateUser(ctx, "policy-lifecycle-owner@example.test", "", "hash", "Policy Owner", "manager")
+	if err != nil {
+		t.Fatalf("create owner: %v", err)
+	}
+	biz, err := st.CreateBusiness(ctx, owner.ID, "Policy lifecycle", "team")
+	if err != nil {
+		t.Fatalf("create business: %v", err)
+	}
+	member, _, err := st.CreateEmployee(
+		ctx, owner.ID, &biz.ID, "", "policy_lifecycle_member", "hash", "Policy Member",
+	)
+	if err != nil {
+		t.Fatalf("create member: %v", err)
+	}
+
+	policy, err := st.PolicyForUserInBusiness(ctx, member.ID, biz.ID)
+	if err != nil {
+		t.Fatalf("active policy: %v", err)
+	}
+	if policy == nil || !policy.Managed || policy.BusinessID != biz.ID {
+		t.Fatalf("unexpected active policy: %+v", policy)
+	}
+	enabled, err := st.MembershipMonitoringEnabled(ctx, member.ID, biz.ID)
+	if err != nil || !enabled {
+		t.Fatalf("active monitoring state enabled=%v err=%v", enabled, err)
+	}
+
+	if _, err := st.ArchiveOrganization(ctx, owner.ID, biz.ID); err != nil {
+		t.Fatalf("archive organization: %v", err)
+	}
+	if _, err := st.PolicyForUserInBusiness(ctx, member.ID, biz.ID); !errors.Is(err, ErrOrganizationArchived) {
+		t.Fatalf("archived policy error = %v, want ErrOrganizationArchived", err)
+	}
+	if _, err := st.MembershipMonitoringEnabled(ctx, member.ID, biz.ID); !errors.Is(err, ErrOrganizationArchived) {
+		t.Fatalf("archived monitoring error = %v, want ErrOrganizationArchived", err)
+	}
+
+	if _, err := st.RestoreOrganization(ctx, owner.ID, biz.ID); err != nil {
+		t.Fatalf("restore organization: %v", err)
+	}
+	if _, err := st.PolicyForUserInBusiness(ctx, member.ID, biz.ID); err != nil {
+		t.Fatalf("policy after restore: %v", err)
+	}
+
+	if _, err := st.ArchiveOrganization(ctx, owner.ID, biz.ID); err != nil {
+		t.Fatalf("archive for deletion: %v", err)
+	}
+	if _, err := st.ScheduleOrganizationDeletion(ctx, owner.ID, biz.ID); err != nil {
+		t.Fatalf("schedule deletion: %v", err)
+	}
+	if _, err := st.PolicyForUserInBusiness(ctx, member.ID, biz.ID); !errors.Is(err, ErrOrganizationDeletionPending) {
+		t.Fatalf("deletion-pending policy error = %v, want ErrOrganizationDeletionPending", err)
+	}
+	if _, err := st.MembershipMonitoringEnabled(ctx, member.ID, biz.ID); !errors.Is(err, ErrOrganizationDeletionPending) {
+		t.Fatalf("deletion-pending monitoring error = %v, want ErrOrganizationDeletionPending", err)
+	}
+}
