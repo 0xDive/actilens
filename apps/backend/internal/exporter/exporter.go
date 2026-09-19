@@ -103,13 +103,25 @@ func (s *Service) process(ctx context.Context, job store.OrganizationExport) err
 		return err
 	}
 	// Export links are intentionally temporary. A new export can always be
-	// requested after expiry.
-	return s.store.CompleteOrganizationExport(
+	// requested after expiry. If the organization/job vanished while bytes were
+	// being generated, remove the just-written file rather than leave an orphan.
+	if err := s.store.CompleteOrganizationExport(
 		ctx,
 		job.ID,
 		rel,
 		time.Now().Add(7*24*time.Hour),
-	)
+	); err != nil {
+		if removeErr := s.files.Remove(rel); removeErr != nil {
+			obs.Warn(
+				"exporter: remove uncommitted export failed",
+				"export_id", job.ID,
+				"path", rel,
+				"err", removeErr,
+			)
+		}
+		return err
+	}
+	return nil
 }
 
 func (s *Service) generate(
