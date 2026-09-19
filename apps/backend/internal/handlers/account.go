@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"actilens/backend/internal/auth"
+	"actilens/backend/internal/events"
 	"actilens/backend/internal/store"
 
 	"github.com/gin-gonic/gin"
@@ -145,6 +146,9 @@ func (h *AuthHandler) ChangeOwnPassword(c *gin.Context) {
 		serverError(c, err)
 		return
 	}
+	h.publish(c.Request.Context(), events.Event{
+		Type: events.PasswordChanged, UserID: userID, ActorUserID: userID,
+	})
 	c.JSON(http.StatusOK, gin.H{
 		"status":          "password_changed",
 			"reauth_required": true,
@@ -230,6 +234,15 @@ func (h *AuthHandler) RevokeSession(c *gin.Context) {
 	switch {
 	case err == nil:
 		currentID, _ := auth.SessionID(c)
+		h.publish(c.Request.Context(), events.Event{
+			Type: events.SessionsRevoked,
+			UserID: userID,
+			ActorUserID: userID,
+			Details: map[string]any{
+				"session_id": sessionID,
+				"current": sessionID == currentID,
+			},
+		})
 		c.JSON(http.StatusOK, gin.H{
 			"status":          "revoked",
 			"reauth_required": currentID == sessionID,
@@ -249,6 +262,12 @@ func (h *AuthHandler) RevokeOtherSessions(c *gin.Context) {
 		serverError(c, err)
 		return
 	}
+	h.publish(c.Request.Context(), events.Event{
+		Type: events.SessionsRevoked,
+		UserID: userID,
+		ActorUserID: userID,
+		Details: map[string]any{"count": count, "scope": "other_sessions"},
+	})
 	c.JSON(http.StatusOK, gin.H{"status": "revoked", "count": count})
 }
 
@@ -332,6 +351,9 @@ func (h *AuthHandler) ConfirmMFASetup(c *gin.Context) {
 		serverError(c, err)
 		return
 	}
+	h.publish(c.Request.Context(), events.Event{
+		Type: events.MFAEnabled, UserID: userID, ActorUserID: userID,
+	})
 	c.Header("Cache-Control", "no-store")
 	c.JSON(http.StatusOK, gin.H{
 		"status":         "enabled",
@@ -367,6 +389,11 @@ func (h *AuthHandler) RegenerateRecoveryCodes(c *gin.Context) {
 		serverError(c, err)
 		return
 	}
+	h.publish(c.Request.Context(), events.Event{
+		Type: events.MFARecoveryCodesRegenerated,
+		UserID: userID,
+		ActorUserID: userID,
+	})
 	c.Header("Cache-Control", "no-store")
 	c.JSON(http.StatusOK, gin.H{"recovery_codes": codes})
 }
@@ -394,6 +421,9 @@ func (h *AuthHandler) DisableMFA(c *gin.Context) {
 		serverError(c, err)
 		return
 	}
+	h.publish(c.Request.Context(), events.Event{
+		Type: events.MFADisabled, UserID: userID, ActorUserID: userID,
+	})
 	c.JSON(http.StatusOK, gin.H{"status": "disabled", "reauth_required": true})
 }
 
@@ -455,6 +485,12 @@ func (h *AuthHandler) ResetMemberMFA(c *gin.Context) {
 	)
 	switch {
 	case err == nil:
+		h.publish(c.Request.Context(), events.Event{
+			Type: events.MFAReset,
+			OrganizationID: c.Param("id"),
+			ActorUserID: actorID,
+			TargetUserID: c.Param("user_id"),
+		})
 		c.JSON(http.StatusOK, gin.H{"status": "reset"})
 	case errors.Is(err, store.ErrForbidden):
 		forbidden(c, "insufficient permission to reset mfa")
