@@ -1826,3 +1826,72 @@ func TestIntegrationOrganizationMetadataChangesPreserveHistory(t *testing.T) {
 		t.Fatalf("organization metadata audit count = %d, want 4", auditCount)
 	}
 }
+
+
+func TestIntegrationMultiOrgPolicyNeverInfersArbitraryBusiness(t *testing.T) {
+	st, pool := integrationStore(t)
+	ctx := context.Background()
+
+	ownerA, err := st.CreateUser(ctx, "scope-owner-a@example.test", "", "hash", "Scope Owner A", "manager")
+	if err != nil {
+		t.Fatalf("create owner A: %v", err)
+	}
+	ownerB, err := st.CreateUser(ctx, "scope-owner-b@example.test", "", "hash", "Scope Owner B", "manager")
+	if err != nil {
+		t.Fatalf("create owner B: %v", err)
+	}
+	bizA, err := st.CreateBusiness(ctx, ownerA.ID, "Scope A", "team")
+	if err != nil {
+		t.Fatalf("create business A: %v", err)
+	}
+	bizB, err := st.CreateBusiness(ctx, ownerB.ID, "Scope B", "team")
+	if err != nil {
+		t.Fatalf("create business B: %v", err)
+	}
+	member, _, err := st.CreateEmployee(
+		ctx, ownerA.ID, &bizA.ID, "", "scope_member", "hash", "Scope Member",
+	)
+	if err != nil {
+		t.Fatalf("create shared member: %v", err)
+	}
+	if _, err := pool.Exec(ctx,
+		`INSERT INTO memberships (user_id, business_id, role)
+		 VALUES ($1, $2, 'employee')`,
+		member.ID, bizB.ID,
+	); err != nil {
+		t.Fatalf("add second membership: %v", err)
+	}
+	if _, err := pool.Exec(ctx,
+		`UPDATE businesses SET collect_browser_activity = false WHERE id = $1`,
+		bizA.ID,
+	); err != nil {
+		t.Fatalf("differentiate policy A: %v", err)
+	}
+
+	legacy, err := st.PolicyForUser(ctx, member.ID)
+	if err == nil && legacy != nil {
+		t.Fatalf(
+			"legacy multi-org policy inferred business %q; want no arbitrary policy",
+			legacy.BusinessID,
+		)
+	}
+
+	policyA, err := st.PolicyForUserInBusiness(ctx, member.ID, bizA.ID)
+	if err != nil {
+		t.Fatalf("scoped policy A: %v", err)
+	}
+	policyB, err := st.PolicyForUserInBusiness(ctx, member.ID, bizB.ID)
+	if err != nil {
+		t.Fatalf("scoped policy B: %v", err)
+	}
+	if policyA.BusinessID != bizA.ID || policyB.BusinessID != bizB.ID {
+		t.Fatalf("scoped policies rebound: A=%q B=%q", policyA.BusinessID, policyB.BusinessID)
+	}
+	if policyA.CollectBrowserActivity || !policyB.CollectBrowserActivity {
+		t.Fatalf(
+			"scoped policy values crossed organizations: A=%v B=%v",
+			policyA.CollectBrowserActivity,
+			policyB.CollectBrowserActivity,
+		)
+	}
+}
