@@ -37,6 +37,11 @@ type mfaCodeReq struct {
 	CurrentPassword string `json:"current_password"`
 }
 
+type reauthReq struct {
+	CurrentPassword string `json:"current_password"`
+	Code            string `json:"code"`
+}
+
 type mfaCompleteReq struct {
 	ChallengeToken string `json:"challenge_token"`
 	Code           string `json:"code"`
@@ -144,6 +149,50 @@ func (h *AuthHandler) ChangeOwnPassword(c *gin.Context) {
 		"status":          "password_changed",
 			"reauth_required": true,
 	})
+}
+
+func (h *AuthHandler) Reauth(c *gin.Context) {
+	userID, _ := auth.UserID(c)
+	var req reauthReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		badRequest(c, "invalid body")
+		return
+	}
+	if !h.verifyCurrentPassword(c, userID, req.CurrentPassword) {
+		return
+	}
+	mfa, err := h.store.MFAState(c.Request.Context(), userID)
+	if err != nil {
+		serverError(c, err)
+		return
+	}
+	if mfa.Enabled {
+		if strings.TrimSpace(req.Code) == "" {
+			apiError(c, http.StatusUnauthorized, ErrCodeMFARequired, "mfa code is required", nil)
+			return
+		}
+		ok, err := h.verifyMFAInput(c.Request.Context(), userID, req.Code, true)
+		if err != nil {
+			serverError(c, err)
+			return
+		}
+		if !ok {
+			apiError(c, http.StatusUnauthorized, ErrCodeMFARequired, "invalid authentication code", nil)
+			return
+		}
+	}
+	active, version, err := h.store.UserSecurity(c.Request.Context(), userID)
+	if err != nil || !active {
+		unauthorized(c, "account is unavailable")
+		return
+	}
+	grant, err := h.tok.IssueReauthGrant(userID, version)
+	if err != nil {
+		serverError(c, err)
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	c.JSON(http.StatusOK, gin.H{"reauth_token": grant, "expires_in": 300})
 }
 
 func (h *AuthHandler) ListSessions(c *gin.Context) {
