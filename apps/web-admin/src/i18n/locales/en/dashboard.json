@@ -4,7 +4,7 @@
     "loadingBusinesses": "Loading businesses…",
     "loadingRoster": "Loading roster…",
     "errorRoster": "Could not load the roster.",
-    "noBusinesses": "No businesses yet. Go to <0>{{members}}</0> to add your first {{member}} — a business is created automatically.",
+    "noBusinesses": "No organization yet. Go to Employees to create an organization first, then add members.",
     "noActivity": "No {{members}} have synced activity yet.",
     "selfBadge": "You",
     "view": "View",
@@ -62,10 +62,10 @@
     "loading": "Loading…",
     "loadingMembers": "Loading {{members}}…",
     "errorLoadMembers": "Could not load {{members}}.",
-    "noBusinessNotice": "You don't own a business yet. Adding your first {{member}} will automatically create one (<1>\"&lt;your name&gt;'s Team\"</1>). You can also create one explicitly with \"New business\".",
+    "noBusinessNotice": "Create or select an organization before adding a member.",
     "rosterFor": "Roster for <0>{{name}}</0>",
     "noMembersYet": "No {{members}} in this business yet.",
-    "autoCreatedNote": "No business existed, so a default one was created automatically and your {{member}} was added to it.",
+    "autoCreatedNote": "Organization created and member added.",
     "viewReports": "View reports",
     "table": {
       "name": "Name",
@@ -186,7 +186,7 @@
     "errorCreate": "Could not create business."
   },
   "newEmployeeModal": {
-    "noBusinessSelected": "No business selected — a default one will be created automatically for this {{member}}.",
+    "noBusinessSelected": "Select or create an organization before adding this {{member}}.",
     "displayName": "Display name",
     "usernameOrEmail": "Username or email",
     "temporaryPassword": "Temporary password",
@@ -255,7 +255,9 @@
       },
       "outdatedWarning_one": "{{count}} active device is running an outdated ActiLens agent. Update it to the recommended release.",
       "outdatedWarning_other": "{{count}} active devices are running an outdated ActiLens agent. Update them to the recommended release.",
-      "deviceLimitReached": "This device cannot be restored because the member's active-device limit is already reached. Revoke another device or increase the organization limit."
+      "deviceLimitReached": "This device cannot be restored because the organization active-device limit is already reached. Revoke another device or increase the organization limit.",
+      "reenroll": "Enroll / re-enroll device",
+      "reenrollHint": "To use this computer again as a new installation, generate a fresh enrollment code."
     },
     "errorIdentity": "Could not load this employee.",
     "v1": {
