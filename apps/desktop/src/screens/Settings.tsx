@@ -13,6 +13,7 @@ import viSettings from "../i18n/locales/vi/settings.json";
 import idSettings from "../i18n/locales/id/settings.json";
 import frSettings from "../i18n/locales/fr/settings.json";
 import esSettings from "../i18n/locales/es/settings.json";
+import ruSettings from "../i18n/locales/ru/settings.json";
 
 // Register the `settings` namespace without modifying the shared i18n init.
 const SETTINGS_BUNDLES: Record<string, object> = {
@@ -23,6 +24,7 @@ const SETTINGS_BUNDLES: Record<string, object> = {
   id: idSettings,
   fr: frSettings,
   es: esSettings,
+  ru: ruSettings,
 };
 for (const [lng, bundle] of Object.entries(SETTINGS_BUNDLES)) {
   if (!i18n.hasResourceBundle(lng, "settings")) {
