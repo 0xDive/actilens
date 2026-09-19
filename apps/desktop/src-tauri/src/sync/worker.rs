@@ -127,21 +127,47 @@ pub async fn run_once(ctx: &SyncContext) -> PassOutcome {
 
     let client = BackendClient::new(base_url, ctx.auth.clone());
 
-    if let Ok(enabled) = client.monitoring_enabled(business_id.as_deref()).await {
-        ctx.control
-            .org_monitoring_enabled
-            .store(enabled, Ordering::Relaxed);
-        let mut current = ctx.settings.current.lock().unwrap();
-        if current.org_monitoring_enabled != enabled {
-            current.org_monitoring_enabled = enabled;
-            let _ = crate::settings::save(&ctx.settings.path, &current);
+    match client.fetch_policy(business_id.as_deref()).await {
+        Ok(policy) => {
+            let previous = ctx.settings.managed.lock().unwrap().monitoring_enabled;
+            let enabled = if policy.managed {
+                client
+                    .monitoring_enabled(business_id.as_deref())
+                    .await
+                    .unwrap_or(previous)
+            } else {
+                true
+            };
+            crate::settings::apply_managed_policy(
+                &ctx.settings,
+                &ctx.control,
+                &policy,
+                enabled,
+            );
         }
-        let mut managed = ctx.settings.managed.lock().unwrap();
-        managed.monitoring_enabled = enabled;
+        Err(e) if policy_stops_collection(&e) => {
+            // A server-authoritative lifecycle/security state must stop collection
+            // even if the UI is closed. Preserve this fail-closed state offline.
+            ctx.control.managed.store(true, Ordering::Relaxed);
+            ctx.control
+                .org_monitoring_enabled
+                .store(false, Ordering::Relaxed);
+            {
+                let mut current = ctx.settings.current.lock().unwrap();
+                current.org_monitoring_enabled = false;
+                let _ = crate::settings::save(&ctx.settings.path, &current);
+            }
+            ctx.settings.managed.lock().unwrap().monitoring_enabled = false;
+            ctx.status.record_error(e, pending_total(ctx));
+            return PassOutcome::Skipped;
+        }
+        Err(e) => {
+            // Network/server outage: retain the last server-confirmed policy instead
+            // of widening collection with local defaults.
+            crate::log_warn!("policy", "background policy refresh failed: {e}");
+        }
     }
-    // Preserve the last known state when offline. Once the server disabled this
-    // membership, collection and upload remain stopped until a later successful
-    // policy refresh explicitly re-enables them.
+
     if !ctx.control.org_monitoring_enabled.load(Ordering::Relaxed) {
         return PassOutcome::Skipped;
     }
@@ -252,6 +278,17 @@ pub async fn run_once(ctx: &SyncContext) -> PassOutcome {
         ctx.status.record_success(pending);
         PassOutcome::Ok
     }
+}
+
+fn policy_stops_collection(message: &str) -> bool {
+    [
+        "member_blocked",
+        "member_removed",
+        "organization_archived",
+        "organization_deletion_pending",
+    ]
+    .iter()
+    .any(|code| message.contains(code))
 }
 
 fn pending_total(ctx: &SyncContext) -> i64 {
