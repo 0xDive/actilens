@@ -569,7 +569,7 @@ func (s *Store) ListAuditEventsPage(
 		       extract(epoch FROM a.created_at)::bigint
 		  FROM audit_events a
 		  LEFT JOIN users actor ON actor.id = a.actor_user_id
-		  LEFT JOIN users target ON target.id = a.target_id
+		  LEFT JOIN users target ON target.id::text = a.target_id
 		 WHERE a.business_id = $1
 		   AND (
 		     $2 = ''
