@@ -1,4 +1,4 @@
-import { request } from "./client";
+import { fetchAuthenticatedBlob, request } from "./client";
 import { tokenStore } from "./tokenStore";
 import {
   demoActivity,
@@ -30,6 +30,8 @@ import type {
   Membership,
   MFASetupResponse,
   MFAState,
+  OrganizationExport,
+  OrganizationExportKind,
   OrganizationPatch,
   PrivacyAppCategory,
   PrivacyRule,
@@ -391,6 +393,35 @@ export function cleanupData(
       older_than_days: olderThanDays,
     },
   });
+}
+
+export function createOrganizationExport(
+  businessId: string,
+  kind: OrganizationExportKind,
+) {
+  return request<{ export: OrganizationExport }>(
+    `/v1/businesses/${businessId}/exports`,
+    { method: "POST", body: { kind } },
+  );
+}
+
+export function listOrganizationExports(businessId: string, limit = 25) {
+  return request<{ exports: OrganizationExport[] }>(
+    `/v1/businesses/${businessId}/exports`,
+    { query: { limit } },
+  );
+}
+
+export function getOrganizationExport(businessId: string, exportId: string) {
+  return request<{ export: OrganizationExport }>(
+    `/v1/businesses/${businessId}/exports/${exportId}`,
+  );
+}
+
+export function downloadOrganizationExport(businessId: string, exportId: string) {
+  return fetchAuthenticatedBlob(
+    `/v1/businesses/${businessId}/exports/${exportId}/download`,
+  );
 }
 
 export function listAuditEvents(businessId: string, limit = 100) {
