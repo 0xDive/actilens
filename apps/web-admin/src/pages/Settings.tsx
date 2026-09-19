@@ -1,14 +1,12 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   cleanupScreenshots,
-  getPrivacyApps,
   updateBusinessSettings,
 } from "../api/endpoints";
 import {
   ApiError,
   type BusinessSettingsPatch,
-  type PrivacyAppCategory,
 } from "../api/types";
 import {
   Alert,
@@ -18,7 +16,6 @@ import {
   EmptyState,
   PageHeader,
   Skeleton,
-  TextField,
 } from "../components/ds";
 import { useToast } from "../components/ToastProvider";
 import { AuditLogCard } from "../components/settings/AuditLogCard";
@@ -26,6 +23,7 @@ import { OrganizationSettingsCard } from "../components/settings/OrganizationSet
 import { MonitoringSettingsCard } from "../components/settings/MonitoringSettingsCard";
 import { ScreenshotPolicyCard } from "../components/settings/ScreenshotPolicyCard";
 import { DeviceEnrollmentSettingsCard } from "../components/settings/DeviceEnrollmentSettingsCard";
+import { PrivacyRulesDialog } from "../components/settings/PrivacyRulesDialog";
 import { useBusinesses } from "../useBusinesses";
 import { canManageSettings } from "../rbac";
 import "../theme/settings-v1.css";
@@ -136,19 +134,11 @@ export function Settings() {
   const [activeSection, setActiveSection] = useState("organization");
   const [retention, setRetention] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
-  const [skipAppInput, setSkipAppInput] = useState("");
-  const [skipOpen, setSkipOpen] = useState(false);
-  const [privacyApps, setPrivacyApps] = useState<PrivacyAppCategory[]>([]);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
   const [cleanupOpen, setCleanupOpen] = useState(false);
   const [cleanupDays, setCleanupDays] = useState(30);
   const [cleaning, setCleaning] = useState(false);
   const [dialogError, setDialogError] = useState<string | null>(null);
-
-  useEffect(() => {
-    getPrivacyApps()
-      .then((response) => setPrivacyApps(response.categories))
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     if (selected) setRetention(selected.screenshot_retention_days);
@@ -178,52 +168,6 @@ export function Settings() {
   function saveRetention(value: number | null) {
     setRetention(value);
     savePatch({ screenshot_retention_days: value }, t("retention.saved"));
-  }
-
-  const skipApps = selected?.screenshot_skip_apps ?? [];
-  const hasSkipApp = (app: string) =>
-    skipApps.some((value) => value.toLowerCase() === app.toLowerCase());
-
-  const suggestedLower = useMemo(
-    () =>
-      new Set(
-        privacyApps.flatMap((category) =>
-          category.apps.map((app) => app.toLowerCase()),
-        ),
-      ),
-    [privacyApps],
-  );
-
-  const customSkipApps = skipApps.filter(
-    (app) => !suggestedLower.has(app.toLowerCase()),
-  );
-
-  function addSkipApps(apps: string[]) {
-    const fresh = apps.filter((app) => !hasSkipApp(app));
-    if (!fresh.length) return;
-    savePatch(
-      { screenshot_skip_apps: [...skipApps, ...fresh] },
-      t("skipApps.saved"),
-    );
-  }
-
-  function removeSkipApps(apps: string[]) {
-    const drop = new Set(apps.map((app) => app.toLowerCase()));
-    savePatch(
-      {
-        screenshot_skip_apps: skipApps.filter(
-          (app) => !drop.has(app.toLowerCase()),
-        ),
-      },
-      t("skipApps.saved"),
-    );
-  }
-
-  function addSkipApp() {
-    const name = skipAppInput.trim();
-    if (!name) return;
-    setSkipAppInput("");
-    addSkipApps([name]);
   }
 
   async function runCleanup() {
@@ -349,7 +293,7 @@ export function Settings() {
               <ScreenshotPolicyCard
                 access={{ business: selected, role: selected.role }}
                 onReload={reload}
-                onManagePrivacy={() => setSkipOpen(true)}
+                onManagePrivacy={() => setPrivacyOpen(true)}
               />
             </SettingsSection>
 
@@ -432,134 +376,12 @@ export function Settings() {
         </div>
       )}
 
-      {skipOpen && selected && (
-        <Dialog
-          title={t("skipApps.modalTitle")}
-          size="complex"
-          onClose={() => !saving && setSkipOpen(false)}
-          closeOnBackdrop={!saving}
-          footer={
-            <Button variant="primary" onClick={() => setSkipOpen(false)}>
-              {t("skipApps.done")}
-            </Button>
-          }
-        >
-          <div className="settings-dialog-stack">
-            <p className="settings-section__description">
-              {t("skipApps.desc")}
-            </p>
-
-            <div className="settings-inline">
-              <div className="settings-skip-input">
-                <TextField
-                  id="skip-app-input"
-                  label={t("skipApps.custom")}
-                  value={skipAppInput}
-                  placeholder={t("skipApps.placeholder")}
-                  disabled={saving}
-                  autoFocus
-                  onChange={(event) => setSkipAppInput(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      addSkipApp();
-                    }
-                  }}
-                />
-              </div>
-              <Button
-                variant="secondary"
-                disabled={saving || !skipAppInput.trim()}
-                onClick={addSkipApp}
-              >
-                {t("skipApps.add")}
-              </Button>
-            </div>
-
-            {customSkipApps.length > 0 && (
-              <div>
-                <div className="settings-row__title">
-                  {t("skipApps.custom")}
-                </div>
-                <div className="settings-chip-group settings-chip-group--top">
-                  {customSkipApps.map((app) => (
-                    <button
-                      key={app}
-                      type="button"
-                      className="settings-chip is-active"
-                      disabled={saving}
-                      onClick={() => removeSkipApps([app])}
-                    >
-                      {app} ×
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="settings-skip-list">
-              {privacyApps.map((category) => {
-                const added = category.apps.filter(hasSkipApp);
-                return (
-                  <div className="settings-skip-category" key={category.key}>
-                    <div className="settings-skip-category__head">
-                      <span className="settings-skip-category__name">
-                        {t(`skipApps.cat${category.key}`)} ({added.length}/
-                        {category.apps.length})
-                      </span>
-                      {added.length < category.apps.length && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={saving}
-                          onClick={() => addSkipApps(category.apps)}
-                        >
-                          {t("skipApps.addAll")}
-                        </Button>
-                      )}
-                      {added.length > 0 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={saving}
-                          onClick={() => removeSkipApps(category.apps)}
-                        >
-                          {t("skipApps.removeAll")}
-                        </Button>
-                      )}
-                    </div>
-
-                    <div className="settings-chip-group">
-                      {category.apps.map((app) => {
-                        const active = hasSkipApp(app);
-                        return (
-                          <button
-                            key={app}
-                            type="button"
-                            role="checkbox"
-                            aria-checked={active}
-                            className={`settings-chip${
-                              active ? " is-active" : ""
-                            }`}
-                            disabled={saving}
-                            onClick={() =>
-                              active
-                                ? removeSkipApps([app])
-                                : addSkipApps([app])
-                            }
-                          >
-                            {active ? "✓ " : "+ "}
-                            {app}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </Dialog>
+      {selectedId && (
+        <PrivacyRulesDialog
+          businessId={selectedId}
+          open={privacyOpen}
+          onClose={() => setPrivacyOpen(false)}
+        />
       )}
 
       {cleanupOpen && selected && (
