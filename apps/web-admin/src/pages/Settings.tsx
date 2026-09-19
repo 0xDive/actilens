@@ -26,6 +26,7 @@ import { OrganizationSettingsCard } from "../components/settings/OrganizationSet
 import { MonitoringSettingsCard } from "../components/settings/MonitoringSettingsCard";
 import { ScreenshotPolicyCard } from "../components/settings/ScreenshotPolicyCard";
 import { DeviceEnrollmentSettingsCard } from "../components/settings/DeviceEnrollmentSettingsCard";
+import { ExportSettingsCard } from "../components/settings/ExportSettingsCard";
 import { PrivacyRulesDialog } from "../components/settings/PrivacyRulesDialog";
 import { useBusinesses } from "../useBusinesses";
 import { canManageSettings } from "../rbac";
@@ -515,6 +516,7 @@ export function Settings() {
                   </Button>
                 </SettingsRow>
               </Card>
+              {selectedId && <ExportSettingsCard businessId={selectedId} />}
             </SettingsSection>
 
             {selectedId && (
