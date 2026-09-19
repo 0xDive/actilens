@@ -83,7 +83,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		serverError(c, err)
 		return
 	}
-	h.issue(c, http.StatusCreated, u, req.ClientType, req.ClientLabel)
+	h.issue(c, http.StatusCreated, u, req.ClientType, req.ClientLabel, "")
 }
 
 type loginReq struct {
@@ -125,8 +125,40 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	if req.BusinessID != "" {
-		member, err := h.store.IsMember(c.Request.Context(), u.ID, req.BusinessID)
+	resolvedBusinessID := strings.TrimSpace(req.BusinessID)
+	if req.ClientType == "desktop" {
+		organizations, err := h.store.LoginOrganizations(c.Request.Context(), u.ID)
+		if err != nil {
+			serverError(c, err)
+			return
+		}
+		if resolvedBusinessID == "" {
+			switch len(organizations) {
+			case 0:
+				// Standalone account: no managed organization binding.
+			case 1:
+				resolvedBusinessID = organizations[0].BusinessID
+			default:
+				apiError(c, http.StatusConflict, ErrCodeOrganizationRequired, "organization selection required", gin.H{
+					"organizations": organizations,
+				})
+				return
+			}
+		} else {
+			found := false
+			for _, organization := range organizations {
+				if organization.BusinessID == resolvedBusinessID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				forbidden(c, "not an active or blocked member of that organization")
+				return
+			}
+		}
+	} else if resolvedBusinessID != "" {
+		member, err := h.store.IsMember(c.Request.Context(), u.ID, resolvedBusinessID)
 		if err != nil {
 			serverError(c, err)
 			return
@@ -156,10 +188,11 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		c.Header("Cache-Control", "no-store")
 		apiError(c, http.StatusUnauthorized, ErrCodeMFARequired, "multi-factor authentication required", gin.H{
 			"challenge_token": challenge,
+			"business_id":     resolvedBusinessID,
 		})
 		return
 	}
-	h.issue(c, http.StatusOK, u, req.ClientType, req.ClientLabel)
+	h.issue(c, http.StatusOK, u, req.ClientType, req.ClientLabel, resolvedBusinessID)
 }
 
 type refreshReq struct {
@@ -257,7 +290,7 @@ func (h *AuthHandler) issue(
 	c *gin.Context,
 	status int,
 	u store.User,
-	clientType, clientLabel string,
+	clientType, clientLabel, businessID string,
 ) {
 	active, version, err := h.store.UserSecurity(c.Request.Context(), u.ID)
 	if err != nil {
@@ -289,6 +322,7 @@ func (h *AuthHandler) issue(
 			"display_name": u.DisplayName,
 			"account_type": u.AccountType,
 		},
-		"tokens": pair,
+		"tokens":      pair,
+		"business_id": businessID,
 	})
 }
