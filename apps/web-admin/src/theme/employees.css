@@ -21,20 +21,26 @@
   text-align: right;
 }
 
-.employees-row {
-  cursor: pointer;
-}
-
-.employees-row:focus-visible {
-  outline: 2px solid var(--ds-brand);
-  outline-offset: -2px;
-}
-
 .employees-person {
   min-width: 210px;
   display: flex;
   align-items: center;
   gap: 11px;
+}
+
+.employees-person-link {
+  border-radius: var(--ds-radius-md);
+  color: inherit;
+  text-decoration: none;
+}
+
+.employees-person-link:hover .employees-person__name {
+  color: var(--ds-brand);
+}
+
+.employees-person-link:focus-visible {
+  outline: none;
+  box-shadow: var(--ds-focus-ring);
 }
 
 .employees-avatar {

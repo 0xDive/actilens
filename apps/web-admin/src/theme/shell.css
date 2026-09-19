@@ -27,10 +27,25 @@
 }
 
 .ds-sidebar__brand {
+  position: relative;
   height: 38px;
   display: flex;
   align-items: center;
   padding: 0 4px;
+}
+
+.ds-sidebar__collapse {
+  position: absolute;
+  top: 5px;
+  right: -27px;
+  z-index: 45;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--ds-border-default);
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-bg-surface);
+  color: var(--ds-text-secondary);
+  box-shadow: var(--ds-shadow-popover);
 }
 
 .ds-brand-link {
@@ -123,13 +138,35 @@
 }
 
 .ds-org-picker__eyebrow {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
   color: var(--ds-text-tertiary);
   font-size: 10px;
   font-weight: 650;
   line-height: 13px;
   text-transform: uppercase;
   letter-spacing: 0.055em;
+  white-space: nowrap;
+}
+
+.ds-org-picker__status {
+  overflow: hidden;
+  color: var(--ds-text-secondary);
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  text-transform: none;
+}
+
+.ds-org-picker__status::before {
+  content: "·";
+  margin-right: 4px;
+  color: var(--ds-text-tertiary);
+}
+
+.ds-org-picker__status--danger {
+  color: var(--ds-danger);
 }
 
 .ds-org-picker__name {
@@ -401,48 +438,6 @@
   background: var(--ds-bg-app);
 }
 
-.ds-shell-topbar {
-  height: 56px;
-  flex: 0 0 56px;
-  padding: 0 24px;
-  border-bottom: 1px solid var(--ds-border-subtle);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: var(--ds-bg-surface);
-}
-
-.ds-shell-topbar__toggle {
-  flex: 0 0 auto;
-}
-
-.ds-shell-breadcrumb {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  color: var(--ds-text-tertiary);
-  font-size: var(--ds-text-sm);
-  line-height: 18px;
-}
-
-.ds-shell-breadcrumb__segment {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ds-shell-breadcrumb__current {
-  color: var(--ds-text-secondary);
-  font-weight: 650;
-}
-
-.ds-shell-breadcrumb svg {
-  width: 14px;
-  height: 14px;
-  flex: 0 0 auto;
-}
-
 .ds-shell-content {
   flex: 1;
   min-height: 0;
@@ -522,9 +517,3 @@
 }
 
 
-.ds-shell-breadcrumb__status {
-  flex: 0 0 auto;
-  padding: 1px 6px;
-  font-size: 10px;
-  line-height: 16px;
-}

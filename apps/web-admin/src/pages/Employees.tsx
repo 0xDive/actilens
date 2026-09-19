@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Trans, useTranslation } from "react-i18next";
 import {
   blockMember,
@@ -887,7 +887,6 @@ function NewEmployeeDialog({
 export function Employees() {
   const { t } = useTranslation("dashboard");
   const { t: tCommon } = useTranslation("common");
-  const navigate = useNavigate();
   const { pushToast } = useToast();
   const {
     businesses,
@@ -1068,28 +1067,12 @@ export function Employees() {
                   (state === "active" || state === "idle") && employee.current_app;
 
                 return (
-                  <tr
-                    key={employee.id}
-                    className="employees-row"
-                    tabIndex={0}
-                    onClick={(event) => {
-                      if (
-                        (event.target as HTMLElement).closest(
-                          "button, a, input, select, label",
-                        )
-                      ) {
-                        return;
-                      }
-                      navigate(`/employees/${employee.id}?business=${selectedId}`);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        navigate(`/employees/${employee.id}?business=${selectedId}`);
-                      }
-                    }}
-                  >
+                  <tr key={employee.id} className="employees-row">
                     <td>
-                      <div className="employees-person">
+                      <Link
+                        className="employees-person employees-person-link"
+                        to={`/employees/${employee.id}?business=${selectedId}`}
+                      >
                         <span className="employees-avatar">
                           {initials(employee.display_name)}
                           <span
@@ -1102,7 +1085,7 @@ export function Employees() {
                           </span>
                           <span className="employees-person__status">{statusLabel}</span>
                         </span>
-                      </div>
+                      </Link>
                     </td>
                     <td className="employees-login">
                       {employee.email || employee.username || "—"}
@@ -1180,29 +1163,12 @@ export function Employees() {
                 <tr
                   key={employee.id}
                   className="employees-row employees-row--former"
-                  tabIndex={0}
-                  onClick={(event) => {
-                    if (
-                      (event.target as HTMLElement).closest(
-                        "button, a, input, select, label",
-                      )
-                    ) {
-                      return;
-                    }
-                    navigate(
-                      `/employees/${employee.id}?business=${selectedId}&former=1`,
-                    );
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      navigate(
-                        `/employees/${employee.id}?business=${selectedId}&former=1`,
-                      );
-                    }
-                  }}
                 >
                   <td>
-                    <div className="employees-person">
+                    <Link
+                      className="employees-person employees-person-link"
+                      to={`/employees/${employee.id}?business=${selectedId}&former=1`}
+                    >
                       <span className="employees-avatar employees-avatar--former">
                         {initials(employee.display_name)}
                       </span>
@@ -1212,7 +1178,7 @@ export function Employees() {
                           {t("employees.lifecycle.removed")}
                         </span>
                       </span>
-                    </div>
+                    </Link>
                   </td>
                   <td className="employees-login">{employee.email || employee.username || "—"}</td>
                   <td>{employee.role ? t(`employees.roles.${employee.role}`) : "—"}</td>

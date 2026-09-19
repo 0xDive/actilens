@@ -5,7 +5,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../auth/AuthContext";
 import { useTheme, type ThemeMode } from "../theme/ThemeProvider";
@@ -14,7 +14,7 @@ import { memberTerms } from "../terms";
 import { DetailHeaderContext } from "../detailHeader";
 import { canManageSettings } from "../rbac";
 import { LOCALES } from "../i18n";
-import { Badge, cx, IconButton } from "./ds";
+import { cx, IconButton } from "./ds";
 
 const SIDEBAR_KEY = "actilens.admin.sidebarCollapsed";
 
@@ -71,12 +71,6 @@ const SettingsIcon = () => (
 const ChevronDownIcon = () => (
   <Icon size={16}>
     <path d="m7 10 5 5 5-5" />
-  </Icon>
-);
-
-const ChevronRightIcon = () => (
-  <Icon size={14}>
-    <path d="m9 18 6-6-6-6" />
   </Icon>
 );
 
@@ -150,6 +144,7 @@ function useDismiss(open: boolean, close: () => void) {
 
 function OrganizationPicker() {
   const { t } = useTranslation("dashboard");
+  const { t: tCommon } = useTranslation("common");
   const navigate = useNavigate();
   const { businesses, selected, selectedId, setSelectedId } = useBusinesses();
   const [open, setOpen] = useState(false);
@@ -168,7 +163,18 @@ function OrganizationPicker() {
       >
         <span className="ds-org-picker__mark">{initials(selected.name)}</span>
         <span className="ds-org-picker__copy">
-          <span className="ds-org-picker__eyebrow">{t("dashboard.organization", { defaultValue: "Workspace" })}</span>
+          <span className="ds-org-picker__eyebrow">
+            <span>{t("dashboard.organization", { defaultValue: "Workspace" })}</span>
+            {selected.deletion_scheduled_at ? (
+              <span className="ds-org-picker__status ds-org-picker__status--danger">
+                {tCommon("shell.deletionPending")}
+              </span>
+            ) : selected.archived_at ? (
+              <span className="ds-org-picker__status">
+                {tCommon("shell.archived")}
+              </span>
+            ) : null}
+          </span>
           <span className="ds-org-picker__name">{selected.name}</span>
         </span>
         <span className="ds-org-picker__chevron">
@@ -339,7 +345,6 @@ export function AppShell() {
   const { t } = useTranslation();
   const { selected } = useBusinesses();
   const terms = memberTerms(selected?.kind);
-  const location = useLocation();
 
   const [collapsed, setCollapsed] = useState(() => {
     const saved = localStorage.getItem(SIDEBAR_KEY);
@@ -355,13 +360,7 @@ export function AppShell() {
       : []),
   ];
 
-  const activeNav = nav.find((item) =>
-    item.end ? location.pathname === item.to : location.pathname.startsWith(item.to),
-  );
-
-  const isDetail = /^\/employees\/[^/]+/.test(location.pathname);
-  const [detailTitle, setDetailTitle] = useState<string | null>(null);
-  const detailHeader = useMemo(() => ({ setTitle: setDetailTitle }), []);
+  const detailHeader = useMemo(() => ({ setTitle: () => {} }), []);
 
   function toggleSidebar() {
     setCollapsed((current) => {
@@ -371,10 +370,6 @@ export function AppShell() {
     });
   }
 
-  const breadcrumbCurrent = isDetail
-    ? detailTitle || terms.one
-    : activeNav?.label || t("nav.dashboard");
-
   return (
     <div className="ds-app-shell" data-sidebar={collapsed ? "collapsed" : "expanded"}>
       <aside className="ds-sidebar">
@@ -383,6 +378,13 @@ export function AppShell() {
             <BrandMark />
             <span className="ds-brand-wordmark">ActiLens</span>
           </NavLink>
+          <IconButton
+            label={collapsed ? t("shell.expand") : t("shell.collapse")}
+            className="ds-sidebar__collapse"
+            onClick={toggleSidebar}
+          >
+            <CollapseIcon collapsed={collapsed} />
+          </IconButton>
         </div>
 
         <OrganizationPicker />
@@ -409,43 +411,6 @@ export function AppShell() {
       </aside>
 
       <main className="ds-shell-main">
-        <header className="ds-shell-topbar">
-          <IconButton
-            label={collapsed ? t("shell.expand") : t("shell.collapse")}
-            className="ds-shell-topbar__toggle"
-            onClick={toggleSidebar}
-          >
-            <CollapseIcon collapsed={collapsed} />
-          </IconButton>
-
-          <div className="ds-shell-breadcrumb" aria-label={t("shell.context")}>
-            {selected && (
-              <>
-                <span className="ds-shell-breadcrumb__segment">{selected.name}</span>
-                {selected.deletion_scheduled_at ? (
-                  <Badge tone="danger" className="ds-shell-breadcrumb__status">
-                    {t("shell.deletionPending")}
-                  </Badge>
-                ) : selected.archived_at ? (
-                  <Badge tone="neutral" className="ds-shell-breadcrumb__status">
-                    {t("shell.archived")}
-                  </Badge>
-                ) : null}
-                <ChevronRightIcon />
-              </>
-            )}
-            {isDetail && (
-              <>
-                <span className="ds-shell-breadcrumb__segment">{terms.many}</span>
-                <ChevronRightIcon />
-              </>
-            )}
-            <span className="ds-shell-breadcrumb__segment ds-shell-breadcrumb__current">
-              {breadcrumbCurrent}
-            </span>
-          </div>
-        </header>
-
         <div className="ds-shell-content">
           <div className="ds-shell-content__inner">
             <DetailHeaderContext.Provider value={detailHeader}>
