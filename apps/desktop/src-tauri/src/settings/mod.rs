@@ -417,6 +417,89 @@ mod tests {
     }
 
     #[test]
+    fn managed_policy_overrides_local_capture_switches() {
+        use std::sync::atomic::Ordering::Relaxed;
+
+        let dir = std::env::temp_dir().join(format!(
+            "actilens_managed_policy_{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("settings.json");
+
+        let mut local = Settings::default();
+        local.consented = true;
+        local.collect_app_activity = true;
+        local.collect_window_titles = true;
+        local.collect_browser_activity = true;
+        local.capture_screenshots = true;
+        local.count_keystrokes = true;
+        local.screenshot_capture_scope = "all_displays".into();
+
+        let state = SettingsState {
+            path: path.clone(),
+            current: Mutex::new(local),
+            managed: Mutex::new(CaptureManaged::default()),
+        };
+        let control = crate::trackers::TrackerControl::new();
+        let policy: crate::sync::client::Policy = serde_json::from_value(
+            serde_json::json!({
+                "managed": true,
+                "business_id": "business-a",
+                "collect_app_activity": false,
+                "collect_window_titles": false,
+                "collect_screenshots": false,
+                "collect_browser_activity": false,
+                "collect_keystroke_counts": false,
+                "screenshot_interval_s": 120,
+                "idle_threshold_s": 90,
+                "screenshot_retention_days": 14,
+                "kind": "team",
+                "screenshot_capture_scope": "active_window",
+                "privacy_rules": []
+            }),
+        )
+        .unwrap();
+
+        let status = apply_managed_policy(&state, &control, &policy, true);
+        assert!(status.managed);
+        assert!(status.locked());
+        assert!(status.monitoring_enabled);
+
+        let persisted = state.current.lock().unwrap().clone();
+        assert!(!persisted.collect_app_activity);
+        assert!(!persisted.collect_window_titles);
+        assert!(!persisted.collect_browser_activity);
+        assert!(!persisted.capture_screenshots);
+        assert!(!persisted.count_keystrokes);
+        assert_eq!(persisted.screenshot_interval_s, 120);
+        assert_eq!(persisted.idle_threshold_s, 90);
+        assert_eq!(persisted.screenshot_retention_days, 14);
+        assert_eq!(persisted.screenshot_capture_scope, "active_window");
+
+        assert!(control.managed.load(Relaxed));
+        assert!(control.org_monitoring_enabled.load(Relaxed));
+        assert!(!control.collect_app_activity.load(Relaxed));
+        assert!(!control.collect_window_titles.load(Relaxed));
+        assert!(!control.collect_browser_activity.load(Relaxed));
+        assert!(!control.capture_screenshots.load(Relaxed));
+        assert!(!control.count_keystrokes.load(Relaxed));
+        assert_eq!(
+            control.screenshot_mode.load(Relaxed),
+            crate::trackers::SHOT_SCOPE_ACTIVE_WINDOW
+        );
+
+        let reloaded = load(&path);
+        assert!(!reloaded.collect_app_activity);
+        assert!(!reloaded.collect_window_titles);
+        assert!(!reloaded.collect_browser_activity);
+        assert!(!reloaded.capture_screenshots);
+        assert!(!reloaded.count_keystrokes);
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn managed_scope_suppression_only_crosses_privacy_boundaries() {
         let mut s = Settings::default();
         assert!(!s.needs_managed_scope_suppression("business-a"));
