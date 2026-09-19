@@ -173,6 +173,10 @@ func (s *Store) CreateEmployee(ctx context.Context, ownerID string, businessID *
 		}
 	}
 
+	if err := lockMutableOrganizationTx(ctx, tx, biz.ID); err != nil {
+		return Employee{}, Business{}, err
+	}
+
 	// Store NULL (not "") for a missing identifier so unique constraints don't
 	// collide across members and the CHECK constraint reads cleanly.
 	emailArg := nullableLower(email)
