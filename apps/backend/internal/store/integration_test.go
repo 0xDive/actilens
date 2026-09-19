@@ -772,6 +772,40 @@ func TestIntegrationProductionUpgradeToProductFoundation(t *testing.T) {
 		pool.Close()
 		t.Fatalf("seed legacy screenshot: %v", err)
 	}
+
+	// A legacy device for a user with memberships in multiple organizations must
+	// stay unbound after migration 14. Picking either organization would silently
+	// cross an organization privacy boundary.
+	secondBiz, err := st.CreateBusiness(ctx, owner.ID, "Upgrade second team", "team")
+	if err != nil {
+		pool.Close()
+		t.Fatalf("create second upgrade business: %v", err)
+	}
+	multiUser, err := st.CreateUser(
+		ctx, "upgrade-multi@example.test", "", "hash", "Upgrade Multi", "manager",
+	)
+	if err != nil {
+		pool.Close()
+		t.Fatalf("create multi-org upgrade user: %v", err)
+	}
+	for _, businessID := range []string{biz.ID, secondBiz.ID} {
+		if _, err := pool.Exec(ctx,
+			`INSERT INTO memberships (user_id, business_id, role)
+			 VALUES ($1, $2, 'employee')`,
+			multiUser.ID, businessID,
+		); err != nil {
+			pool.Close()
+			t.Fatalf("add multi-org membership: %v", err)
+		}
+	}
+	multiDeviceID := uuid.NewString()
+	if err := st.SyncBatch(
+		ctx, multiUser.ID, biz.ID, multiDeviceID, DeviceMetadata{},
+		nil, nil, nil,
+	); err != nil {
+		pool.Close()
+		t.Fatalf("seed multi-org legacy device: %v", err)
+	}
 	pool.Close()
 
 	sqlDB, err := sql.Open("pgx", dsn)
@@ -809,6 +843,7 @@ func TestIntegrationProductionUpgradeToProductFoundation(t *testing.T) {
 		weekStart             *int
 		membershipStatus      string
 		deviceBusinessID      *string
+		multiDeviceBusinessID *string
 		captureGroupID        *string
 		activityCount         int
 		privacyRuleCount      int
@@ -847,6 +882,14 @@ func TestIntegrationProductionUpgradeToProductFoundation(t *testing.T) {
 	}
 	if deviceBusinessID == nil || *deviceBusinessID != biz.ID {
 		t.Fatalf("device business = %v, want %s", deviceBusinessID, biz.ID)
+	}
+	if err := verify.QueryRow(ctx,
+		`SELECT business_id::text FROM devices WHERE id = $1`, multiDeviceID,
+	).Scan(&multiDeviceBusinessID); err != nil {
+		t.Fatalf("read upgraded multi-org device: %v", err)
+	}
+	if multiDeviceBusinessID != nil {
+		t.Fatalf("multi-org legacy device was arbitrarily bound to %v", multiDeviceBusinessID)
 	}
 
 	if err := verify.QueryRow(ctx,
