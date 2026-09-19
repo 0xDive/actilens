@@ -259,6 +259,7 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
   const listViewportRef = useRef<HTMLDivElement>(null);
+  const auditRequestSequence = useRef(0);
 
   const loadPreview = useCallback(async () => {
     setLoading(true);
@@ -300,6 +301,7 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
 
   const loadAuditPage = useCallback(async () => {
     if (!open) return;
+    const requestSequence = ++auditRequestSequence.current;
     setModalLoading(true);
     setModalError(null);
     try {
@@ -310,14 +312,19 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
         action: actionFilter,
         search: debouncedSearch,
       });
+      if (requestSequence !== auditRequestSequence.current) return;
       setEvents(auditResponse.events);
       setTotal(auditResponse.total);
       setAuditUsers(auditResponse.users);
       setAuditActions(auditResponse.actions);
     } catch {
-      setModalError(t("audit.loadFailed"));
+      if (requestSequence === auditRequestSequence.current) {
+        setModalError(t("audit.loadFailed"));
+      }
     } finally {
-      setModalLoading(false);
+      if (requestSequence === auditRequestSequence.current) {
+        setModalLoading(false);
+      }
     }
   }, [
     actionFilter,
@@ -873,9 +880,18 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
         <Dialog
           title={t("audit.dialogTitle")}
           size="workspace"
-          onClose={() => setOpen(false)}
+          onClose={() => {
+            auditRequestSequence.current += 1;
+            setOpen(false);
+          }}
           footer={
-            <Button variant="primary" onClick={() => setOpen(false)}>
+            <Button
+              variant="primary"
+              onClick={() => {
+                auditRequestSequence.current += 1;
+                setOpen(false);
+              }}
+            >
               {t("audit.close")}
             </Button>
           }
