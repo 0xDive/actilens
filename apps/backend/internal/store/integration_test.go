@@ -1590,3 +1590,103 @@ func TestIntegrationCleanupDateRangeBoundaries(t *testing.T) {
 		t.Fatalf("remaining screenshots=%d bytes=%d err=%v, want 2/40", count, bytes, err)
 	}
 }
+
+
+func TestIntegrationFormerMemberHistoryAndCaptureGroups(t *testing.T) {
+	st, pool := integrationStore(t)
+	ctx := context.Background()
+
+	owner, err := st.CreateUser(ctx, "former-owner@example.test", "", "hash", "Former Owner", "manager")
+	if err != nil {
+		t.Fatalf("create owner: %v", err)
+	}
+	biz, err := st.CreateBusiness(ctx, owner.ID, "Former history", "team")
+	if err != nil {
+		t.Fatalf("create business: %v", err)
+	}
+	member, _, err := st.CreateEmployee(
+		ctx, owner.ID, &biz.ID, "", "former_member", "hash", "Former Member",
+	)
+	if err != nil {
+		t.Fatalf("create member: %v", err)
+	}
+	admin, err := st.CreateUser(ctx, "former-admin@example.test", "", "hash", "Former Admin", "manager")
+	if err != nil {
+		t.Fatalf("create admin: %v", err)
+	}
+	manager, err := st.CreateUser(ctx, "former-manager@example.test", "", "hash", "Former Manager", "manager")
+	if err != nil {
+		t.Fatalf("create manager: %v", err)
+	}
+	for _, row := range []struct {
+		user User
+		role BusinessRole
+	}{{admin, RoleAdmin}, {manager, RoleManager}} {
+		if _, err := pool.Exec(ctx,
+			`INSERT INTO memberships (user_id, business_id, role) VALUES ($1, $2, $3)`,
+			row.user.ID, biz.ID, row.role,
+		); err != nil {
+			t.Fatalf("add %s membership: %v", row.role, err)
+		}
+	}
+
+	deviceID := uuid.NewString()
+	if err := st.SyncBatch(
+		ctx, member.ID, biz.ID, deviceID, DeviceMetadata{},
+		[]ActivityRow{{
+			ClientUUID: uuid.NewString(), Ts: 200, AppName: "Historical App",
+			DurationS: 15, ClientUpdatedAt: 200,
+		}},
+		nil, nil,
+	); err != nil {
+		t.Fatalf("seed former activity: %v", err)
+	}
+	groupID := uuid.NewString()
+	if err := st.UpsertScreenshot(ctx, member.ID, biz.ID, ScreenshotRow{
+		ClientUUID: uuid.NewString(),
+		DeviceID: deviceID,
+		Ts: 200,
+		FilePath: "screenshots/former.webp",
+		ByteSize: 50,
+		DisplayID: func() *int { v := 1; return &v }(),
+		CaptureGroupID: &groupID,
+		ClientUpdatedAt: 200,
+	}); err != nil {
+		t.Fatalf("seed former screenshot: %v", err)
+	}
+
+	if err := st.RemoveMember(ctx, owner.ID, biz.ID, member.ID); err != nil {
+		t.Fatalf("remove member: %v", err)
+	}
+	former, err := st.ListFormerMembers(ctx, biz.ID)
+	if err != nil {
+		t.Fatalf("list former members: %v", err)
+	}
+	if len(former) != 1 || former[0].ID != member.ID {
+		t.Fatalf("former members = %+v, want removed member", former)
+	}
+
+	ownerAccess, err := st.ReportAccessInBusiness(ctx, owner.ID, member.ID, biz.ID)
+	if err != nil || ownerAccess.TargetStatus != MemberStatusRemoved {
+		t.Fatalf("owner former report access = %+v err=%v", ownerAccess, err)
+	}
+	adminAccess, err := st.ReportAccessInBusiness(ctx, admin.ID, member.ID, biz.ID)
+	if err != nil || adminAccess.TargetStatus != MemberStatusRemoved {
+		t.Fatalf("admin former report access = %+v err=%v", adminAccess, err)
+	}
+	if _, err := st.ReportAccessInBusiness(ctx, manager.ID, member.ID, biz.ID); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("manager former report access = %v, want ErrForbidden", err)
+	}
+
+	activity, _, err := st.ActivityReportInBusiness(ctx, member.ID, biz.ID, 0, 1_000)
+	if err != nil || len(activity) != 1 || activity[0].AppName != "Historical App" {
+		t.Fatalf("former activity = %+v err=%v", activity, err)
+	}
+	shots, err := st.ScreenshotsReportInBusiness(ctx, member.ID, biz.ID, 0, 1_000, 20, 0)
+	if err != nil {
+		t.Fatalf("former screenshots: %v", err)
+	}
+	if len(shots) != 1 || shots[0].CaptureGroupID == nil || *shots[0].CaptureGroupID != groupID {
+		t.Fatalf("former screenshot capture group = %+v, want %s", shots, groupID)
+	}
+}
