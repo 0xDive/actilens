@@ -309,3 +309,8 @@
   font-size: var(--ds-text-xs);
   line-height: 16px;
 }
+
+
+.employees-readonly-alert {
+  margin-bottom: 16px;
+}
