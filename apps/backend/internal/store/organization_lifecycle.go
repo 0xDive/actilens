@@ -194,6 +194,15 @@ func (s *Store) TransferOrganizationOwnership(
 		return ErrConflict
 	}
 
+	previousOwnerSnapshot, err := auditUserSnapshotTx(ctx, tx, businessID, actorID)
+	if err != nil {
+		return err
+	}
+	newOwnerSnapshot, err := auditUserSnapshotTx(ctx, tx, businessID, targetUserID)
+	if err != nil {
+		return err
+	}
+
 	if _, err := tx.Exec(ctx, `
 		UPDATE businesses
 		   SET owner_user_id = $1, updated_at = now()
@@ -229,6 +238,9 @@ func (s *Store) TransferOrganizationOwnership(
 		ctx, tx, businessID, actorID, "organization.owner_transferred",
 		"organization", businessID,
 		map[string]any{
+			"actor":                  previousOwnerSnapshot,
+			"previous_owner":         previousOwnerSnapshot,
+			"new_owner":              newOwnerSnapshot,
 			"previous_owner_user_id": actorID,
 			"new_owner_user_id":      targetUserID,
 			"changes": auditChanges(auditChange("owner_user_id", actorID, targetUserID)),
