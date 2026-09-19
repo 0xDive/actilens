@@ -40,7 +40,7 @@ func (h *RetentionHandler) Preview(c *gin.Context) {
 		return
 	}
 	if !allowed {
-		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permission"})
+		forbidden(c, "insufficient permission")
 		return
 	}
 
@@ -86,7 +86,7 @@ func (h *RetentionHandler) CleanupData(c *gin.Context) {
 		return
 	}
 	if !allowed {
-		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permission"})
+		forbidden(c, "insufficient permission")
 		return
 	}
 
@@ -175,7 +175,7 @@ func (h *RetentionHandler) Cleanup(c *gin.Context) {
 		return
 	}
 	if !allowed {
-		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permission"})
+		forbidden(c, "insufficient permission")
 		return
 	}
 
