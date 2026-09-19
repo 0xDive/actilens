@@ -11,6 +11,7 @@ import {
   listAuditEvents,
   listBusinessEmployees,
   listFormerMembers,
+  type AuditUserFacet,
 } from "../../api/endpoints";
 import type { AuditEvent, Employee } from "../../api/types";
 import {
@@ -229,12 +230,20 @@ function formatBytes(value: number): string {
 
 export function AuditLogCard({ businessId }: { businessId: string }) {
   const { t } = useTranslation("settings");
+  const [previewEvents, setPreviewEvents] = useState<AuditEvent[]>([]);
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [people, setPeople] = useState<Employee[]>([]);
+  const [total, setTotal] = useState(0);
+  const [previewTotal, setPreviewTotal] = useState(0);
+  const [auditUsers, setAuditUsers] = useState<AuditUserFacet[]>([]);
+  const [auditActions, setAuditActions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [modalLoading, setModalLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [userFilter, setUserFilter] = useState("");
   const [actionFilter, setActionFilter] = useState("");
   const [page, setPage] = useState(0);
@@ -242,16 +251,20 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
   const listViewportRef = useRef<HTMLDivElement>(null);
 
-  const load = useCallback(async () => {
+  const loadPreview = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const [auditResponse, activeResponse, formerResponse] = await Promise.all([
-        listAuditEvents(businessId, 200),
+        listAuditEvents(businessId, { limit: PREVIEW_COUNT, offset: 0 }),
         listBusinessEmployees(businessId),
         listFormerMembers(businessId),
       ]);
-      setEvents(auditResponse.events);
+      setPreviewEvents(auditResponse.events);
+      setPreviewTotal(auditResponse.total);
+      setAuditUsers(auditResponse.users);
+      setAuditActions(auditResponse.actions);
+
       const byId = new Map<string, Employee>();
       for (const person of [...activeResponse.employees, ...formerResponse.employees]) {
         byId.set(person.id, person);
@@ -265,8 +278,52 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
   }, [businessId, t]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void loadPreview();
+  }, [loadPreview]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setPage(0);
+      setDebouncedSearch(search.trim());
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
+  const loadAuditPage = useCallback(async () => {
+    if (!open) return;
+    setModalLoading(true);
+    setModalError(null);
+    try {
+      const auditResponse = await listAuditEvents(businessId, {
+        limit: pageSize,
+        offset: page * pageSize,
+        userId: userFilter,
+        action: actionFilter,
+        search: debouncedSearch,
+      });
+      setEvents(auditResponse.events);
+      setTotal(auditResponse.total);
+      setAuditUsers(auditResponse.users);
+      setAuditActions(auditResponse.actions);
+    } catch {
+      setModalError(t("audit.loadFailed"));
+    } finally {
+      setModalLoading(false);
+    }
+  }, [
+    actionFilter,
+    businessId,
+    debouncedSearch,
+    open,
+    page,
+    pageSize,
+    t,
+    userFilter,
+  ]);
+
+  useEffect(() => {
+    void loadAuditPage();
+  }, [loadAuditPage]);
 
   const peopleById = useMemo(
     () => new Map(people.map((person) => [person.id, person])),
@@ -395,9 +452,9 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
     return formatValue(key, value);
   }
 
-  const rows = useMemo(
-    () =>
-      events.map((event) => {
+  const mapEvents = useCallback(
+    (sourceEvents: AuditEvent[]) =>
+      sourceEvents.map((event) => {
         const details = event.details ?? {};
         const actorSnapshot = asRecord(details.actor);
         const targetSnapshot = asRecord(details.target);
@@ -449,38 +506,27 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
           searchable,
         };
       }),
-    [events, peopleById, t],
+    [peopleById, t],
   );
 
-  const userOptions = useMemo(() => {
-    const names = new Map<string, string>();
-    for (const person of people) {
-      names.set(person.id, person.display_name);
-    }
-    for (const row of rows) {
-      if (row.event.actor_user_id) {
-        names.set(row.event.actor_user_id, row.actorName);
-      }
-      if (
-        row.event.target_id &&
-        (row.event.target_type === "member" ||
-          row.event.target_type === "employee")
-      ) {
-        names.set(row.event.target_id, row.targetName);
-      }
-    }
-    return [
+  const rows = useMemo(() => mapEvents(events), [events, mapEvents]);
+  const previewRows = useMemo(
+    () => mapEvents(previewEvents),
+    [mapEvents, previewEvents],
+  );
+
+  const userOptions = useMemo(
+    () => [
       { value: "", label: t("audit.allUsers") },
-      ...[...names.entries()]
-        .map(([value, label]) => ({ value, label }))
-        .sort((left, right) => left.label.localeCompare(right.label)),
-    ];
-  }, [people, rows, t]);
+      ...auditUsers.map((user) => ({ value: user.id, label: user.name })),
+    ],
+    [auditUsers, t],
+  );
 
   const actionOptions = useMemo(
     () => [
       { value: "", label: t("audit.allActions") },
-      ...[...new Set(events.map((event) => event.action))]
+      ...auditActions
         .map((action) => ({
           value: action,
           label: t(
@@ -489,29 +535,8 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
         }))
         .sort((left, right) => left.label.localeCompare(right.label)),
     ],
-    [events, t],
+    [auditActions, t],
   );
-
-  const filteredRows = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase();
-    return rows.filter((row) => {
-      const event = row.event;
-      if (
-        userFilter &&
-        event.actor_user_id !== userFilter &&
-        event.target_id !== userFilter
-      ) {
-        return false;
-      }
-      if (actionFilter && event.action !== actionFilter) return false;
-      return !query || row.searchable.includes(query);
-    });
-  }, [actionFilter, rows, search, userFilter]);
-
-  useEffect(() => {
-    setPage(0);
-    setSelectedEventId(null);
-  }, [actionFilter, search, userFilter]);
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -534,30 +559,31 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
     return () => observer.disconnect();
   }, [open]);
 
-  const pageCount = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
   useEffect(() => {
     setPage((current) => Math.min(current, pageCount - 1));
   }, [pageCount]);
 
+  useEffect(() => {
+    setPage(0);
+  }, [pageSize]);
+
   const safePage = Math.min(page, pageCount - 1);
-  const pageRows = filteredRows.slice(
-    safePage * pageSize,
-    safePage * pageSize + pageSize,
-  );
+  const pageRows = rows;
 
   useEffect(() => {
     if (!open) return;
     setSelectedEventId((current) => {
-      if (current != null && filteredRows.some((row) => row.event.id === current)) {
+      if (current != null && rows.some((row) => row.event.id === current)) {
         return current;
       }
-      return pageRows[0]?.event.id ?? null;
+      return rows[0]?.event.id ?? null;
     });
-  }, [filteredRows, open, safePage, pageSize]);
+  }, [open, rows]);
 
   const selectedRow =
-    filteredRows.find((row) => row.event.id === selectedEventId) ?? null;
+    rows.find((row) => row.event.id === selectedEventId) ?? null;
 
   function changeSummary(row: (typeof rows)[number]): string {
     if (row.changes.length === 0) return "";
@@ -745,7 +771,7 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
             variant="secondary"
             size="sm"
             disabled={loading}
-            onClick={() => setOpen(true)}
+            onClick={() => { setPage(0); setOpen(true); }}
           >
             {t("audit.open")}
           </Button>
@@ -769,22 +795,22 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
 
         {error && <Alert tone="danger">{error}</Alert>}
 
-        {!loading && !error && rows.length === 0 && (
+        {!loading && !error && previewRows.length === 0 && (
           <EmptyState
             title={t("audit.empty")}
             description={t("audit.v1.emptyDescription")}
           />
         )}
 
-        {!loading && !error && rows.length > 0 && (
+        {!loading && !error && previewRows.length > 0 && (
           <>
             <div className="settings-audit-list settings-audit-list--preview">
-              {rows.slice(0, PREVIEW_COUNT).map((row) => renderRow(row))}
+              {previewRows.map((row) => renderRow(row))}
             </div>
-            {rows.length > PREVIEW_COUNT && (
+            {previewTotal > PREVIEW_COUNT && (
               <div className="settings-audit-preview-footer">
-                <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
-                  {t("audit.showAll", { count: rows.length })}
+                <Button variant="ghost" size="sm" onClick={() => { setPage(0); setOpen(true); }}>
+                  {t("audit.showAll", { count: previewTotal })}
                 </Button>
               </div>
             )}
@@ -819,7 +845,10 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
                 ariaLabel={t("audit.userFilter")}
                 options={userOptions}
                 menuWidth={280}
-                onChange={setUserFilter}
+                onChange={(value) => {
+                  setPage(0);
+                  setUserFilter(value);
+                }}
               />
               <SelectMenu
                 id="audit-action-filter"
@@ -827,15 +856,25 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
                 ariaLabel={t("audit.actionFilter")}
                 options={actionOptions}
                 menuWidth={320}
-                onChange={setActionFilter}
+                onChange={(value) => {
+                  setPage(0);
+                  setActionFilter(value);
+                }}
               />
-              <Button variant="secondary" disabled={loading} onClick={() => void load()}>
+              <Button
+                variant="secondary"
+                disabled={modalLoading}
+                onClick={() => {
+                  void loadAuditPage();
+                  void loadPreview();
+                }}
+              >
                 {t("audit.refresh")}
               </Button>
             </div>
 
             <div className="settings-audit-results-meta">
-              {t("audit.results", { count: filteredRows.length })}
+              {modalError ? modalError : t("audit.results", { count: total })}
             </div>
 
             <div className="settings-audit-workspace">
@@ -843,7 +882,7 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
                 ref={listViewportRef}
                 className="settings-audit-list-viewport"
               >
-                {filteredRows.length === 0 ? (
+                {pageRows.length === 0 ? (
                   <EmptyState
                     title={t("audit.noMatches")}
                     description={t("audit.noMatchesDescription")}
@@ -860,7 +899,7 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
               </aside>
             </div>
 
-            {filteredRows.length > 0 && pageCount > 1 && (
+            {total > 0 && pageCount > 1 && (
               <div className="settings-audit-pager">
                 <Button
                   variant="secondary"
