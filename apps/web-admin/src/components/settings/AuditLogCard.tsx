@@ -39,6 +39,7 @@ const ACTION_KEYS: Record<string, string> = {
   "device.updated": "deviceUpdated",
   "device.revoked": "deviceRevoked",
   "device.restored": "deviceRestored",
+  "device.enrolled": "deviceEnrolled",
   "member.role_changed": "memberRoleChanged",
   "member.monitoring_changed": "memberMonitoringChanged",
   "member.purged": "memberPurged",
@@ -48,6 +49,9 @@ const ACTION_KEYS: Record<string, string> = {
   "member.unblocked": "memberUnblocked",
   "member.removed": "memberRemoved",
   "member.restored": "memberRestored",
+  "member.profile_changed": "memberProfileChanged",
+  "member.login_changed": "memberLoginChanged",
+  "member.mfa_reset": "memberMfaReset",
   "organization.created": "organizationCreated",
   "organization.renamed": "organizationRenamed",
   "organization.kind_changed": "organizationKindChanged",
@@ -68,6 +72,9 @@ const ACTION_KEYS: Record<string, string> = {
   "settings.privacy_rule_created": "privacyRuleCreated",
   "settings.privacy_rule_changed": "privacyRuleChanged",
   "settings.privacy_rule_deleted": "privacyRuleDeleted",
+  "data.export_requested": "dataExportRequested",
+  "data.cleanup_requested": "dataCleanupRequested",
+  "data.cleanup_completed": "dataCleanupCompleted",
 };
 
 const LEGACY_CHANGE_FIELD: Record<string, string> = {
@@ -212,6 +219,8 @@ function metadataEntries(details: Record<string, unknown>) {
     "to",
     "fields",
     "values",
+    "preview",
+    "result",
   ]);
   return Object.entries(details).filter(([key]) => !hidden.has(key));
 }
@@ -394,6 +403,22 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
       return value ? t("audit.values.exists") : t("audit.values.deleted");
     }
 
+    if (field === "mfa_enabled" && typeof value === "boolean") {
+      return value ? t("audit.values.enabled") : t("audit.values.disabled");
+    }
+
+    if (field === "device_revoked" && typeof value === "boolean") {
+      return value ? t("audit.values.revoked") : t("audit.values.active");
+    }
+
+    if (field === "device_enrolled" && typeof value === "boolean") {
+      return value ? t("audit.values.enrolled") : t("audit.values.notEnrolled");
+    }
+
+    if (field === "account_active" && typeof value === "boolean") {
+      return value ? t("audit.values.active") : t("audit.values.disabled");
+    }
+
     if (
       (field === "deletion_scheduled_at" || field === "expires_at") &&
       (typeof value === "string" || typeof value === "number")
@@ -436,7 +461,24 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
   }
 
   function metadataValue(key: string, value: unknown): string {
-    if (key === "bytes_freed" && typeof value === "number") return formatBytes(value);
+    if (
+      (key === "bytes_freed" || key.endsWith("_bytes_freed")) &&
+      typeof value === "number"
+    ) {
+      return formatBytes(value);
+    }
+    if (key === "data_classes" && Array.isArray(value)) {
+      return value
+        .map((item) =>
+          t("audit.values.dataClasses." + String(item), {
+            defaultValue: String(item),
+          }),
+        )
+        .join(", ");
+    }
+    if (key === "mode" && typeof value === "string") {
+      return t("audit.values.cleanupModes." + value, { defaultValue: value });
+    }
     if (
       (key.endsWith("_user_id") || key === "employee_id") &&
       typeof value === "string"

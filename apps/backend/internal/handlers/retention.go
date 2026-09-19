@@ -242,6 +242,12 @@ func (h *RetentionHandler) CleanupData(c *gin.Context) {
 		"deleted_count": result.Deleted,
 		"bytes_freed":   result.BytesFreed,
 	}
+	for _, classResult := range result.Results {
+		completedDetails[classResult.DataClass+"_deleted"] = classResult.Deleted
+		if classResult.BytesFreed > 0 {
+			completedDetails[classResult.DataClass+"_bytes_freed"] = classResult.BytesFreed
+		}
+	}
 	if rangeMode {
 		completedDetails["from"] = *req.From
 		completedDetails["to"] = *req.To
