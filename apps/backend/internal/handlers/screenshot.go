@@ -115,9 +115,11 @@ func (h *ScreenshotHandler) Upload(c *gin.Context) {
 	if err := h.store.TouchDevice(c.Request.Context(), userID, bizID, deviceID, store.DeviceMetadata{}); err != nil {
 		switch {
 		case errors.Is(err, store.ErrDeviceRevoked):
-			c.JSON(http.StatusForbidden, gin.H{"error": "this device was revoked by the administrator"})
+			apiError(c, http.StatusForbidden, ErrCodeDeviceRevoked, "this device was revoked by the administrator", nil)
+		case errors.Is(err, store.ErrDeviceLimitReached):
+			apiError(c, http.StatusConflict, ErrCodeDeviceLimitReached, "device limit reached", nil)
 		case errors.Is(err, store.ErrForbidden):
-			c.JSON(http.StatusForbidden, gin.H{"error": "device id belongs to another account"})
+			forbidden(c, "device id belongs to another account")
 		default:
 			serverError(c, err)
 		}
