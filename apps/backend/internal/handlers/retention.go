@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -87,6 +88,17 @@ func (h *RetentionHandler) CleanupData(c *gin.Context) {
 	}
 	if !allowed {
 		forbidden(c, "insufficient permission")
+		return
+	}
+	if err := h.store.EnsureBusinessMutable(c.Request.Context(), businessID); err != nil {
+		switch {
+		case errors.Is(err, store.ErrOrganizationArchived):
+			apiError(c, http.StatusConflict, ErrCodeOrganizationArchived, "organization is archived", nil)
+		case errors.Is(err, store.ErrOrganizationDeletionPending):
+			apiError(c, http.StatusConflict, ErrCodeOrganizationDeletionPending, "organization deletion is pending", nil)
+		default:
+			serverError(c, err)
+		}
 		return
 	}
 
@@ -176,6 +188,17 @@ func (h *RetentionHandler) Cleanup(c *gin.Context) {
 	}
 	if !allowed {
 		forbidden(c, "insufficient permission")
+		return
+	}
+	if err := h.store.EnsureBusinessMutable(c.Request.Context(), businessID); err != nil {
+		switch {
+		case errors.Is(err, store.ErrOrganizationArchived):
+			apiError(c, http.StatusConflict, ErrCodeOrganizationArchived, "organization is archived", nil)
+		case errors.Is(err, store.ErrOrganizationDeletionPending):
+			apiError(c, http.StatusConflict, ErrCodeOrganizationDeletionPending, "organization deletion is pending", nil)
+		default:
+			serverError(c, err)
+		}
 		return
 	}
 
