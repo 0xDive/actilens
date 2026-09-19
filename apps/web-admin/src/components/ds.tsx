@@ -242,6 +242,10 @@ export function SelectMenu<T extends string>({
   disabled = false,
   className,
   ariaLabel,
+  searchable = false,
+  searchPlaceholder = "Search…",
+  emptyText = "No matches",
+  menuWidth,
 }: {
   id: string;
   label?: string;
@@ -252,47 +256,68 @@ export function SelectMenu<T extends string>({
   disabled?: boolean;
   className?: string;
   ariaLabel?: string;
+  searchable?: boolean;
+  searchPlaceholder?: string;
+  emptyText?: string;
+  menuWidth?: number;
 }) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const [menuStyle, setMenuStyle] = useState<CSSProperties>({
     position: "fixed",
     top: 0,
     left: 0,
-    width: 200,
+    width: 220,
+    maxHeight: 420,
     visibility: "hidden",
   });
   const selected = options.find((option) => option.value === value) ?? options[0];
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const visibleOptions =
+    searchable && normalizedQuery
+      ? options.filter((option) =>
+          option.label.toLocaleLowerCase().includes(normalizedQuery),
+        )
+      : options;
 
   useLayoutEffect(() => {
     if (!open) return;
 
     const gap = 6;
-    const margin = 8;
+    const margin = 12;
 
     function positionMenu() {
       const trigger = triggerRef.current;
       if (!trigger) return;
+
       const rect = trigger.getBoundingClientRect();
-      const width = Math.max(rect.width, 180);
-      const height = menuRef.current?.offsetHeight ?? 0;
+      const width = Math.min(
+        Math.max(menuWidth ?? rect.width, rect.width, 200),
+        Math.max(200, window.innerWidth - margin * 2),
+      );
+      const measuredHeight = menuRef.current?.scrollHeight ?? 320;
+      const spaceBelow = Math.max(120, window.innerHeight - rect.bottom - gap - margin);
+      const spaceAbove = Math.max(120, rect.top - gap - margin);
+      const openAbove = spaceBelow < Math.min(measuredHeight, 300) && spaceAbove > spaceBelow;
+      const available = openAbove ? spaceAbove : spaceBelow;
+      const maxHeight = Math.min(460, available);
       const left = Math.min(
         Math.max(margin, rect.left),
         Math.max(margin, window.innerWidth - width - margin),
       );
-      const below = rect.bottom + gap;
-      const above = rect.top - height - gap;
-      const top =
-        height > 0 && below + height > window.innerHeight - margin && above >= margin
-          ? above
-          : below;
+      const top = openAbove
+        ? Math.max(margin, rect.top - gap - Math.min(measuredHeight, maxHeight))
+        : rect.bottom + gap;
 
       setMenuStyle({
         position: "fixed",
         top,
         left,
         width,
+        maxHeight,
         zIndex: 1400,
         visibility: "visible",
       });
@@ -308,7 +333,10 @@ export function SelectMenu<T extends string>({
       if (event.key === "Escape") setOpen(false);
     }
 
-    const frame = requestAnimationFrame(positionMenu);
+    const frame = requestAnimationFrame(() => {
+      positionMenu();
+      if (searchable) searchRef.current?.focus();
+    });
     window.addEventListener("resize", positionMenu);
     document.addEventListener("scroll", positionMenu, true);
     document.addEventListener("mousedown", onPointerDown);
@@ -321,7 +349,14 @@ export function SelectMenu<T extends string>({
       document.removeEventListener("mousedown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [open]);
+  }, [menuWidth, open, searchable]);
+
+  function toggleOpen() {
+    setOpen((current) => {
+      if (!current) setQuery("");
+      return !current;
+    });
+  }
 
   const control = (
     <div className={cx("ds-popover-select", className)}>
@@ -334,10 +369,11 @@ export function SelectMenu<T extends string>({
         aria-expanded={open}
         aria-label={ariaLabel}
         disabled={disabled}
-        onClick={() => setOpen((current) => !current)}
+        onClick={toggleOpen}
         onKeyDown={(event) => {
           if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
             event.preventDefault();
+            if (!open) setQuery("");
             setOpen(true);
           }
         }}
@@ -369,25 +405,44 @@ export function SelectMenu<T extends string>({
           aria-labelledby={id}
           style={menuStyle}
         >
-          {options.map((option) => {
-            const active = option.value === value;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                role="option"
-                aria-selected={active}
-                className={cx("ds-popover-select__option", active && "is-active")}
-                onClick={() => {
-                  onChange(option.value);
-                  setOpen(false);
-                }}
-              >
-                <span>{option.label}</span>
-                {active && <span className="ds-popover-select__check">✓</span>}
-              </button>
-            );
-          })}
+          {searchable && (
+            <div className="ds-popover-select__search-wrap">
+              <input
+                ref={searchRef}
+                type="search"
+                className="ds-input ds-popover-select__search"
+                value={query}
+                placeholder={searchPlaceholder}
+                aria-label={searchPlaceholder}
+                onChange={(event) => setQuery(event.currentTarget.value)}
+              />
+            </div>
+          )}
+          <div className="ds-popover-select__options">
+            {visibleOptions.length === 0 ? (
+              <div className="ds-popover-select__empty">{emptyText}</div>
+            ) : (
+              visibleOptions.map((option) => {
+                const active = option.value === value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="option"
+                    aria-selected={active}
+                    className={cx("ds-popover-select__option", active && "is-active")}
+                    onClick={() => {
+                      onChange(option.value);
+                      setOpen(false);
+                    }}
+                  >
+                    <span>{option.label}</span>
+                    {active && <span className="ds-popover-select__check">✓</span>}
+                  </button>
+                );
+              })
+            )}
+          </div>
         </div>,
         document.body,
       )}
@@ -526,7 +581,7 @@ export function Dialog({
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
-  size?: "confirm" | "default" | "complex" | "wide";
+  size?: "confirm" | "default" | "complex" | "wide" | "workspace";
   closeOnBackdrop?: boolean;
 }) {
   const titleId = useId();
@@ -552,6 +607,7 @@ export function Dialog({
           size === "confirm" && "ds-modal--confirm",
           size === "complex" && "ds-modal--complex",
           size === "wide" && "ds-modal--wide",
+          size === "workspace" && "ds-modal--workspace",
         )}
         role="dialog"
         aria-modal="true"

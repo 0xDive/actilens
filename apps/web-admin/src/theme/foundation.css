@@ -466,14 +466,36 @@ textarea {
 }
 
 .ds-popover-select__menu {
-  max-height: min(360px, calc(100vh - 24px));
-  overflow-y: auto;
+  overflow: hidden;
   padding: 5px;
   border: 1px solid var(--ds-border-default);
   border-radius: 10px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   background: var(--ds-bg-surface);
   color: var(--ds-text-primary);
   box-shadow: var(--ds-shadow-popover);
+}
+
+.ds-popover-select__search-wrap {
+  padding: 1px 1px 5px;
+}
+
+.ds-popover-select__search {
+  height: 34px;
+  font-size: var(--ds-text-sm);
+}
+
+.ds-popover-select__options {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.ds-popover-select__empty {
+  padding: 14px 10px;
+  color: var(--ds-text-tertiary);
+  font-size: var(--ds-text-sm);
+  text-align: center;
 }
 
 .ds-popover-select__option {
@@ -711,7 +733,22 @@ textarea {
   width: min(100%, 640px);
 }
 .ds-modal--wide {
-  width: min(100%, 920px);
+  width: min(calc(100vw - 48px), 1120px);
+  max-height: calc(100vh - 48px);
+}
+
+.ds-modal--workspace {
+  width: min(calc(100vw - 40px), 1280px);
+  height: min(calc(100vh - 40px), 900px);
+  max-height: calc(100vh - 40px);
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.ds-modal--workspace .ds-modal__body {
+  min-height: 0;
+  overflow: hidden;
 }
 .ds-modal__header,
 .ds-modal__body,
@@ -869,5 +906,18 @@ textarea {
   .ds-skeleton::after {
     animation-duration: 0.001ms;
     animation-iteration-count: 1;
+  }
+}
+
+
+@media (max-height: 720px), (max-width: 760px) {
+  .ds-modal--workspace {
+    width: min(calc(100vw - 24px), 1280px);
+    height: calc(100vh - 24px);
+    max-height: calc(100vh - 24px);
+  }
+
+  .ds-modal--workspace .ds-modal__body {
+    overflow: auto;
   }
 }

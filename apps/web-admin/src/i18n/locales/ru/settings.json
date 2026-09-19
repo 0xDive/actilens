@@ -185,7 +185,10 @@
     "results_one": "{{count}} событие",
     "results_few": "{{count}} события",
     "results_many": "{{count}} событий",
-    "results_other": "{{count}} события"
+    "results_other": "{{count}} события",
+    "previous": "Назад",
+    "next": "Далее",
+    "page": "Страница {{current}} из {{total}}"
   },
   "saveError": "Не удалось сохранить настройки.",
   "presets": {
@@ -283,7 +286,9 @@
       "noDataLoss": "Активность, скриншоты, история браузера, количество нажатий и audit history.",
       "noMemberChanges": "Аккаунты, роли, пароли, состояния мониторинга и устройства участников.",
       "noPolicyReset": "Retention, политика захвата, privacy rules и настройки enrollment.",
-      "typeSaved": "Тип организации обновлён."
+      "typeSaved": "Тип организации обновлён.",
+      "timezoneSearch": "Поиск часового пояса…",
+      "timezoneNoMatches": "Часовой пояс не найден"
     },
     "enabled": "Включено",
     "disabled": "Выключено",

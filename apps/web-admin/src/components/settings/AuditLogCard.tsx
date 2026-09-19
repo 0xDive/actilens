@@ -17,6 +17,7 @@ import {
 } from "../ds";
 
 const PREVIEW_COUNT = 6;
+const PAGE_SIZE = 8;
 
 const ACTION_KEYS: Record<string, string> = {
   "employee.created": "employeeCreated",
@@ -88,6 +89,7 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
   const [search, setSearch] = useState("");
   const [userFilter, setUserFilter] = useState("");
   const [actionFilter, setActionFilter] = useState("");
+  const [page, setPage] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -209,6 +211,17 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
     });
   }, [actionFilter, rows, search, userFilter]);
 
+  useEffect(() => {
+    setPage(0);
+  }, [actionFilter, search, userFilter]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageRows = filteredRows.slice(
+    safePage * PAGE_SIZE,
+    safePage * PAGE_SIZE + PAGE_SIZE,
+  );
+
   function renderRow({
     event,
     title,
@@ -300,7 +313,7 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
       {open && (
         <Dialog
           title={t("audit.dialogTitle")}
-          size="wide"
+          size="workspace"
           onClose={() => setOpen(false)}
           footer={
             <Button variant="primary" onClick={() => setOpen(false)}>
@@ -323,6 +336,7 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
                 value={userFilter}
                 ariaLabel={t("audit.userFilter")}
                 options={userOptions}
+                menuWidth={280}
                 onChange={setUserFilter}
               />
               <SelectMenu
@@ -330,6 +344,7 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
                 value={actionFilter}
                 ariaLabel={t("audit.actionFilter")}
                 options={actionOptions}
+                menuWidth={320}
                 onChange={setActionFilter}
               />
               <Button variant="secondary" disabled={loading} onClick={() => void load()}>
@@ -348,7 +363,36 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
               />
             ) : (
               <div className="settings-audit-list settings-audit-list--modal">
-                {filteredRows.map(renderRow)}
+                {pageRows.map(renderRow)}
+              </div>
+            )}
+
+            {filteredRows.length > 0 && (
+              <div className="settings-audit-pager">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={safePage === 0}
+                  onClick={() => setPage((current) => Math.max(0, current - 1))}
+                >
+                  {t("audit.previous")}
+                </Button>
+                <span>
+                  {t("audit.page", {
+                    current: safePage + 1,
+                    total: pageCount,
+                  })}
+                </span>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={safePage >= pageCount - 1}
+                  onClick={() =>
+                    setPage((current) => Math.min(pageCount - 1, current + 1))
+                  }
+                >
+                  {t("audit.next")}
+                </Button>
               </div>
             )}
           </div>

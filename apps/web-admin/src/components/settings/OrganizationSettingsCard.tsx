@@ -122,6 +122,10 @@ export function OrganizationSettingsCard({
               value={business.timezone}
               disabled={saving}
               options={zoneOptions.map((zone) => ({ value: zone, label: zone }))}
+              searchable
+              searchPlaceholder={t("foundation.organization.timezoneSearch")}
+              emptyText={t("foundation.organization.timezoneNoMatches")}
+              menuWidth={420}
               onChange={(timezone) =>
                 patch({ timezone }, t("foundation.organization.timezoneSaved"))
               }

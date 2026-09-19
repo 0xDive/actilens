@@ -181,7 +181,10 @@
     "noMatches": "No matching actions",
     "noMatchesDescription": "Try changing the search query or filters.",
     "results_one": "{{count}} event",
-    "results_other": "{{count}} events"
+    "results_other": "{{count}} events",
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page {{current}} of {{total}}"
   },
   "saveError": "Could not save settings.",
   "presets": {
@@ -279,7 +282,9 @@
       "noDataLoss": "Activity, screenshots, browser history, keystroke counts or audit history.",
       "noMemberChanges": "Member accounts, roles, passwords, monitoring states or devices.",
       "noPolicyReset": "Retention, capture policy, privacy rules or enrollment settings.",
-      "typeSaved": "Organization type updated."
+      "typeSaved": "Organization type updated.",
+      "timezoneSearch": "Search timezone…",
+      "timezoneNoMatches": "No matching timezones"
     },
     "enabled": "Enabled",
     "disabled": "Disabled",
