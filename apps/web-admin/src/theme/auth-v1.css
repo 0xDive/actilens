@@ -18,13 +18,13 @@
 }
 
 .auth-v1__control {
+  width: 132px;
+}
+
+.auth-v1__control .ds-popover-select__trigger {
+  min-height: 34px;
   height: 34px;
-  padding: 0 9px;
-  border: 1px solid var(--ds-border-default);
-  border-radius: var(--ds-radius-md);
-  background: var(--ds-bg-surface);
   color: var(--ds-text-secondary);
-  font: inherit;
   font-size: var(--ds-text-xs);
   font-weight: 600;
 }
@@ -440,4 +440,12 @@
   .auth-v1__member-form-full {
     grid-column: auto;
   }
+}
+
+.auth-v1__link-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
 }

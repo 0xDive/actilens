@@ -305,12 +305,15 @@ function App() {
   }
 
   async function toggleTracking() {
-    // Paused -> resume; tracking or idle -> pause.
+    // Managed organization tracking is server-controlled and cannot be paused locally.
+    if (captureManaged?.managed) return;
     const pause = status !== "paused";
     const prev = status;
     setStatus(pause ? "paused" : "tracking");
     try {
       await invoke("set_paused", { paused: pause });
+      const actual = await invoke<TrackStatus>("tracking_state");
+      setStatus(actual);
     } catch {
       setStatus(prev);
     }
@@ -377,7 +380,11 @@ function App() {
     <div className="app">
       <div className="app-titlebar" onMouseDown={dragWindow}>
         <span className="app-titlebar-title">ActiLens — {t(`nav.${screen}`)}</span>
-        <AppTrayMenu status={status} onToggleTracking={toggleTracking} />
+        <AppTrayMenu
+          status={status}
+          locked={captureManaged?.managed === true}
+          onToggleTracking={toggleTracking}
+        />
       </div>
       <div className="app-body">
       <aside className="sidebar">
@@ -389,7 +396,7 @@ function App() {
             </svg>
           </span>
           <span className="brand-text">
-            <span className="brand-name">Bi<span className="brand-accent">Bo</span>Tracking</span>
+            <span className="brand-name">Acti<span className="brand-accent">Lens</span></span>
             {version && <span className="brand-version">v{version}</span>}
           </span>
         </div>
@@ -465,6 +472,7 @@ function App() {
               <button
                 className={`bb-trackpill ${trackClass}`}
                 onClick={toggleTracking}
+                disabled={captureManaged?.managed === true}
                 aria-label={pillTitle}
               >
                 {status === "paused" ? <PauseBars /> : <span className="bb-trackpill__dot" />}
