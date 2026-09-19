@@ -339,14 +339,18 @@ impl BackendClient {
         Err("monitoring_enabled: unreachable retry exhaustion".into())
     }
 
-    /// `GET /v1/policy` with auto-refresh on 401.
-    pub async fn fetch_policy(&self) -> Result<Policy, String> {
+    /// `GET /v1/policy` with explicit organization scope and auto-refresh on 401.
+    pub async fn fetch_policy(&self, business_id: Option<&str>) -> Result<Policy, String> {
         let mut token = self.access_token()?;
         for attempt in 0..2 {
-            let resp = self
+            let mut request = self
                 .http
                 .get(self.url("/v1/policy"))
-                .bearer_auth(&token)
+                .bearer_auth(&token);
+            if let Some(id) = business_id {
+                request = request.query(&[("business_id", id)]);
+            }
+            let resp = request
                 .send()
                 .await
                 .map_err(net_err)?;
