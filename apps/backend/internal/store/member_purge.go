@@ -61,6 +61,9 @@ func (s *Store) PurgeMemberFromBusiness(
 	if actorRole != RoleOwner {
 		return MemberPurgeResult{}, ErrForbidden
 	}
+	if err := lockMutableOrganizationTx(ctx, tx, businessID); err != nil {
+		return MemberPurgeResult{}, err
+	}
 
 	var targetRole BusinessRole
 	err = tx.QueryRow(ctx,
