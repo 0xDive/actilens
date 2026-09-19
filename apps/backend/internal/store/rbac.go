@@ -144,20 +144,38 @@ func (s *Store) MembershipRole(ctx context.Context, userID, businessID string) (
 func (s *Store) MembershipMonitoringEnabled(ctx context.Context, userID, businessID string) (bool, error) {
 	var enabled bool
 	var status string
-	err := s.pool.QueryRow(ctx,
-		`SELECT monitoring_enabled, status FROM memberships WHERE user_id = $1 AND business_id = $2`,
+	var archived, deletionPending bool
+	err := s.pool.QueryRow(ctx, `
+		SELECT m.monitoring_enabled, m.status,
+		       b.archived_at IS NOT NULL,
+		       b.deletion_scheduled_at IS NOT NULL
+		  FROM memberships m
+		  JOIN businesses b ON b.id = m.business_id
+		 WHERE m.user_id = $1 AND m.business_id = $2`,
 		userID, businessID,
-	).Scan(&enabled, &status)
+	).Scan(&enabled, &status, &archived, &deletionPending)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return false, ErrNotFound
 	}
 	if err != nil {
 		return false, err
 	}
-	if status != MemberStatusActive {
-		return false, nil
+	if deletionPending {
+		return false, ErrOrganizationDeletionPending
 	}
-	return enabled, nil
+	if archived {
+		return false, ErrOrganizationArchived
+	}
+	switch status {
+	case MemberStatusBlocked:
+		return false, ErrMemberBlocked
+	case MemberStatusRemoved:
+		return false, ErrMemberRemoved
+	case MemberStatusActive:
+		return enabled, nil
+	default:
+		return false, ErrMembershipUnavailable
+	}
 }
 
 func membershipRoleTx(ctx context.Context, tx pgx.Tx, userID, businessID string) (BusinessRole, error) {
