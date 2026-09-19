@@ -73,6 +73,8 @@ struct LoginReq<'a> {
 struct MFACompleteReq<'a> {
     challenge_token: &'a str,
     code: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    business_id: Option<&'a str>,
     client_type: &'static str,
     client_label: &'static str,
 }
@@ -80,7 +82,13 @@ struct MFACompleteReq<'a> {
 #[derive(Debug, Clone)]
 pub enum LoginAttempt {
     Authenticated(Session),
-    MFARequired { challenge_token: String },
+    MFARequired {
+        challenge_token: String,
+        business_id: Option<String>,
+    },
+    OrganizationRequired {
+        organizations: Vec<MembershipState>,
+    },
 }
 
 #[derive(Deserialize)]
@@ -95,6 +103,10 @@ struct APIErrorBody {
 struct APIErrorDetails {
     #[serde(default)]
     challenge_token: Option<String>,
+    #[serde(default)]
+    business_id: Option<String>,
+    #[serde(default)]
+    organizations: Vec<MembershipState>,
 }
 
 #[derive(Deserialize)]
@@ -109,6 +121,8 @@ struct TokenResp {
 #[derive(Deserialize)]
 struct LoginResp {
     tokens: TokenResp,
+    #[serde(default)]
+    business_id: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -304,12 +318,23 @@ impl BackendClient {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
             if let Ok(parsed) = serde_json::from_str::<APIErrorBody>(&body) {
-                if parsed.code.as_deref() == Some("mfa_required") {
-                    if let Some(challenge_token) =
-                        parsed.details.and_then(|details| details.challenge_token)
-                    {
-                        return Ok(LoginAttempt::MFARequired { challenge_token });
+                match (parsed.code.as_deref(), parsed.details) {
+                    (Some("mfa_required"), Some(details)) => {
+                        if let Some(challenge_token) = details.challenge_token {
+                            return Ok(LoginAttempt::MFARequired {
+                                challenge_token,
+                                business_id: details.business_id,
+                            });
+                        }
                     }
+                    (Some("organization_required"), Some(details)) => {
+                        if !details.organizations.is_empty() {
+                            return Ok(LoginAttempt::OrganizationRequired {
+                                organizations: details.organizations,
+                            });
+                        }
+                    }
+                    _ => {}
                 }
             }
             return Err(format_status_body(status, &body));
@@ -320,7 +345,9 @@ impl BackendClient {
             access_token: parsed.tokens.access_token,
             refresh_token: parsed.tokens.refresh_token,
             email: identifier.to_string(),
-            business_id: business_id.map(str::to_string),
+            business_id: parsed
+                .business_id
+                .or_else(|| business_id.map(str::to_string)),
         }))
     }
 
@@ -337,6 +364,7 @@ impl BackendClient {
             .json(&MFACompleteReq {
                 challenge_token,
                 code,
+                business_id,
                 client_type: "desktop",
                 client_label: "ActiLens Desktop",
             })
@@ -353,7 +381,9 @@ impl BackendClient {
             access_token: parsed.tokens.access_token,
             refresh_token: parsed.tokens.refresh_token,
             email: identifier.to_string(),
-            business_id: business_id.map(str::to_string),
+            business_id: parsed
+                .business_id
+                .or_else(|| business_id.map(str::to_string)),
         })
     }
 
