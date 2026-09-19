@@ -32,6 +32,7 @@ import type {
   MFAState,
   OrganizationExport,
   OrganizationExportKind,
+  OrganizationDeletionPreview,
   OrganizationPatch,
   PrivacyAppCategory,
   PrivacyRule,
@@ -160,6 +161,13 @@ export function changeOwnPassword(current_password: string, new_password: string
   });
 }
 
+export function createReauthGrant(current_password: string, code = "") {
+  return request<{ reauth_token: string; expires_in: number }>("/v1/account/reauth", {
+    method: "POST",
+    body: { current_password, code },
+  });
+}
+
 export function listAuthSessions() {
   return request<{ sessions: AuthSession[] }>("/v1/account/sessions");
 }
@@ -235,6 +243,51 @@ export function updateOrganization(id: string, patch: OrganizationPatch) {
   return request<Business>(`/v1/businesses/${id}`, {
     method: "PATCH",
     body: patch,
+  });
+}
+
+export function archiveOrganization(id: string) {
+  return request<{ business: Business }>(`/v1/businesses/${id}/archive`, {
+    method: "POST",
+  });
+}
+
+export function restoreOrganization(id: string) {
+  return request<{ business: Business }>(`/v1/businesses/${id}/restore`, {
+    method: "POST",
+  });
+}
+
+export function transferOrganizationOwnership(
+  id: string,
+  targetUserId: string,
+  reauthToken: string,
+) {
+  return request<{ status: string; reauth_required: boolean }>(
+    `/v1/businesses/${id}/transfer-ownership`,
+    {
+      method: "POST",
+      body: { target_user_id: targetUserId, reauth_token: reauthToken },
+    },
+  );
+}
+
+export function organizationDeletionPreview(id: string) {
+  return request<OrganizationDeletionPreview>(
+    `/v1/businesses/${id}/deletion-preview`,
+  );
+}
+
+export function scheduleOrganizationDeletion(id: string, reauthToken: string) {
+  return request<{ business: Business }>(`/v1/businesses/${id}/schedule-deletion`, {
+    method: "POST",
+    body: { reauth_token: reauthToken },
+  });
+}
+
+export function cancelOrganizationDeletion(id: string) {
+  return request<{ business: Business }>(`/v1/businesses/${id}/cancel-deletion`, {
+    method: "POST",
   });
 }
 
