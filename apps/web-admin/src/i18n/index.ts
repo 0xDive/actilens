@@ -79,6 +79,7 @@ export const LOCALES = [
 ] as const;
 
 export type LocaleCode = (typeof LOCALES)[number]["code"];
+const LANGUAGE_STORAGE_KEY = "locale";
 
 const resources = {
   en: { common: enCommon, auth: enAuth, signup: enSignup, dashboard: enDashboard, settings: enSettings, ui: enUi, reports: enReports },
@@ -107,10 +108,28 @@ i18n
     detection: {
       // Saved choice first, then the browser/OS language.
       order: ["localStorage", "navigator"],
-      lookupLocalStorage: "locale",
+      lookupLocalStorage: LANGUAGE_STORAGE_KEY,
       caches: ["localStorage"],
     },
   });
+
+function syncDocumentLanguage(language?: string) {
+  const resolved = (language || i18n.resolvedLanguage || i18n.language || "en").split("-")[0];
+  document.documentElement.lang = resolved;
+}
+
+i18n.on("languageChanged", syncDocumentLanguage);
+void i18n.then(() => syncDocumentLanguage());
+
+/**
+ * Change the UI locale explicitly and persist it independently of the detector.
+ * This keeps auth and application-shell selectors behavior identical.
+ */
+export async function changeLocale(code: LocaleCode): Promise<void> {
+  localStorage.setItem(LANGUAGE_STORAGE_KEY, code);
+  await i18n.changeLanguage(code);
+  syncDocumentLanguage(code);
+}
 
 /** The active locale, suitable for Intl APIs. */
 export function activeLocale(): string {

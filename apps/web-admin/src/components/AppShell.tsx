@@ -13,7 +13,7 @@ import { useBusinesses } from "../useBusinesses";
 import { memberTerms } from "../terms";
 import { DetailHeaderContext } from "../detailHeader";
 import { canManageSettings } from "../rbac";
-import { LOCALES } from "../i18n";
+import { changeLocale, LOCALES } from "../i18n";
 import { cx, IconButton, SelectMenu } from "./ds";
 
 const SIDEBAR_KEY = "actilens.admin.sidebarCollapsed";
@@ -125,7 +125,11 @@ function useDismiss(open: boolean, close: () => void) {
   useEffect(() => {
     if (!open) return;
     function onPointerDown(event: MouseEvent) {
-      if (ref.current && !ref.current.contains(event.target as Node)) close();
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (ref.current?.contains(target)) return;
+      if (target instanceof Element && target.closest("[data-ds-popover-root]")) return;
+      close();
     }
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") close();
@@ -304,7 +308,7 @@ function AccountMenu() {
                 value: item.code,
                 label: item.label,
               }))}
-              onChange={(value) => void i18n.changeLanguage(value)}
+              onChange={(value) => void changeLocale(value)}
             />
           </div>
 

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { LOCALES } from "../i18n";
+import { changeLocale, LOCALES } from "../i18n";
 import { SelectMenu } from "../components/ds";
 import { useTheme, type ThemeMode } from "../theme/ThemeProvider";
 import "../theme/auth-v1.css";
@@ -39,7 +39,7 @@ export function AuthLayout({
             value: item.code,
             label: item.label,
           }))}
-          onChange={(value) => void i18n.changeLanguage(value)}
+          onChange={(value) => void changeLocale(value)}
         />
 
         <SelectMenu<ThemeMode>

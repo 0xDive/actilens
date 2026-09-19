@@ -400,6 +400,7 @@ export function SelectMenu<T extends string>({
       {open && createPortal(
         <div
           ref={menuRef}
+          data-ds-popover-root
           className="ds-popover-select__menu"
           role="listbox"
           aria-labelledby={id}
