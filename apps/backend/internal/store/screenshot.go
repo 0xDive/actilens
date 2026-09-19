@@ -1,6 +1,11 @@
 package store
 
-import "context"
+import (
+	"context"
+	"errors"
+)
+
+var ErrCollectionDisabled = errors.New("collection disabled")
 
 // ScreenshotFile identifies a stored screenshot for cleanup.
 type ScreenshotFile struct {
@@ -103,6 +108,16 @@ func (s *Store) UpsertScreenshot(ctx context.Context, userID, businessID string,
 
 	if err := ensureMembershipCollectableTx(ctx, tx, userID, businessID); err != nil {
 		return err
+	}
+	var collectScreenshots bool
+	if err := tx.QueryRow(ctx,
+		`SELECT collect_screenshots FROM businesses WHERE id = $1 FOR SHARE`,
+		businessID,
+	).Scan(&collectScreenshots); err != nil {
+		return err
+	}
+	if !collectScreenshots {
+		return ErrCollectionDisabled
 	}
 	if _, err := tx.Exec(ctx, screenshotUpsert,
 		r.ClientUUID, userID, businessID, r.DeviceID, r.Ts,
