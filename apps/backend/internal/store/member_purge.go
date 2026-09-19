@@ -122,6 +122,15 @@ func (s *Store) PurgeMemberFromBusiness(
 		return MemberPurgeResult{}, err
 	}
 
+	// Managed devices are organization-bound. Purging one organization removes
+	// only that organization's device bindings and preserves installations that
+	// belong to the same account in other organizations.
+	if _, err := tx.Exec(ctx,
+		`DELETE FROM devices WHERE business_id = $1 AND user_id = $2`,
+		businessID, targetUserID); err != nil {
+		return MemberPurgeResult{}, err
+	}
+
 	ct, err := tx.Exec(ctx,
 		`DELETE FROM memberships WHERE business_id = $1 AND user_id = $2`,
 		businessID, targetUserID)
