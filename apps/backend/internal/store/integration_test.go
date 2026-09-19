@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"actilens/backend/internal/db"
+	"actilens/backend/internal/auth"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -1049,5 +1050,168 @@ func TestIntegrationOrganizationDeviceLimit(t *testing.T) {
 	}
 	if restored.RevokedAt != nil {
 		t.Fatalf("restored device still revoked: %+v", restored)
+	}
+}
+
+
+func TestIntegrationMFARecoveryAndManagedReset(t *testing.T) {
+	st, pool := integrationStore(t)
+	ctx := context.Background()
+
+	owner, err := st.CreateUser(ctx, "mfa-owner@example.test", "", "hash", "MFA Owner", "manager")
+	if err != nil {
+		t.Fatalf("create owner: %v", err)
+	}
+	biz, err := st.CreateBusiness(ctx, owner.ID, "MFA team", "team")
+	if err != nil {
+		t.Fatalf("create business: %v", err)
+	}
+
+	createMember := func(email, name string, role BusinessRole) User {
+		t.Helper()
+		user, err := st.CreateUser(ctx, email, "", "hash", name, "manager")
+		if err != nil {
+			t.Fatalf("create %s: %v", role, err)
+		}
+		if _, err := pool.Exec(ctx,
+			`INSERT INTO memberships (user_id, business_id, role)
+			 VALUES ($1, $2, $3)`,
+			user.ID, biz.ID, role,
+		); err != nil {
+			t.Fatalf("add %s membership: %v", role, err)
+		}
+		return user
+	}
+
+	admin := createMember("mfa-admin@example.test", "MFA Admin", RoleAdmin)
+	peerAdmin := createMember("mfa-peer-admin@example.test", "MFA Peer Admin", RoleAdmin)
+	manager := createMember("mfa-manager@example.test", "MFA Manager", RoleManager)
+	employee := createMember("mfa-employee@example.test", "MFA Employee", RoleEmployee)
+
+	enable := func(userID string, hashes []string) {
+		t.Helper()
+		if err := st.BeginMFASetup(ctx, userID, []byte("encrypted-test-secret")); err != nil {
+			t.Fatalf("begin mfa setup for %s: %v", userID, err)
+		}
+		if err := st.EnableMFA(ctx, userID, hashes); err != nil {
+			t.Fatalf("enable mfa for %s: %v", userID, err)
+		}
+		state, err := st.MFAState(ctx, userID)
+		if err != nil {
+			t.Fatalf("mfa state for %s: %v", userID, err)
+		}
+		if !state.Enabled || state.EnabledAt == nil {
+			t.Fatalf("mfa not enabled for %s: %+v", userID, state)
+		}
+	}
+
+	oldOne := auth.HashRecoveryCode("AAAAA-BBBBB")
+	oldTwo := auth.HashRecoveryCode("CCCCC-DDDDD")
+	enable(employee.ID, []string{oldOne, oldTwo})
+
+	used, err := st.ConsumeRecoveryCode(ctx, employee.ID, oldOne)
+	if err != nil || !used {
+		t.Fatalf("consume first recovery code: used=%v err=%v", used, err)
+	}
+	used, err = st.ConsumeRecoveryCode(ctx, employee.ID, oldOne)
+	if err != nil {
+		t.Fatalf("consume used recovery code: %v", err)
+	}
+	if used {
+		t.Fatal("recovery code was accepted twice")
+	}
+
+	newOne := auth.HashRecoveryCode("EEEEE-FFFFF")
+	newTwo := auth.HashRecoveryCode("GGGGG-HHHHH")
+	if err := st.ReplaceRecoveryCodes(ctx, employee.ID, []string{newOne, newTwo}); err != nil {
+		t.Fatalf("replace recovery codes: %v", err)
+	}
+	used, err = st.ConsumeRecoveryCode(ctx, employee.ID, oldTwo)
+	if err != nil {
+		t.Fatalf("consume invalidated old recovery code: %v", err)
+	}
+	if used {
+		t.Fatal("old recovery code survived regeneration")
+	}
+	used, err = st.ConsumeRecoveryCode(ctx, employee.ID, newOne)
+	if err != nil || !used {
+		t.Fatalf("consume regenerated recovery code: used=%v err=%v", used, err)
+	}
+
+	_, beforeVersion, err := st.UserSecurity(ctx, employee.ID)
+	if err != nil {
+		t.Fatalf("employee security before reset: %v", err)
+	}
+	sessionID := uuid.NewString()
+	if err := st.CreateAuthSession(
+		ctx,
+		employee.ID,
+		sessionID,
+		"mfa-employee-refresh",
+		"web",
+		"Employee browser",
+		beforeVersion,
+		time.Now().Add(time.Hour),
+	); err != nil {
+		t.Fatalf("create employee session: %v", err)
+	}
+
+	if err := st.ResetManagedMemberMFA(ctx, admin.ID, biz.ID, employee.ID); err != nil {
+		t.Fatalf("admin reset employee mfa: %v", err)
+	}
+	state, err := st.MFAState(ctx, employee.ID)
+	if err != nil {
+		t.Fatalf("employee mfa state after reset: %v", err)
+	}
+	if state.Enabled || state.EnabledAt != nil {
+		t.Fatalf("employee mfa still enabled after reset: %+v", state)
+	}
+	if _, err := st.MFASecret(ctx, employee.ID, false); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("employee mfa secret after reset = %v, want ErrNotFound", err)
+	}
+	active, afterVersion, err := st.UserSecurity(ctx, employee.ID)
+	if err != nil {
+		t.Fatalf("employee security after reset: %v", err)
+	}
+	if !active || afterVersion <= beforeVersion {
+		t.Fatalf("security after reset active=%v version=%d, before=%d", active, afterVersion, beforeVersion)
+	}
+	sessionActive, err := st.SessionActive(ctx, employee.ID, sessionID)
+	if err != nil {
+		t.Fatalf("check employee session after reset: %v", err)
+	}
+	if sessionActive {
+		t.Fatal("mfa reset did not revoke employee sessions")
+	}
+	var auditCount int
+	if err := pool.QueryRow(ctx, `
+		SELECT count(*) FROM audit_events
+		 WHERE business_id = $1
+		   AND action = 'member.mfa_reset'
+		   AND target_id = $2`,
+		biz.ID, employee.ID,
+	).Scan(&auditCount); err != nil {
+		t.Fatalf("query mfa reset audit: %v", err)
+	}
+	if auditCount != 1 {
+		t.Fatalf("mfa reset audit count = %d, want 1", auditCount)
+	}
+
+	enable(manager.ID, []string{auth.HashRecoveryCode("MMMMM-NNNNN")})
+	if err := st.ResetManagedMemberMFA(ctx, admin.ID, biz.ID, manager.ID); err != nil {
+		t.Fatalf("admin reset manager mfa: %v", err)
+	}
+
+	enable(peerAdmin.ID, []string{auth.HashRecoveryCode("PPPPP-QQQQQ")})
+	if err := st.ResetManagedMemberMFA(ctx, admin.ID, biz.ID, peerAdmin.ID); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("admin reset peer admin = %v, want ErrForbidden", err)
+	}
+	if err := st.ResetManagedMemberMFA(ctx, owner.ID, biz.ID, peerAdmin.ID); err != nil {
+		t.Fatalf("owner reset admin mfa: %v", err)
+	}
+
+	enable(owner.ID, []string{auth.HashRecoveryCode("RRRRR-SSSSS")})
+	if err := st.ResetManagedMemberMFA(ctx, owner.ID, biz.ID, owner.ID); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("owner self-reset mfa = %v, want ErrForbidden", err)
 	}
 }
