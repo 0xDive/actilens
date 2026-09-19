@@ -65,6 +65,104 @@ func (h *RetentionHandler) Preview(c *gin.Context) {
 	c.JSON(http.StatusOK, preview)
 }
 
+type cleanupDataReq struct {
+	DataClasses   []string `json:"data_classes"`
+	OlderThanDays int      `json:"older_than_days"`
+}
+
+// CleanupData runs one audited manual cleanup across selected structured data classes.
+func (h *RetentionHandler) CleanupData(c *gin.Context) {
+	actorID, _ := auth.UserID(c)
+	businessID := c.Param("id")
+
+	allowed, err := h.store.HasBusinessPermission(
+		c.Request.Context(),
+		actorID,
+		businessID,
+		store.PermissionSettings,
+	)
+	if err != nil {
+		serverError(c, err)
+		return
+	}
+	if !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permission"})
+		return
+	}
+
+	var req cleanupDataReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		badRequest(c, "invalid cleanup request")
+		return
+	}
+	if req.OlderThanDays < 0 || req.OlderThanDays > 3650 {
+		badRequest(c, "older_than_days must be between 0 and 3650")
+		return
+	}
+	if len(req.DataClasses) == 0 || len(req.DataClasses) > 4 {
+		badRequest(c, "select between 1 and 4 data classes")
+		return
+	}
+
+	seen := map[string]bool{}
+	classes := make([]string, 0, len(req.DataClasses))
+	previews := make([]retention.Preview, 0, len(req.DataClasses))
+	for _, dataClass := range req.DataClasses {
+		switch dataClass {
+		case "activity", "screenshots", "browser", "keystrokes":
+		default:
+			badRequest(c, "unsupported cleanup data class")
+			return
+		}
+		if seen[dataClass] {
+			continue
+		}
+		seen[dataClass] = true
+		classes = append(classes, dataClass)
+
+		preview, err := h.retention.PreviewClass(
+			c.Request.Context(),
+			businessID,
+			dataClass,
+			req.OlderThanDays,
+		)
+		if err != nil {
+			serverError(c, err)
+			return
+		}
+		previews = append(previews, preview)
+	}
+
+	if err := h.store.RecordSettingsAudit(
+		c.Request.Context(),
+		actorID,
+		businessID,
+		"data.cleanup_requested",
+		"organization",
+		businessID,
+		map[string]any{
+			"data_classes":    classes,
+			"older_than_days": req.OlderThanDays,
+			"preview":         previews,
+		},
+	); err != nil {
+		serverError(c, err)
+		return
+	}
+
+	result, err := h.retention.CleanupClasses(
+		c.Request.Context(),
+		businessID,
+		classes,
+		req.OlderThanDays,
+	)
+	if err != nil {
+		serverError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
 // Cleanup deletes screenshots older than ?older_than_days=N for a business the caller
 // owns, returning the count and bytes freed.
 func (h *RetentionHandler) Cleanup(c *gin.Context) {
