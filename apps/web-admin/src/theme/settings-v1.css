@@ -733,3 +733,33 @@
     flex-direction: column;
   }
 }
+
+
+.settings-cleanup-range {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.settings-cleanup-range label {
+  display: grid;
+  gap: 6px;
+  color: var(--ds-text-secondary);
+  font-size: var(--ds-text-xs);
+  font-weight: 650;
+}
+
+.settings-cleanup-range .settings-row__description {
+  grid-column: 1 / -1;
+  margin-top: 0;
+}
+
+@media (max-width: 720px) {
+  .settings-cleanup-range {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-cleanup-range .settings-row__description {
+    grid-column: auto;
+  }
+}
