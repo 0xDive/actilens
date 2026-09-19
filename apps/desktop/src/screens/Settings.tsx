@@ -56,6 +56,8 @@ export type AppSettings = {
   count_keystrokes: boolean;
   consented: boolean;
   local_only: boolean;
+  last_managed_business_id: string | null;
+  collection_scope_dirty: boolean;
   onboarding_completed: boolean;
 };
 
