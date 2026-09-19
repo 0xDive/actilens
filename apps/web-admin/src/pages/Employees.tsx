@@ -695,10 +695,10 @@ function NewEmployeeDialog({
   onClose,
   onCreated,
 }: {
-  businessId: string | null;
+  businessId: string;
   terms: MemberTerms;
   onClose: () => void;
-  onCreated: (businessId: string, wasAutoCreated: boolean) => void;
+  onCreated: (businessId: string) => void;
 }) {
   const { t } = useTranslation("dashboard");
   const [login, setLogin] = useState("");
@@ -723,9 +723,9 @@ function NewEmployeeDialog({
         username: isEmail ? undefined : value.toLowerCase(),
         display_name: displayName.trim(),
         password,
-        business_id: businessId ?? undefined,
+        business_id: businessId,
       });
-      onCreated(result.business.id, businessId === null);
+      onCreated(result.business.id);
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 409) {
@@ -768,11 +768,6 @@ function NewEmployeeDialog({
       }
     >
       <form id="new-employee-form" className="employees-form" onSubmit={submit}>
-        {!businessId && (
-          <Alert tone="info">
-            {t("newEmployeeModal.noBusinessSelected", { member: terms.lowerOne })}
-          </Alert>
-        )}
         {error && <Alert tone="danger">{error}</Alert>}
 
         <TextField
@@ -1162,24 +1157,15 @@ export function Employees() {
         />
       )}
 
-      {showEmployee && mayManageMembers && (
+      {showEmployee && mayManageMembers && selectedId && (
         <NewEmployeeDialog
           businessId={selectedId}
           terms={terms}
           onClose={() => setShowEmployee(false)}
-          onCreated={async (newBusinessId, wasAutoCreated) => {
+          onCreated={async (businessId) => {
             setShowEmployee(false);
-            if (wasAutoCreated) {
-              await reloadBusinesses();
-              setSelectedId(newBusinessId);
-              pushToast({
-                title: t("employees.autoCreatedNote", { member: terms.lowerOne }),
-                tone: "success",
-              });
-            } else if (selectedId) {
-              loadEmployees(selectedId);
-              pushToast({ title: t("employees.prompts.saved"), tone: "success" });
-            }
+            loadEmployees(businessId);
+            pushToast({ title: t("employees.prompts.saved"), tone: "success" });
           }}
         />
       )}
