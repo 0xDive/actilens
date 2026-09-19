@@ -93,7 +93,8 @@ func (s *Store) setMemberStatus(
 			return err
 		}
 		if err := insertAuditTx(ctx, tx, businessID, actorID, "member.blocked", "member", targetUserID, map[string]any{
-			"role": string(targetRole),
+			"role":    string(targetRole),
+			"changes": auditChanges(auditChange("membership_status", currentStatus, MemberStatusBlocked)),
 		}); err != nil {
 			return err
 		}
@@ -120,6 +121,11 @@ func (s *Store) setMemberStatus(
 				"role":               "employee",
 				"monitoring_enabled": *restoreMonitoring,
 				"previous_role":      string(targetRole),
+				"changes": auditChanges(
+					auditChange("membership_status", currentStatus, MemberStatusActive),
+					auditChange("role", string(targetRole), string(RoleEmployee)),
+					auditChange("monitoring_enabled", currentMonitoring, *restoreMonitoring),
+				),
 			}); err != nil {
 				return err
 			}
@@ -135,7 +141,8 @@ func (s *Store) setMemberStatus(
 				return err
 			}
 			if err := insertAuditTx(ctx, tx, businessID, actorID, "member.unblocked", "member", targetUserID, map[string]any{
-				"role": string(targetRole),
+				"role":    string(targetRole),
+				"changes": auditChanges(auditChange("membership_status", currentStatus, MemberStatusActive)),
 			}); err != nil {
 				return err
 			}
@@ -171,6 +178,10 @@ func (s *Store) setMemberStatus(
 		if err := insertAuditTx(ctx, tx, businessID, actorID, "member.removed", "member", targetUserID, map[string]any{
 			"previous_role":               string(targetRole),
 			"previous_monitoring_enabled": currentMonitoring,
+			"changes": auditChanges(
+				auditChange("membership_status", currentStatus, MemberStatusRemoved),
+				auditChange("monitoring_enabled", currentMonitoring, false),
+			),
 		}); err != nil {
 			return err
 		}

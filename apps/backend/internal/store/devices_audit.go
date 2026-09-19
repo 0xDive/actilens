@@ -356,9 +356,17 @@ func (s *Store) UpdateDevice(ctx context.Context, actorID, deviceID string, labe
 			action = "device.restored"
 		}
 	}
+	changes := []AuditChange{}
+	if currentLabel != nextLabel {
+		changes = append(changes, auditChange("device_label", currentLabel, nextLabel))
+	}
+	if currentRevoked != nextRevoked {
+		changes = append(changes, auditChange("device_revoked", currentRevoked, nextRevoked))
+	}
 	if err := insertAuditTx(ctx, tx, access.BusinessID, actorID, action, "device", deviceID, map[string]any{
 		"employee_id": employeeID,
 		"label":       nextLabel,
+		"changes":     changes,
 	}); err != nil {
 		return Device{}, err
 	}
@@ -373,7 +381,13 @@ func insertAuditTx(ctx context.Context, tx pgx.Tx, businessID, actorUserID, acti
 	if details == nil {
 		details = map[string]any{}
 	}
-	encoded, err := json.Marshal(details)
+	normalized, err := normalizeAuditDetailsTx(
+		ctx, tx, businessID, actorUserID, targetType, targetID, details,
+	)
+	if err != nil {
+		return err
+	}
+	encoded, err := json.Marshal(normalized)
 	if err != nil {
 		return err
 	}

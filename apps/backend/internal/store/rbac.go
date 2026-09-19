@@ -332,8 +332,9 @@ func (s *Store) UpdateMembershipRole(ctx context.Context, actorID, businessID, t
 		return err
 	}
 	if err := insertAuditTx(ctx, tx, businessID, actorID, "member.role_changed", "member", targetUserID, map[string]any{
-		"from": string(current),
-		"to":   string(role),
+		"from":    string(current),
+		"to":      string(role),
+		"changes": auditChanges(auditChange("role", string(current), string(role))),
 	}); err != nil {
 		return err
 	}
@@ -386,6 +387,7 @@ func (s *Store) UpdateMembershipMonitoring(ctx context.Context, actorID, busines
 	if err := insertAuditTx(ctx, tx, businessID, actorID, "member.monitoring_changed", "member", targetUserID, map[string]any{
 		"enabled": enabled,
 		"role":    string(targetRole),
+		"changes": auditChanges(auditChange("monitoring_enabled", current, enabled)),
 	}); err != nil {
 		return err
 	}
