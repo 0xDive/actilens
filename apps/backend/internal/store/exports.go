@@ -205,17 +205,24 @@ func (s *Store) CompleteOrganizationExport(
 	exportID, filePath string,
 	expiresAt time.Time,
 ) error {
-	_, err := s.pool.Exec(ctx, `
+	ct, err := s.pool.Exec(ctx, `
 		UPDATE organization_exports
 		   SET status = 'ready',
 		       file_path = $2,
 		       error_code = NULL,
 		       completed_at = now(),
 		       expires_at = $3
-		 WHERE id = $1`,
+		 WHERE id = $1
+		   AND status = 'running'`,
 		exportID, filePath, expiresAt,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	if ct.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (s *Store) FailOrganizationExport(ctx context.Context, exportID, errorCode string) error {
