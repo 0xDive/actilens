@@ -39,6 +39,14 @@ export type AppSettings = {
   hide_dock: boolean;
   capture_screenshots: boolean;
   screenshot_mode: string;
+  screenshot_capture_scope: string;
+  screenshot_privacy_rules: {
+    id: string;
+    kind: string;
+    match_type: string;
+    pattern: string;
+    enabled: boolean;
+  }[];
   screenshot_skip_apps: string[];
   count_keystrokes: boolean;
   consented: boolean;
