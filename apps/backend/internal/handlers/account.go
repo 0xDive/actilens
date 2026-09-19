@@ -166,7 +166,7 @@ func (h *AuthHandler) ListSessions(c *gin.Context) {
 			"current":      session.ID == currentID,
 		})
 	}
-	c.JSON(http.StatusOk, gin.H{"sessions": out})
+	c.JSON(http.StatusOK, gin.H{"sessions": out})
 }
 
 func (h *AuthHandler) RevokeSession(c *gin.Context) {
@@ -246,7 +246,7 @@ func (h *AuthHandler) BeginMFASetup(c *gin.Context) {
 		account = u.Username
 	}
 	c.Header("Cache-Control", "no-store")
-	c.JSON(http.StatusOk, gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"secret":      encoded,
 		"otpauth_uri": auth.TOTPURI(encoded, account, "ActiLens"),
 	})
@@ -344,7 +344,7 @@ func (h *AuthHandler) DisableMFA(c *gin.Context) {
 		serverError(c, err)
 		return
 	}
-	c.JSON(http.StatusOk, gin.H{"status": "disabled", "reauth_required": true})
+	c.JSON(http.StatusOK, gin.H{"status": "disabled", "reauth_required": true})
 }
 
 func (h *AuthHandler) CompleteMFA(c *gin.Context) {
