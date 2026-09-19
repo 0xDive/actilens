@@ -1,8 +1,11 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   cleanupScreenshots,
+  previewRetention,
   updateBusinessSettings,
+  type RetentionDataClass,
+  type RetentionPreview,
 } from "../api/endpoints";
 import {
   ApiError,
@@ -36,13 +39,25 @@ function formatBytes(value: number): string {
 
 const CLEANUP_PRESETS = [7, 14, 30, 90];
 
-const RETENTION_PRESETS: Array<{ days: number | null; value: number | null }> = [
-  { days: 7, value: 7 },
-  { days: 14, value: 14 },
-  { days: 30, value: 30 },
-  { days: 90, value: 90 },
-  { days: null, value: null },
-];
+type RetentionField =
+  | "activity_retention_days"
+  | "screenshot_retention_days"
+  | "browser_retention_days"
+  | "keystroke_retention_days";
+
+type PendingRetentionChange = {
+  field: RetentionField;
+  dataClass: RetentionDataClass;
+  value: number;
+  preview: RetentionPreview;
+};
+
+const RETENTION_PRESETS: Record<RetentionField, Array<number | null>> = {
+  activity_retention_days: [30, 90, 180, 365],
+  screenshot_retention_days: [7, 14, 30, 90, null],
+  browser_retention_days: [30, 90, 180, 365],
+  keystroke_retention_days: [30, 90, 180, 365],
+};
 
 function SettingsSection({
   id,
@@ -132,17 +147,14 @@ export function Settings() {
   const mayManageSettings = canManageSettings(selected?.role);
 
   const [activeSection, setActiveSection] = useState("organization");
-  const [retention, setRetention] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [pendingRetention, setPendingRetention] =
+    useState<PendingRetentionChange | null>(null);
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [cleanupOpen, setCleanupOpen] = useState(false);
   const [cleanupDays, setCleanupDays] = useState(30);
   const [cleaning, setCleaning] = useState(false);
   const [dialogError, setDialogError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (selected) setRetention(selected.screenshot_retention_days);
-  }, [selected]);
 
   async function savePatch(
     patch: BusinessSettingsPatch,
@@ -165,9 +177,66 @@ export function Settings() {
     }
   }
 
-  function saveRetention(value: number | null) {
-    setRetention(value);
-    savePatch({ screenshot_retention_days: value }, t("retention.saved"));
+  async function changeRetention(
+    field: RetentionField,
+    dataClass: RetentionDataClass,
+    currentValue: number | null,
+    nextValue: number | null,
+  ) {
+    if (!selectedId || currentValue === nextValue) return;
+
+    const reduction =
+      nextValue !== null &&
+      (currentValue === null || nextValue < currentValue);
+
+    if (!reduction) {
+      await savePatch(
+        { [field]: nextValue } as BusinessSettingsPatch,
+        t("retention.saved"),
+      );
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const preview = await previewRetention(selectedId, dataClass, nextValue);
+      setPendingRetention({
+        field,
+        dataClass,
+        value: nextValue,
+        preview,
+      });
+    } catch (error) {
+      pushToast({
+        title: error instanceof ApiError ? error.message : t("retention.previewFailed"),
+        tone: "danger",
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function confirmRetentionReduction() {
+    if (!selectedId || !pendingRetention) return;
+
+    setSaving(true);
+    try {
+      await updateBusinessSettings(
+        selectedId,
+        { [pendingRetention.field]: pendingRetention.value } as BusinessSettingsPatch,
+        true,
+      );
+      setPendingRetention(null);
+      await reload();
+      pushToast({ title: t("retention.saved"), tone: "success" });
+    } catch (error) {
+      pushToast({
+        title: error instanceof ApiError ? error.message : t("saveError"),
+        tone: "danger",
+      });
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function runCleanup() {
@@ -314,32 +383,63 @@ export function Settings() {
               description={t("v1.storage.description")}
             >
               <Card className="settings-card">
-                <SettingsRow
-                  title={t("retention.title")}
-                  description={t("retention.desc", {
-                    name: selected.name,
-                  })}
-                >
-                  <Segmented
-                    value={String(retention)}
-                    ariaLabel={t("retention.ariaLabel")}
-                    disabled={saving}
-                    options={RETENTION_PRESETS.map((preset) => ({
-                      value: String(preset.value),
-                      label:
-                        preset.days === null
-                          ? t("presets.never")
-                          : t("presets.days", {
-                              count: preset.days,
-                            }),
-                    }))}
-                    onChange={(value) =>
-                      saveRetention(
-                        value === "null" ? null : Number(value),
-                      )
-                    }
-                  />
-                </SettingsRow>
+                {([
+                  {
+                    field: "activity_retention_days",
+                    dataClass: "activity",
+                    value: selected.activity_retention_days,
+                    title: t("retention.activity"),
+                    description: t("retention.activityDesc"),
+                  },
+                  {
+                    field: "screenshot_retention_days",
+                    dataClass: "screenshots",
+                    value: selected.screenshot_retention_days,
+                    title: t("retention.screenshots"),
+                    description: t("retention.screenshotsDesc"),
+                  },
+                  {
+                    field: "browser_retention_days",
+                    dataClass: "browser",
+                    value: selected.browser_retention_days,
+                    title: t("retention.browser"),
+                    description: t("retention.browserDesc"),
+                  },
+                  {
+                    field: "keystroke_retention_days",
+                    dataClass: "keystrokes",
+                    value: selected.keystroke_retention_days,
+                    title: t("retention.keystrokes"),
+                    description: t("retention.keystrokesDesc"),
+                  },
+                ] as const).map((item) => (
+                  <SettingsRow
+                    key={item.field}
+                    title={item.title}
+                    description={item.description}
+                  >
+                    <Segmented
+                      value={String(item.value)}
+                      ariaLabel={item.title}
+                      disabled={saving}
+                      options={RETENTION_PRESETS[item.field].map((days) => ({
+                        value: String(days),
+                        label:
+                          days === null
+                            ? t("presets.never")
+                            : t("presets.days", { count: days }),
+                      }))}
+                      onChange={(value) =>
+                        changeRetention(
+                          item.field,
+                          item.dataClass,
+                          item.value,
+                          value === "null" ? null : Number(value),
+                        )
+                      }
+                    />
+                  </SettingsRow>
+                ))}
 
                 <SettingsRow
                   title={t("cleanup.title")}
@@ -382,6 +482,51 @@ export function Settings() {
           open={privacyOpen}
           onClose={() => setPrivacyOpen(false)}
         />
+      )}
+
+      {pendingRetention && (
+        <Dialog
+          title={t("retention.confirmTitle")}
+          size="confirm"
+          onClose={() => !saving && setPendingRetention(null)}
+          closeOnBackdrop={!saving}
+          footer={
+            <>
+              <Button
+                variant="secondary"
+                disabled={saving}
+                onClick={() => setPendingRetention(null)}
+              >
+                {t("retention.cancel")}
+              </Button>
+              <Button
+                variant="danger"
+                loading={saving}
+                onClick={confirmRetentionReduction}
+              >
+                {t("retention.confirm")}
+              </Button>
+            </>
+          }
+        >
+          <div className="settings-dialog-stack">
+            <Alert tone="warning">
+              {pendingRetention.dataClass === "screenshots"
+                ? t("retention.previewScreenshots", {
+                    count: pendingRetention.preview.affected_count,
+                    size: formatBytes(pendingRetention.preview.bytes_freed),
+                    days: pendingRetention.value,
+                  })
+                : t("retention.previewRows", {
+                    count: pendingRetention.preview.affected_count,
+                    days: pendingRetention.value,
+                  })}
+            </Alert>
+            <p className="settings-dialog-copy">
+              {t("retention.workerNotice")}
+            </p>
+          </div>
+        </Dialog>
       )}
 
       {cleanupOpen && selected && (
