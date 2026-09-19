@@ -124,6 +124,26 @@ func (h *ScreenshotHandler) Upload(c *gin.Context) {
 		return
 	}
 
+	// Old desktop versions may still upload after screenshots are disabled. Treat
+	// such a row as acknowledged-but-discarded so it is never stored and the old
+	// agent does not retry forever.
+	policy, err := h.store.PolicyForUserInBusiness(c.Request.Context(), userID, bizID)
+	if err != nil {
+		switch {
+		case errors.Is(err, store.ErrMemberBlocked):
+			apiError(c, http.StatusForbidden, ErrCodeMemberBlocked, "organization access is suspended", nil)
+		case errors.Is(err, store.ErrMemberRemoved):
+			apiError(c, http.StatusForbidden, ErrCodeMemberRemoved, "organization membership was removed", nil)
+		default:
+			serverError(c, err)
+		}
+		return
+	}
+	if policy != nil && !policy.CollectScreenshots {
+		c.JSON(http.StatusOK, gin.H{"accepted": []string{clientUUID}})
+		return
+	}
+
 	// Write the file first, then record metadata so a row never points at a
 	// missing file. If metadata cannot commit, the just-written blob is removed
 	// immediately so purge races cannot leave orphan files behind.
