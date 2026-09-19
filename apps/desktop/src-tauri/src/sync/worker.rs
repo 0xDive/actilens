@@ -17,7 +17,7 @@ use std::time::Duration;
 use super::auth::AuthState;
 use super::client::BackendClient;
 use super::BATCH_LIMIT;
-use crate::storage::{Db, SyncTable};
+use crate::storage::{Db, PendingActivity, SyncTable};
 
 /// Base interval between sync passes (5 min). Backoff multiplies this on failure.
 const BASE_INTERVAL: Duration = Duration::from_secs(300);
@@ -25,6 +25,22 @@ const BASE_INTERVAL: Duration = Duration::from_secs(300);
 const MAX_INTERVAL: Duration = Duration::from_secs(16 * 60);
 /// Short delay before the first pass so startup isn't blocked.
 const STARTUP_DELAY: Duration = Duration::from_secs(10);
+
+fn apply_activity_collection_policy(
+    activity: &mut [PendingActivity],
+    collect_apps: bool,
+    collect_titles: bool,
+) {
+    for sample in activity {
+        if !collect_apps {
+            sample.app_name.clear();
+            sample.window_title = None;
+            sample.pid = None;
+        } else if !collect_titles {
+            sample.window_title = None;
+        }
+    }
+}
 
 /// Sync status surfaced to the UI / menu bar (task 53).
 #[derive(Default)]
@@ -205,15 +221,7 @@ pub async fn run_once(ctx: &SyncContext) -> PassOutcome {
         // because they may have been recorded before the administrator changed policy.
         let collect_apps = ctx.control.collect_app_activity.load(Ordering::Relaxed);
         let collect_titles = ctx.control.collect_window_titles.load(Ordering::Relaxed);
-        for sample in &mut activity {
-            if !collect_apps {
-                sample.app_name.clear();
-                sample.window_title = None;
-                sample.pid = None;
-            } else if !collect_titles {
-                sample.window_title = None;
-            }
-        }
+        apply_activity_collection_policy(&mut activity, collect_apps, collect_titles);
 
         if activity.is_empty() && keystrokes.is_empty() && browser.is_empty() {
             break;
@@ -321,4 +329,51 @@ fn policy_stops_collection(message: &str) -> bool {
 
 fn pending_total(ctx: &SyncContext) -> i64 {
     ctx.db.pending_count().unwrap_or(0)
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn pending_activity() -> PendingActivity {
+        PendingActivity {
+            client_uuid: "sample-1".into(),
+            ts: 100,
+            app_name: "Sensitive App".into(),
+            window_title: Some("Sensitive Window".into()),
+            pid: Some(42),
+            duration_s: 15,
+            updated_at: 100,
+        }
+    }
+
+    #[test]
+    fn app_collection_off_redacts_identity_before_transmission() {
+        let mut rows = vec![pending_activity()];
+        apply_activity_collection_policy(&mut rows, false, true);
+        assert_eq!(rows[0].app_name, "");
+        assert_eq!(rows[0].window_title, None);
+        assert_eq!(rows[0].pid, None);
+        assert_eq!(rows[0].duration_s, 15);
+    }
+
+    #[test]
+    fn window_title_collection_off_preserves_app_but_redacts_title() {
+        let mut rows = vec![pending_activity()];
+        apply_activity_collection_policy(&mut rows, true, false);
+        assert_eq!(rows[0].app_name, "Sensitive App");
+        assert_eq!(rows[0].window_title, None);
+        assert_eq!(rows[0].pid, Some(42));
+        assert_eq!(rows[0].duration_s, 15);
+    }
+
+    #[test]
+    fn enabled_activity_collection_keeps_identity() {
+        let mut rows = vec![pending_activity()];
+        apply_activity_collection_policy(&mut rows, true, true);
+        assert_eq!(rows[0].app_name, "Sensitive App");
+        assert_eq!(rows[0].window_title.as_deref(), Some("Sensitive Window"));
+        assert_eq!(rows[0].pid, Some(42));
+    }
 }
