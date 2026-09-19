@@ -101,7 +101,8 @@
     "roles": {
       "employee": "Employee",
       "manager": "Manager",
-      "admin": "Admin"
+      "admin": "Admin",
+      "owner": "Owner"
     },
     "monitoring": {
       "on": "On",

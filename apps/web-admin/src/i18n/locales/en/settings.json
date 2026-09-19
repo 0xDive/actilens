@@ -138,16 +138,50 @@
       "memberMonitoringChanged": "Member monitoring changed",
       "memberEnrollmentCreated": "Enrollment code created",
       "memberEnrollmentRedeemed": "Enrollment code redeemed",
-      "memberPurged": "Member permanently deleted"
+      "memberPurged": "Member permanently deleted",
+      "memberBlocked": "Member blocked",
+      "memberUnblocked": "Member unblocked",
+      "memberRemoved": "Member removed from organization",
+      "organizationCreated": "Organization created",
+      "organizationRenamed": "Organization renamed",
+      "organizationKindChanged": "Organization type changed",
+      "organizationTimezoneChanged": "Organization timezone changed",
+      "organizationWeekStartChanged": "Organization week start changed",
+      "organizationArchived": "Organization archived",
+      "organizationRestored": "Organization restored",
+      "organizationOwnerTransferred": "Ownership transferred",
+      "organizationDeletionScheduled": "Organization deletion scheduled",
+      "organizationDeletionCancelled": "Organization deletion cancelled",
+      "privacyRuleCreated": "Privacy rule created",
+      "privacyRuleChanged": "Privacy rule changed",
+      "privacyRuleDeleted": "Privacy rule deleted"
     },
     "targets": {
       "employee": "employee",
       "device": "device",
-      "member": "member"
+      "member": "member",
+      "organization": "organization",
+      "privacy_rule": "privacy rule"
     },
     "v1": {
       "emptyDescription": "Administrative changes will appear here as they happen."
-    }
+    },
+    "open": "Open log",
+    "dialogTitle": "Audit log",
+    "close": "Done",
+    "showAll": "Open full log ({{count}})",
+    "search": "Search audit log",
+    "searchPlaceholder": "Search actions, users or IDs…",
+    "userFilter": "Filter by user",
+    "actionFilter": "Filter by action",
+    "allUsers": "All users",
+    "allActions": "All actions",
+    "unknownUser": "User {{id}}",
+    "byUser": "By {{name}}",
+    "noMatches": "No matching actions",
+    "noMatchesDescription": "Try changing the search query or filters.",
+    "results_one": "{{count}} event",
+    "results_other": "{{count}} events"
   },
   "saveError": "Could not save settings.",
   "presets": {

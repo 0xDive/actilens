@@ -9,7 +9,7 @@ import type {
   OrganizationExport,
   OrganizationExportKind,
 } from "../../api/types";
-import { Badge, Button, Card, SelectField, Skeleton } from "../ds";
+import { Badge, Button, Card, SelectMenu, Skeleton } from "../ds";
 import { useToast } from "../ToastProvider";
 
 const EXPORT_KINDS: OrganizationExportKind[] = [
@@ -125,21 +125,17 @@ export function ExportSettingsCard({ businessId }: { businessId: string }) {
           <div className="settings-row__description">{t("exports.description")}</div>
         </div>
         <div className="settings-export-create__controls">
-          <SelectField
+          <SelectMenu
             id="organization-export-kind"
             label={t("exports.kind")}
             value={kind}
             disabled={requesting}
-            onChange={(event) =>
-              setKind(event.currentTarget.value as OrganizationExportKind)
-            }
-          >
-            {EXPORT_KINDS.map((value) => (
-              <option key={value} value={value}>
-                {t(`exports.kinds.${value}`)}
-              </option>
-            ))}
-          </SelectField>
+            options={EXPORT_KINDS.map((value) => ({
+              value,
+              label: t(`exports.kinds.${value}`),
+            }))}
+            onChange={setKind}
+          />
           <Button
             variant="secondary"
             loading={requesting}

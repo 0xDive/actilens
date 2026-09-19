@@ -140,16 +140,52 @@
       "memberMonitoringChanged": "Мониторинг участника изменён",
       "memberEnrollmentCreated": "Создан код привязки",
       "memberEnrollmentRedeemed": "Код привязки использован",
-      "memberPurged": "Сотрудник удалён навсегда"
+      "memberPurged": "Сотрудник удалён навсегда",
+      "memberBlocked": "Участник заблокирован",
+      "memberUnblocked": "Участник разблокирован",
+      "memberRemoved": "Участник удалён из организации",
+      "organizationCreated": "Организация создана",
+      "organizationRenamed": "Организация переименована",
+      "organizationKindChanged": "Тип организации изменён",
+      "organizationTimezoneChanged": "Часовой пояс организации изменён",
+      "organizationWeekStartChanged": "Начало недели изменено",
+      "organizationArchived": "Организация архивирована",
+      "organizationRestored": "Организация восстановлена",
+      "organizationOwnerTransferred": "Владелец организации изменён",
+      "organizationDeletionScheduled": "Удаление организации запланировано",
+      "organizationDeletionCancelled": "Удаление организации отменено",
+      "privacyRuleCreated": "Правило приватности создано",
+      "privacyRuleChanged": "Правило приватности изменено",
+      "privacyRuleDeleted": "Правило приватности удалено"
     },
     "targets": {
       "employee": "сотрудник",
       "device": "устройство",
-      "member": "участник"
+      "member": "участник",
+      "organization": "организация",
+      "privacy_rule": "правило приватности"
     },
     "v1": {
       "emptyDescription": "Административные изменения будут появляться здесь по мере выполнения."
-    }
+    },
+    "open": "Открыть журнал",
+    "dialogTitle": "Журнал действий",
+    "close": "Готово",
+    "showAll": "Открыть весь журнал ({{count}})",
+    "search": "Поиск по журналу",
+    "searchPlaceholder": "Поиск по действиям, пользователям или ID…",
+    "userFilter": "Фильтр по пользователю",
+    "actionFilter": "Фильтр по действию",
+    "allUsers": "Все пользователи",
+    "allActions": "Все действия",
+    "unknownUser": "Пользователь {{id}}",
+    "byUser": "Автор: {{name}}",
+    "noMatches": "Ничего не найдено",
+    "noMatchesDescription": "Измените поисковый запрос или фильтры.",
+    "results_one": "{{count}} событие",
+    "results_few": "{{count}} события",
+    "results_many": "{{count}} событий",
+    "results_other": "{{count}} события"
   },
   "saveError": "Не удалось сохранить настройки.",
   "presets": {

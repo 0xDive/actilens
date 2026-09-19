@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { updateOrganization } from "../../api/endpoints";
 import type { BusinessAccess, BusinessKind } from "../../api/types";
-import { Alert, Button, Dialog } from "../ds";
+import { Alert, Button, Dialog, SelectMenu } from "../ds";
 import { useToast } from "../ToastProvider";
 
 function timezones(current: string): string[] {
@@ -115,20 +115,17 @@ export function OrganizationSettingsCard({
             </div>
           </div>
           <div className="settings-row__control">
-            <select
-              className="ds-select settings-timezone"
+            <SelectMenu
+              id="organization-timezone"
+              className="settings-timezone"
+              ariaLabel={t("foundation.organization.timezone")}
               value={business.timezone}
               disabled={saving}
-              onChange={(event) =>
-                patch({ timezone: event.currentTarget.value }, t("foundation.organization.timezoneSaved"))
+              options={zoneOptions.map((zone) => ({ value: zone, label: zone }))}
+              onChange={(timezone) =>
+                patch({ timezone }, t("foundation.organization.timezoneSaved"))
               }
-            >
-              {zoneOptions.map((zone) => (
-                <option value={zone} key={zone}>
-                  {zone}
-                </option>
-              ))}
-            </select>
+            />
           </div>
         </div>
 
@@ -140,29 +137,26 @@ export function OrganizationSettingsCard({
             </div>
           </div>
           <div className="settings-row__control">
-            <select
-              className="ds-select settings-week-start"
+            <SelectMenu
+              id="organization-week-start"
+              className="settings-week-start"
+              ariaLabel={t("foundation.organization.weekStart")}
               value={business.week_starts_on === null ? "auto" : String(business.week_starts_on)}
               disabled={saving}
-              onChange={(event) =>
+              options={[
+                { value: "auto", label: t("foundation.organization.weekDays.auto") },
+                ...Array.from({ length: 7 }, (_, day) => ({
+                  value: String(day),
+                  label: t(`foundation.organization.weekDays.${day}`),
+                })),
+              ]}
+              onChange={(value) =>
                 patch(
-                  {
-                    week_starts_on:
-                      event.currentTarget.value === "auto"
-                        ? null
-                        : Number(event.currentTarget.value),
-                  },
+                  { week_starts_on: value === "auto" ? null : Number(value) },
                   t("foundation.organization.weekStartSaved"),
                 )
               }
-            >
-              <option value="auto">{t("foundation.organization.weekDays.auto")}</option>
-              {Array.from({ length: 7 }, (_, day) => (
-                <option value={day} key={day}>
-                  {t(`foundation.organization.weekDays.${day}`)}
-                </option>
-              ))}
-            </select>
+            />
           </div>
         </div>
 

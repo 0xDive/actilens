@@ -798,3 +798,49 @@
 .privacy-rules__advanced .settings-chip-group {
   margin-top: 10px;
 }
+
+
+.settings-audit-list--preview .settings-audit-row:last-child,
+.settings-audit-list--modal .settings-audit-row:last-child {
+  border-bottom: 0;
+}
+
+.settings-audit-preview-footer {
+  padding-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.settings-audit-modal {
+  display: grid;
+  gap: 14px;
+}
+
+.settings-audit-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) minmax(170px, 1fr) minmax(190px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.settings-audit-search {
+  min-width: 0;
+}
+
+.settings-audit-results-meta {
+  color: var(--ds-text-tertiary);
+  font-size: var(--ds-text-xs);
+  font-weight: 650;
+}
+
+.settings-audit-list--modal {
+  max-height: min(520px, 58vh);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+@media (max-width: 820px) {
+  .settings-audit-filters {
+    grid-template-columns: 1fr;
+  }
+}

@@ -2,11 +2,16 @@ import {
   forwardRef,
   useEffect,
   useId,
+  useLayoutEffect,
+  useRef,
+  useState,
   type ButtonHTMLAttributes,
+  type CSSProperties,
   type InputHTMLAttributes,
   type ReactNode,
   type SelectHTMLAttributes,
 } from "react";
+import { createPortal } from "react-dom";
 
 export function cx(...values: Array<string | false | null | undefined>): string {
   return values.filter(Boolean).join(" ");
@@ -222,6 +227,182 @@ export const SelectField = forwardRef<HTMLSelectElement, SelectFieldProps>(
   },
 );
 
+export type SelectMenuOption<T extends string = string> = {
+  value: T;
+  label: string;
+};
+
+export function SelectMenu<T extends string>({
+  id,
+  label,
+  description,
+  value,
+  options,
+  onChange,
+  disabled = false,
+  className,
+  ariaLabel,
+}: {
+  id: string;
+  label?: string;
+  description?: string;
+  value: T;
+  options: Array<SelectMenuOption<T>>;
+  onChange: (value: T) => void;
+  disabled?: boolean;
+  className?: string;
+  ariaLabel?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuStyle, setMenuStyle] = useState<CSSProperties>({
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: 200,
+    visibility: "hidden",
+  });
+  const selected = options.find((option) => option.value === value) ?? options[0];
+
+  useLayoutEffect(() => {
+    if (!open) return;
+
+    const gap = 6;
+    const margin = 8;
+
+    function positionMenu() {
+      const trigger = triggerRef.current;
+      if (!trigger) return;
+      const rect = trigger.getBoundingClientRect();
+      const width = Math.max(rect.width, 180);
+      const height = menuRef.current?.offsetHeight ?? 0;
+      const left = Math.min(
+        Math.max(margin, rect.left),
+        Math.max(margin, window.innerWidth - width - margin),
+      );
+      const below = rect.bottom + gap;
+      const above = rect.top - height - gap;
+      const top =
+        height > 0 && below + height > window.innerHeight - margin && above >= margin
+          ? above
+          : below;
+
+      setMenuStyle({
+        position: "fixed",
+        top,
+        left,
+        width,
+        zIndex: 1400,
+        visibility: "visible",
+      });
+    }
+
+    function onPointerDown(event: MouseEvent) {
+      const target = event.target as Node;
+      if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setOpen(false);
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+
+    const frame = requestAnimationFrame(positionMenu);
+    window.addEventListener("resize", positionMenu);
+    document.addEventListener("scroll", positionMenu, true);
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", positionMenu);
+      document.removeEventListener("scroll", positionMenu, true);
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  const control = (
+    <div className={cx("ds-popover-select", className)}>
+      <button
+        ref={triggerRef}
+        id={id}
+        type="button"
+        className="ds-popover-select__trigger"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={ariaLabel}
+        disabled={disabled}
+        onClick={() => setOpen((current) => !current)}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setOpen(true);
+          }
+        }}
+      >
+        <span className="ds-popover-select__value">{selected?.label ?? ""}</span>
+        <svg
+          className="ds-popover-select__chevron"
+          viewBox="0 0 20 20"
+          width="16"
+          height="16"
+          aria-hidden
+        >
+          <path
+            d="m6 8 4 4 4-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+
+      {open && createPortal(
+        <div
+          ref={menuRef}
+          className="ds-popover-select__menu"
+          role="listbox"
+          aria-labelledby={id}
+          style={menuStyle}
+        >
+          {options.map((option) => {
+            const active = option.value === value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={active}
+                className={cx("ds-popover-select__option", active && "is-active")}
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+              >
+                <span>{option.label}</span>
+                {active && <span className="ds-popover-select__check">✓</span>}
+              </button>
+            );
+          })}
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
+
+  if (!label) return control;
+
+  return (
+    <FieldFrame htmlFor={id} label={label} description={description}>
+      {control}
+    </FieldFrame>
+  );
+}
+
 export function Switch({
   checked,
   onCheckedChange,
@@ -345,7 +526,7 @@ export function Dialog({
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
-  size?: "confirm" | "default" | "complex";
+  size?: "confirm" | "default" | "complex" | "wide";
   closeOnBackdrop?: boolean;
 }) {
   const titleId = useId();
@@ -358,7 +539,7 @@ export function Dialog({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
 
-  return (
+  return createPortal(
     <div
       className="ds-modal-backdrop"
       onMouseDown={(event) => {
@@ -370,6 +551,7 @@ export function Dialog({
           "ds-modal",
           size === "confirm" && "ds-modal--confirm",
           size === "complex" && "ds-modal--complex",
+          size === "wide" && "ds-modal--wide",
         )}
         role="dialog"
         aria-modal="true"
@@ -383,6 +565,7 @@ export function Dialog({
         <div className="ds-modal__body">{children}</div>
         {footer && <div className="ds-modal__footer">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

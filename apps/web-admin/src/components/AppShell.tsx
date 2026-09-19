@@ -14,7 +14,7 @@ import { memberTerms } from "../terms";
 import { DetailHeaderContext } from "../detailHeader";
 import { canManageSettings } from "../rbac";
 import { LOCALES } from "../i18n";
-import { cx, IconButton } from "./ds";
+import { cx, IconButton, SelectMenu } from "./ds";
 
 const SIDEBAR_KEY = "actilens.admin.sidebarCollapsed";
 
@@ -297,18 +297,16 @@ function AccountMenu() {
             <label className="ds-account-menu__label" htmlFor="shell-language">
               {t("language")}
             </label>
-            <select
+            <SelectMenu
               id="shell-language"
-              className="ds-language-select"
               value={locale}
-              onChange={(event) => i18n.changeLanguage(event.currentTarget.value)}
-            >
-              {LOCALES.map((item) => (
-                <option key={item.code} value={item.code}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
+              ariaLabel={t("language")}
+              options={LOCALES.map((item) => ({
+                value: item.code,
+                label: item.label,
+              }))}
+              onChange={(value) => void i18n.changeLanguage(value)}
+            />
           </div>
 
           <div className="ds-menu__separator" />

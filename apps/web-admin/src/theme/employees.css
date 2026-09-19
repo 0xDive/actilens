@@ -28,6 +28,10 @@
   min-width: 1080px;
 }
 
+.employees-row {
+  cursor: pointer;
+}
+
 .employees-table th:last-child,
 .employees-table td:last-child {
   width: 52px;

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Trans, useTranslation } from "react-i18next";
 import {
   blockMember,
@@ -887,6 +887,7 @@ function NewEmployeeDialog({
 export function Employees() {
   const { t } = useTranslation("dashboard");
   const { t: tCommon } = useTranslation("common");
+  const navigate = useNavigate();
   const { pushToast } = useToast();
   const {
     businesses,
@@ -1067,7 +1068,22 @@ export function Employees() {
                   (state === "active" || state === "idle") && employee.current_app;
 
                 return (
-                  <tr key={employee.id} className="employees-row">
+                  <tr
+                    key={employee.id}
+                    className="employees-row"
+                    onClick={(event) => {
+                      const target = event.target as HTMLElement;
+                      if (!event.currentTarget.contains(target)) return;
+                      if (
+                        target.closest(
+                          "button, a, input, select, label, [role='button'], [role='option'], [data-no-row-nav]",
+                        )
+                      ) {
+                        return;
+                      }
+                      navigate(`/employees/${employee.id}?business=${selectedId}`);
+                    }}
+                  >
                     <td>
                       <Link
                         className="employees-person employees-person-link"
@@ -1170,6 +1186,20 @@ export function Employees() {
                 <tr
                   key={employee.id}
                   className="employees-row employees-row--former"
+                  onClick={(event) => {
+                    const target = event.target as HTMLElement;
+                    if (!event.currentTarget.contains(target)) return;
+                    if (
+                      target.closest(
+                        "button, a, input, select, label, [role='button'], [role='option'], [data-no-row-nav]",
+                      )
+                    ) {
+                      return;
+                    }
+                    navigate(
+                      `/employees/${employee.id}?business=${selectedId}&former=1`,
+                    );
+                  }}
                 >
                   <td>
                     <Link
