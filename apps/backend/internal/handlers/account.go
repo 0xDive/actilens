@@ -42,6 +42,7 @@ type mfaCompleteReq struct {
 	Code           string `json:"code"`
 	ClientType     string `json:"client_type"`
 	ClientLabel    string `json:"client_label"`
+	BusinessID     string `json:"business_id"`
 }
 
 func (h *AuthHandler) Account(c *gin.Context) {
@@ -377,7 +378,25 @@ func (h *AuthHandler) CompleteMFA(c *gin.Context) {
 		serverError(c, err)
 		return
 	}
-	h.issue(c, http.StatusOK, u, req.ClientType, req.ClientLabel)
+	if req.ClientType == "desktop" && strings.TrimSpace(req.BusinessID) != "" {
+		organizations, err := h.store.LoginOrganizations(c.Request.Context(), userID)
+		if err != nil {
+			serverError(c, err)
+			return
+		}
+		found := false
+		for _, organization := range organizations {
+			if organization.BusinessID == strings.TrimSpace(req.BusinessID) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			forbidden(c, "not an active or blocked member of that organization")
+			return
+		}
+	}
+	h.issue(c, http.StatusOK, u, req.ClientType, req.ClientLabel, strings.TrimSpace(req.BusinessID))
 }
 
 func (h *AuthHandler) ResetMemberMFA(c *gin.Context) {
