@@ -21,6 +21,14 @@ pub struct Settings {
     pub screenshot_retention_days: u64,
     /// Store only the site origin for browser visits, not the full URL.
     pub domain_only: bool,
+    /// Organization-controlled identifying/detail collection switches. Active/idle
+    /// remains mandatory in managed mode even when app identity is disabled.
+    #[serde(default = "default_true")]
+    pub collect_app_activity: bool,
+    #[serde(default = "default_true")]
+    pub collect_window_titles: bool,
+    #[serde(default = "default_true")]
+    pub collect_browser_activity: bool,
     /// Run as a menu-bar-only app (no Dock icon).
     #[serde(default)]
     pub hide_dock: bool,
@@ -157,6 +165,9 @@ impl Default for Settings {
             screenshot_interval_s: DEFAULT_SCREENSHOT_INTERVAL_S,
             screenshot_retention_days: DEFAULT_RETENTION_DAYS,
             domain_only: false,
+            collect_app_activity: true,
+            collect_window_titles: true,
+            collect_browser_activity: true,
             hide_dock: false,
             capture_screenshots: true,
             screenshot_mode: default_screenshot_mode(),
@@ -224,6 +235,9 @@ pub fn apply(s: &Settings, control: &crate::trackers::TrackerControl) {
         .screenshot_retention_days
         .store(s.screenshot_retention_days, Relaxed);
     control.domain_only.store(s.domain_only, Relaxed);
+    control.collect_app_activity.store(s.collect_app_activity, Relaxed);
+    control.collect_window_titles.store(s.collect_window_titles, Relaxed);
+    control.collect_browser_activity.store(s.collect_browser_activity, Relaxed);
     let scope = if s.screenshot_capture_scope.trim().is_empty() {
         match s.screenshot_mode.as_str() {
             "normal" | "full_screen" => "all_displays",
@@ -276,9 +290,9 @@ impl Default for CaptureManaged {
 }
 
 impl CaptureManaged {
-    /// Capture settings are locked (org-managed and override not allowed).
+    /// Organization-managed collection policy is never locally overridable.
     pub fn locked(&self) -> bool {
-        self.managed && !self.allow_employee_override
+        self.managed
     }
 }
 
