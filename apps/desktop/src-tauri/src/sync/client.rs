@@ -476,6 +476,9 @@ impl BackendClient {
             if let Some(d) = shot.display_id {
                 form = form.text("display_id", d.to_string());
             }
+            if let Some(group) = shot.capture_group_id.as_deref() {
+                form = form.text("capture_group_id", group.to_string());
+            }
             if let Some(b) = business_id {
                 form = form.text("business_id", b.to_string());
             }
