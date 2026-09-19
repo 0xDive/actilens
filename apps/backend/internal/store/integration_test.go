@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"os"
 	"testing"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/pressly/goose/v3"
 )
 
 const integrationDatabaseEnv = "ACTILENS_TEST_DATABASE_URL"
@@ -667,5 +669,215 @@ func TestIntegrationOrganizationLifecycle(t *testing.T) {
 	}
 	if _, err := st.GetUserByID(ctx, admin.ID); err != nil {
 		t.Fatalf("multi-organization owner was deleted: %v", err)
+	}
+}
+
+
+func TestIntegrationProductionUpgradeToProductFoundation(t *testing.T) {
+	dsn := os.Getenv(integrationDatabaseEnv)
+	if dsn == "" {
+		t.Skipf("%s is not set", integrationDatabaseEnv)
+	}
+	ctx := context.Background()
+
+	// Start from the real latest schema, seed data through production store paths,
+	// then roll back only Product Foundation v1. That leaves the exact v13 schema
+	// and realistic rows that an existing installation would carry into migration 14.
+	if err := db.Migrate(dsn); err != nil {
+		t.Fatalf("migrate latest before upgrade fixture: %v", err)
+	}
+	pool, err := db.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatalf("connect latest database: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		TRUNCATE TABLE
+			organization_exports,
+			mfa_recovery_codes,
+			user_mfa,
+			security_events,
+			auth_sessions,
+			privacy_rules,
+			enrollment_tokens,
+			audit_events,
+			screenshots,
+			browser_visits,
+			keystroke_buckets,
+			activity_samples,
+			devices,
+			memberships,
+			businesses,
+			users
+		RESTART IDENTITY CASCADE`); err != nil {
+		pool.Close()
+		t.Fatalf("reset latest database: %v", err)
+	}
+
+	st := New(pool)
+	owner, err := st.CreateUser(ctx, "upgrade-owner@example.test", "", "hash", "Upgrade Owner", "manager")
+	if err != nil {
+		pool.Close()
+		t.Fatalf("create upgrade owner: %v", err)
+	}
+	biz, err := st.CreateBusiness(ctx, owner.ID, "Upgrade team", "team")
+	if err != nil {
+		pool.Close()
+		t.Fatalf("create upgrade business: %v", err)
+	}
+	employee, _, err := st.CreateEmployee(
+		ctx, owner.ID, &biz.ID, "", "upgrade_member", "hash", "Upgrade Member",
+	)
+	if err != nil {
+		pool.Close()
+		t.Fatalf("create upgrade employee: %v", err)
+	}
+
+	// These are legacy v13 settings. Migration 14 must preserve configured
+	// retention, translate mode -> capture scope, import skip apps as rules, and
+	// remove the old employee-override escape hatch.
+	if _, err := pool.Exec(ctx, `
+		UPDATE businesses
+		   SET screenshot_mode = 'normal',
+		       screenshot_skip_apps = ARRAY['Signal','Vault'],
+		       screenshot_retention_days = 14,
+		       allow_employee_override = true
+		 WHERE id = $1`, biz.ID); err != nil {
+		pool.Close()
+		t.Fatalf("configure legacy business: %v", err)
+	}
+
+	deviceID := uuid.NewString()
+	activityID := uuid.NewString()
+	if err := st.SyncBatch(
+		ctx, employee.ID, biz.ID, deviceID, DeviceMetadata{},
+		[]ActivityRow{{
+			ClientUUID: activityID, Ts: 100, AppName: "Legacy editor",
+			DurationS: 15, ClientUpdatedAt: 100,
+		}},
+		nil, nil,
+	); err != nil {
+		pool.Close()
+		t.Fatalf("seed legacy activity/device: %v", err)
+	}
+	screenshotID := uuid.NewString()
+	if err := st.UpsertScreenshot(ctx, employee.ID, biz.ID, ScreenshotRow{
+		ClientUUID: screenshotID,
+		DeviceID: deviceID,
+		Ts: 100,
+		FilePath: "screenshots/legacy.webp",
+		ByteSize: 123,
+		ClientUpdatedAt: 100,
+	}); err != nil {
+		pool.Close()
+		t.Fatalf("seed legacy screenshot: %v", err)
+	}
+	pool.Close()
+
+	sqlDB, err := sql.Open("pgx", dsn)
+	if err != nil {
+		t.Fatalf("open goose database: %v", err)
+	}
+	if err := goose.SetDialect("postgres"); err != nil {
+		sqlDB.Close()
+		t.Fatalf("set goose dialect: %v", err)
+	}
+	// db.Migrate set goose's embedded BaseFS, so DownTo uses the same migration
+	// source as production rather than a test-only copy.
+	if err := goose.DownTo(sqlDB, "migrations", 13); err != nil {
+		sqlDB.Close()
+		t.Fatalf("roll back to production v13 schema: %v", err)
+	}
+	sqlDB.Close()
+
+	// This is the production upgrade under test.
+	if err := db.Migrate(dsn); err != nil {
+		t.Fatalf("upgrade v13 -> product foundation: %v", err)
+	}
+	verify, err := db.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatalf("connect upgraded database: %v", err)
+	}
+	defer verify.Close()
+
+	var (
+		name                  string
+		timezone              string
+		scope                 string
+		retention             int
+		allowOverride         bool
+		weekStart             *int
+		membershipStatus      string
+		deviceBusinessID      *string
+		captureGroupID        *string
+		activityCount         int
+		privacyRuleCount      int
+	)
+	if err := verify.QueryRow(ctx, `
+		SELECT name, timezone, screenshot_capture_scope, screenshot_retention_days,
+		       allow_employee_override, week_starts_on
+		  FROM businesses
+		 WHERE id = $1`, biz.ID,
+	).Scan(&name, &timezone, &scope, &retention, &allowOverride, &weekStart); err != nil {
+		t.Fatalf("read upgraded business: %v", err)
+	}
+	if name != "Upgrade team" || timezone != "UTC" || scope != "active_display" ||
+		retention != 14 || allowOverride || weekStart != nil {
+		t.Fatalf(
+			"unexpected upgraded business: name=%q timezone=%q scope=%q retention=%d override=%v week=%v",
+			name, timezone, scope, retention, allowOverride, weekStart,
+		)
+	}
+
+	if err := verify.QueryRow(ctx, `
+		SELECT status FROM memberships
+		 WHERE user_id = $1 AND business_id = $2`,
+		employee.ID, biz.ID,
+	).Scan(&membershipStatus); err != nil {
+		t.Fatalf("read upgraded membership: %v", err)
+	}
+	if membershipStatus != MemberStatusActive {
+		t.Fatalf("membership status = %q, want active", membershipStatus)
+	}
+
+	if err := verify.QueryRow(ctx,
+		`SELECT business_id::text FROM devices WHERE id = $1`, deviceID,
+	).Scan(&deviceBusinessID); err != nil {
+		t.Fatalf("read upgraded device: %v", err)
+	}
+	if deviceBusinessID == nil || *deviceBusinessID != biz.ID {
+		t.Fatalf("device business = %v, want %s", deviceBusinessID, biz.ID)
+	}
+
+	if err := verify.QueryRow(ctx,
+		`SELECT capture_group_id::text FROM screenshots WHERE client_uuid = $1`, screenshotID,
+	).Scan(&captureGroupID); err != nil {
+		t.Fatalf("read upgraded screenshot: %v", err)
+	}
+	if captureGroupID != nil {
+		t.Fatalf("legacy screenshot capture_group_id = %v, want nil", captureGroupID)
+	}
+
+	if err := verify.QueryRow(ctx,
+		`SELECT count(*) FROM activity_samples WHERE client_uuid = $1`, activityID,
+	).Scan(&activityCount); err != nil {
+		t.Fatalf("count upgraded activity: %v", err)
+	}
+	if activityCount != 1 {
+		t.Fatalf("activity rows after upgrade = %d, want 1", activityCount)
+	}
+
+	if err := verify.QueryRow(ctx, `
+		SELECT count(*)
+		  FROM privacy_rules
+		 WHERE business_id = $1
+		   AND kind = 'app'
+		   AND match_type = 'exact'
+		   AND enabled = true
+		   AND pattern IN ('Signal','Vault')`, biz.ID,
+	).Scan(&privacyRuleCount); err != nil {
+		t.Fatalf("count imported privacy rules: %v", err)
+	}
+	if privacyRuleCount != 2 {
+		t.Fatalf("imported privacy rules = %d, want 2", privacyRuleCount)
 	}
 }
