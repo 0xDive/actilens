@@ -116,7 +116,7 @@ func (h *OwnerHandler) ListAuditEvents(c *gin.Context) {
 	case err == nil:
 		c.JSON(http.StatusOK, gin.H{"events": events})
 	case errors.Is(err, store.ErrForbidden):
-		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient permission"})
+		forbidden(c, "insufficient permission")
 	default:
 		serverError(c, err)
 	}
