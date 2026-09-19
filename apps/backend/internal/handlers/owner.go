@@ -141,12 +141,34 @@ var usernameRe = regexp.MustCompile(`^[a-z0-9_]{3,32}$`)
 // CreateEmployee creates a pre-provisioned employee account. With no business_id the
 // owner's first business is used, auto-creating one if the owner has none.
 func (h *OwnerHandler) CreateEmployee(c *gin.Context) {
+	h.createEmployee(c, nil)
+}
+
+// CreateOrganizationMember is the canonical explicitly-scoped member creation
+// endpoint. The legacy /employees endpoint remains temporarily for compatibility
+// but also requires business_id and never chooses/creates an organization implicitly.
+func (h *OwnerHandler) CreateOrganizationMember(c *gin.Context) {
+	businessID := strings.TrimSpace(c.Param("id"))
+	h.createEmployee(c, &businessID)
+}
+
+func (h *OwnerHandler) createEmployee(c *gin.Context, scopedBusinessID *string) {
 	userID, _ := auth.UserID(c)
 	var req createEmployeeReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		badRequest(c, "invalid body")
 		return
 	}
+	if scopedBusinessID != nil {
+		req.BusinessID = scopedBusinessID
+	}
+	if req.BusinessID == nil || strings.TrimSpace(*req.BusinessID) == "" {
+		badRequest(c, "business_id is required")
+		return
+	}
+	businessID := strings.TrimSpace(*req.BusinessID)
+	req.BusinessID = &businessID
+
 	req.Email = strings.TrimSpace(req.Email)
 	req.Username = strings.ToLower(strings.TrimSpace(req.Username))
 	req.DisplayName = strings.TrimSpace(req.DisplayName)
@@ -172,22 +194,26 @@ func (h *OwnerHandler) CreateEmployee(c *gin.Context) {
 		serverError(c, err)
 		return
 	}
-	emp, biz, err := h.store.CreateEmployee(c.Request.Context(), userID, req.BusinessID, req.Email, req.Username, hash, req.DisplayName)
+	emp, biz, err := h.store.CreateEmployee(
+		c.Request.Context(), userID, req.BusinessID,
+		req.Email, req.Username, hash, req.DisplayName,
+	)
 	switch {
 	case errors.Is(err, store.ErrConflict):
-		c.JSON(http.StatusConflict, gin.H{"error": "that email or username is already taken"})
-		return
+		apiError(c, http.StatusConflict, ErrCodeIdentifierTaken, "that email or username is already taken", nil)
 	case errors.Is(err, store.ErrNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"error": "business not found"})
-		return
+		notFound(c, "organization not found")
 	case errors.Is(err, store.ErrForbidden):
-		c.JSON(http.StatusForbidden, gin.H{"error": "not your business"})
-		return
+		forbidden(c, "insufficient permission")
+	case errors.Is(err, store.ErrOrganizationArchived):
+		apiError(c, http.StatusConflict, ErrCodeOrganizationArchived, "organization is archived", nil)
+	case errors.Is(err, store.ErrOrganizationDeletionPending):
+		apiError(c, http.StatusConflict, ErrCodeOrganizationDeletionPending, "organization deletion is pending", nil)
 	case err != nil:
 		serverError(c, err)
-		return
+	default:
+		c.JSON(http.StatusCreated, gin.H{"employee": emp, "business": biz})
 	}
-	c.JSON(http.StatusCreated, gin.H{"employee": emp, "business": biz})
 }
 
 // ListEmployees returns the roster of a business the caller owns.
