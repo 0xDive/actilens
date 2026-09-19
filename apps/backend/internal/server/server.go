@@ -2,6 +2,7 @@
 package server
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 
 	"actilens/backend/internal/auth"
 	"actilens/backend/internal/config"
+	"actilens/backend/internal/events"
 	"actilens/backend/internal/filestore"
 	"actilens/backend/internal/handlers"
 	"actilens/backend/internal/middleware"
@@ -36,9 +38,21 @@ func New(cfg *config.Config, st *store.Store, files *filestore.Store, ret *reten
 	r.GET("/healthz", handlers.Health)
 
 	tok := auth.NewManager(cfg.JWTSecret)
+	eventBus := events.NewBus()
+	eventBus.Subscribe(events.SinkFunc(func(_ context.Context, event events.Event) {
+		obs.Info(
+			"domain event",
+			"type", string(event.Type),
+			"organization_id", event.OrganizationID,
+			"user_id", event.UserID,
+			"target_user_id", event.TargetUserID,
+		)
+	}))
 	authH := handlers.NewAuthHandler(st, tok)
+	authH.SetEventPublisher(eventBus)
 	ownerH := handlers.NewOwnerHandler(st, cfg.RecommendedDesktopVersion)
 	lifecycleH := handlers.NewOrganizationLifecycleHandler(st, tok)
+	lifecycleH.SetEventPublisher(eventBus)
 	syncH := handlers.NewSyncHandler(st)
 	shotH := handlers.NewScreenshotHandler(st, files)
 	reportsH := handlers.NewReportsHandler(st, files)
