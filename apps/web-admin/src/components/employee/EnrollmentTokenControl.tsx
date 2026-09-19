@@ -36,12 +36,14 @@ export function EnrollmentTokenControl({
   businessId,
   canChange,
   triggerVariant = "button",
+  triggerLabel,
   onDialogClose,
 }: {
   employee: Employee;
   businessId: string;
   canChange: boolean;
   triggerVariant?: "button" | "menu-item";
+  triggerLabel?: string;
   onDialogClose?: () => void;
 }) {
   const { t } = useTranslation("dashboard");
@@ -105,14 +107,15 @@ export function EnrollmentTokenControl({
     }
   }
 
+  const label = triggerLabel ?? t("employees.actions.enrollment");
   const trigger =
     triggerVariant === "menu-item" ? (
       <button type="button" className="ds-menu__item" onClick={start}>
-        {t("employees.actions.enrollment")}
+        {label}
       </button>
     ) : (
       <Button variant="secondary" size="sm" onClick={start}>
-        {t("employees.actions.enrollment")}
+        {label}
       </Button>
     );
 
