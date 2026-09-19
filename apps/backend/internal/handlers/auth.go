@@ -76,7 +76,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 	u, err := h.store.CreateUser(c.Request.Context(), req.Email, req.Username, hash, req.DisplayName, req.AccountType)
 	if errors.Is(err, store.ErrConflict) {
-		c.JSON(http.StatusConflict, gin.H{"error": "that email or username is already taken"})
+		apiError(c, http.StatusConflict, ErrCodeIdentifierTaken, "that email or username is already taken", nil)
 		return
 	}
 	if err != nil {
