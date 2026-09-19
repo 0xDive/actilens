@@ -842,8 +842,12 @@ export function Employees() {
   const [showEmployee, setShowEmployee] = useState(false);
 
   const terms = memberTerms(selected?.kind);
-  const mayManageMembers = canManageMembers(selected?.role);
-  const mayManageRoles = canManageRoles(selected?.role);
+  const organizationReadOnly = Boolean(
+    selected?.archived_at || selected?.deletion_scheduled_at,
+  );
+  const mayViewFormer = canManageMembers(selected?.role);
+  const mayManageMembers = mayViewFormer && !organizationReadOnly;
+  const mayManageRoles = canManageRoles(selected?.role) && !organizationReadOnly;
 
   function loadEmployees(id: string) {
     setLoading(true);
@@ -917,7 +921,13 @@ export function Employees() {
         }
       />
 
-      {selectedId && mayManageMembers && (
+      {selected && organizationReadOnly && (
+        <div className="employees-readonly-alert">
+          <Alert tone="info">{t("employees.lifecycle.readOnly")}</Alert>
+        </div>
+      )}
+
+      {selectedId && mayViewFormer && (
         <div className="employees-view-tabs" role="tablist" aria-label={t("employees.lifecycle.viewLabel")}>
           <button
             type="button"
