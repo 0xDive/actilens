@@ -166,6 +166,37 @@ export interface AuditEvent {
   created_at: number;
 }
 
+export type OrganizationExportKind =
+  | "activity_csv"
+  | "activity_json"
+  | "browser_csv"
+  | "browser_json"
+  | "keystrokes_csv"
+  | "keystrokes_json"
+  | "audit_csv"
+  | "audit_json"
+  | "screenshots_archive"
+  | "full";
+
+export type OrganizationExportStatus =
+  | "pending"
+  | "running"
+  | "ready"
+  | "failed"
+  | "expired";
+
+export interface OrganizationExport {
+  id: string;
+  business_id: string;
+  requested_by: string;
+  kind: OrganizationExportKind;
+  status: OrganizationExportStatus;
+  error_code: string | null;
+  created_at: string;
+  completed_at: string | null;
+  expires_at: string | null;
+}
+
 export interface CreateEmployeeResponse {
   employee: Employee;
   business: Business;
