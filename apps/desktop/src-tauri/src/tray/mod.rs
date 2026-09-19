@@ -274,6 +274,13 @@ pub fn show_main(app: &AppHandle) {
 /// tray indicator, and notifies the UI via an event.
 pub fn set_paused(app: &AppHandle, paused: bool) {
     if let Some(c) = app.try_state::<Arc<TrackerControl>>() {
+        // Organization-managed users cannot locally pause or resume policy.
+        // The server/membership switch remains authoritative.
+        if c.managed.load(Ordering::Relaxed) {
+            c.paused.store(false, Ordering::Relaxed);
+            refresh(app);
+            return;
+        }
         if !paused && !c.org_monitoring_enabled.load(Ordering::Relaxed) {
             refresh(app);
             return;
@@ -328,15 +335,20 @@ fn render(app: &AppHandle, state: State) {
     // Stop is available only while running (tracking/idle); Start only while
     // paused AND on the dashboard (never from the setup surfaces).
     let paused = state == State::Paused;
-    let org_enabled = app
+    let (org_enabled, managed) = app
         .try_state::<Arc<TrackerControl>>()
-        .map(|c| c.org_monitoring_enabled.load(Ordering::Relaxed))
-        .unwrap_or(true);
+        .map(|c| {
+            (
+                c.org_monitoring_enabled.load(Ordering::Relaxed),
+                c.managed.load(Ordering::Relaxed),
+            )
+        })
+        .unwrap_or((true, false));
     if let Some(items) = app.try_state::<MenuItems>() {
-        let _ = items
-            .start
-            .set_enabled(paused && org_enabled && !IN_SETUP.load(Ordering::Relaxed));
-        let _ = items.stop.set_enabled(!paused && org_enabled);
+        let _ = items.start.set_enabled(
+            !managed && paused && org_enabled && !IN_SETUP.load(Ordering::Relaxed),
+        );
+        let _ = items.stop.set_enabled(!managed && !paused && org_enabled);
     }
 }
 
