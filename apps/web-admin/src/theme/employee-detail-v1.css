@@ -693,3 +693,23 @@
 .device-health-warning {
   margin-bottom: 14px;
 }
+
+
+.device-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.device-row__reenroll-hint {
+  color: var(--ds-text-tertiary);
+  font-size: var(--ds-text-xs);
+  font-weight: 500;
+}
+
+@media (max-width: 720px) {
+  .device-card__head {
+    flex-direction: column;
+  }
+}
