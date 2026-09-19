@@ -94,7 +94,19 @@
     "deleting": "Cleaning…",
     "removed_one": "Removed {{count}} screenshot ({{size}} freed).",
     "removed_other": "Removed {{count}} screenshots ({{size}} freed).",
-    "failed": "Cleanup failed."
+    "failed": "Cleanup failed.",
+    "dataClasses": "Data classes",
+    "previewTitle": "Preview",
+    "previewing": "Calculating affected data…",
+    "selectClass": "Select at least one data class.",
+    "previewFailed": "Could not preview cleanup.",
+    "previewLine": "{{dataClass}}: {{count}} records {{size}}",
+    "classes": {
+      "activity": "Activity",
+      "screenshots": "Screenshots",
+      "browser": "Browser activity",
+      "keystrokes": "Keystroke counts"
+    }
   },
   "audit": {
     "title": "Administrative actions",
