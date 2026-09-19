@@ -14,10 +14,23 @@ This directory is the source of truth for the ActiLens product identity.
 ## Raster and platform exports
 
 - `png/app-icon-{16,32,48,128,180,256}.png` — standard web, extension, desktop, and Apple Touch sizes.
-- `platform/favicon.ico` — Windows/web ICO export.
+- `platform/favicon.ico` — strict-decoder-safe Windows/web ICO export.
 - `platform/icon.icns` — macOS ICNS export.
 
-Runtime copies live next to the applications that consume them so builds do not depend on cross-workspace asset traversal. The source-of-truth assets stay here; app-local copies are deployment artifacts.
+Runtime copies live next to the applications that consume them so builds do not
+depend on cross-workspace asset traversal. The source-of-truth assets stay here;
+app-local copies are deployment artifacts.
+
+## Regenerating product icons
+
+`scripts/gen-icons.py` regenerates desktop, Windows, tray, and browser-extension
+icons from the canonical raster seed in this directory. Then
+`scripts/gen-env-icons.py` derives clearly badged DEV and STG variants from the
+same brand. Both scripts require Pillow only.
+
+Windows ICO files deliberately use a BMP-backed 32px frame. This is a
+compatibility contract with Tauri's strict icon decoder and prevents embedded
+PNG CRC issues from breaking Rust compilation or installer builds.
 
 ## Core palette
 
@@ -30,6 +43,10 @@ Runtime copies live next to the applications that consume them so builds do not 
 | Highlight violet | `#B45CFF` |
 | Wordmark navy | `#0B1D51` |
 
-The mark represents **Acti + Lens**: the folded A communicates activity/motion; the circular focus point and curved fold communicate lens, observation, and focus.
+The mark represents **Acti + Lens**: the folded A communicates activity/motion;
+the circular focus point and curved fold communicate lens, observation, and focus.
 
-Keep the aspect ratio and clear space. Do not redraw, rotate, add glows/shadows, or change individual gradient stops in product code. At small sizes prefer the square app icon. Raster installer/browser exports must be rendered from `svg/app-icon.svg`, never from screenshots or concept art.
+Keep the aspect ratio and clear space. Do not redraw, rotate, add glows/shadows,
+or change individual gradient stops in product code. At small sizes prefer the
+square app icon. Raster installer/browser exports must be derived from the brand
+masters here, never from screenshots or concept art.
