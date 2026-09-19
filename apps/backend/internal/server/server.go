@@ -74,6 +74,7 @@ func New(cfg *config.Config, st *store.Store, files *filestore.Store, ret *reten
 	authed.PATCH("/account/profile", authH.UpdateOwnDisplayName)
 	authed.PATCH("/account/login-identifiers", authH.UpdateOwnLoginIdentifiers)
 	authed.POST("/account/password/change", authH.ChangeOwnPassword)
+	authed.POST("/account/reauth", authH.Reauth)
 	authed.GET("/account/sessions", authH.ListSessions)
 	authed.DELETE("/account/sessions/:session_id", authH.RevokeSession)
 	authed.POST("/account/sessions/revoke-others", authH.RevokeOtherSessions)
