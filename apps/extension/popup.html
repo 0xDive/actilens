@@ -204,6 +204,11 @@
         left: 2px;
       }
 
+      .switch:disabled {
+        cursor: not-allowed;
+        opacity: 0.58;
+      }
+
       .card {
         padding: 11px 12px;
         border: 1px solid var(--border-subtle);
@@ -290,7 +295,7 @@
           <div class="tracking-row">
             <div>
               <div class="title">Track this browser</div>
-              <div class="muted">Send active-tab activity to the local app</div>
+              <div id="trackingHelp" class="muted">Send active-tab activity to the local app</div>
             </div>
             <button
               id="toggle"
