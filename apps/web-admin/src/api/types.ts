@@ -322,3 +322,14 @@ export interface OrganizationPatch {
   timezone?: string;
   week_starts_on?: number | null;
 }
+
+export interface OrganizationDeletionPreview {
+  members: number;
+  devices: number;
+  activity: number;
+  browser: number;
+  keystrokes: number;
+  screenshots: number;
+  screenshot_bytes: number;
+  exports: number;
+}
