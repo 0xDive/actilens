@@ -36,6 +36,9 @@ export type AppSettings = {
   screenshot_interval_s: number;
   screenshot_retention_days: number;
   domain_only: boolean;
+  collect_app_activity: boolean;
+  collect_window_titles: boolean;
+  collect_browser_activity: boolean;
   hide_dock: boolean;
   capture_screenshots: boolean;
   screenshot_mode: string;
@@ -60,9 +63,17 @@ const IS_WINDOWS = navigator.userAgent.includes("Windows");
 // command, baked-in fallback offline), rendered as skip-list suggestions.
 type PrivacyAppCategory = { key: string; apps: string[] };
 
-/** Normalize a stored mode (incl. pre-rename values) to the two current modes. */
-function normalizeMode(m: string): "privacy" | "normal" {
-  return m === "normal" || m === "full_screen" ? "normal" : "privacy";
+type ScreenshotScope = "active_window" | "active_display" | "all_displays";
+
+/** Normalize old settings into the explicit three-way capture scope. */
+function screenshotScope(settings: AppSettings): ScreenshotScope {
+  const scope = settings.screenshot_capture_scope;
+  if (scope === "active_display" || scope === "all_displays" || scope === "active_window") {
+    return scope;
+  }
+  return settings.screenshot_mode === "normal" || settings.screenshot_mode === "full_screen"
+    ? "all_displays"
+    : "active_window";
 }
 
 /** One selectable screenshot-mode card: radio dot + label + explanation. */
@@ -391,12 +402,15 @@ export function Settings({
     });
   }
 
-  function setMode(m: "privacy" | "normal") {
+  function setScope(scope: ScreenshotScope) {
     if (!settings) return;
-    const patch: Partial<AppSettings> = { screenshot_mode: m };
-    // Switching into privacy with an empty skip list prefills the curated rules.
-    if (m === "privacy" && settings.screenshot_skip_apps.length === 0 && privacyApps.length > 0) {
-      patch.screenshot_skip_apps = privacyApps.flatMap((c) => c.apps);
+    const patch: Partial<AppSettings> = {
+      screenshot_capture_scope: scope,
+      // Keep the legacy field coherent for pre-v1 code paths and downgrade safety.
+      screenshot_mode: scope === "active_window" ? "privacy" : "normal",
+    };
+    if (settings.screenshot_skip_apps.length === 0 && privacyApps.length > 0) {
+      patch.screenshot_skip_apps = privacyApps.flatMap((category) => category.apps);
     }
     onChange(patch);
   }
@@ -498,37 +512,41 @@ export function Settings({
             </Row>
             {settings.capture_screenshots && (
               <>
-                <Row title={t("screenshotMode")} desc={t("screenshotModeDesc")}>
-                  <div role="radiogroup" aria-label={t("screenshotMode")} style={{ display: "grid", gap: 8, width: 320, maxWidth: "100%" }}>
+                <Row title={t("screenshotScope")} desc={t("screenshotScopeDesc")}>
+                  <div role="radiogroup" aria-label={t("screenshotScope")} style={{ display: "grid", gap: 8, width: 340, maxWidth: "100%" }}>
                     <ModeOption
-                      label={t("modePrivacy")}
-                      desc={t("modePrivacyDesc")}
-                      selected={normalizeMode(settings.screenshot_mode) === "privacy"}
-                      onSelect={() => setMode("privacy")}
+                      label={t("scopeActiveWindow")}
+                      desc={t("scopeActiveWindowDesc")}
+                      selected={screenshotScope(settings) === "active_window"}
+                      onSelect={() => setScope("active_window")}
                     />
                     <ModeOption
-                      label={t("modeNormal")}
-                      desc={t("modeNormalDesc")}
-                      selected={normalizeMode(settings.screenshot_mode) === "normal"}
-                      onSelect={() => setMode("normal")}
+                      label={t("scopeActiveDisplay")}
+                      desc={t("scopeActiveDisplayDesc")}
+                      selected={screenshotScope(settings) === "active_display"}
+                      onSelect={() => setScope("active_display")}
+                    />
+                    <ModeOption
+                      label={t("scopeAllDisplays")}
+                      desc={t("scopeAllDisplaysDesc")}
+                      selected={screenshotScope(settings) === "all_displays"}
+                      onSelect={() => setScope("all_displays")}
                     />
                   </div>
                 </Row>
-                {normalizeMode(settings.screenshot_mode) === "privacy" && (
-                  <Row title={t("skipApps")} desc={t("skipAppsDesc")}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span className="bb-readonly">
-                        {t("skipAppsCount", { count: settings.screenshot_skip_apps.length })}
-                      </span>
-                      <button
-                        className="actilens-btn actilens-btn--secondary actilens-btn--sm"
-                        onClick={() => setSkipOpen(true)}
-                      >
-                        {t("skipAppsManage")}
-                      </button>
-                    </div>
-                  </Row>
-                )}
+                <Row title={t("skipApps")} desc={t("skipAppsDesc")}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span className="bb-readonly">
+                      {t("skipAppsCount", { count: settings.screenshot_skip_apps.length })}
+                    </span>
+                    <button
+                      className="actilens-btn actilens-btn--secondary actilens-btn--sm"
+                      onClick={() => setSkipOpen(true)}
+                    >
+                      {t("skipAppsManage")}
+                    </button>
+                  </div>
+                </Row>
                 <Row title={t("screenshotInterval")}>
                   <Select
                     width={140}
