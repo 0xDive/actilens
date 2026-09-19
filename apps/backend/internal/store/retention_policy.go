@@ -20,7 +20,8 @@ func (s *Store) BusinessesWithRetentionPolicies(ctx context.Context) ([]Business
 		SELECT id, activity_retention_days, screenshot_retention_days,
 		       browser_retention_days, keystroke_retention_days
 		  FROM businesses
-		 WHERE deletion_scheduled_at IS NULL`)
+		 WHERE archived_at IS NULL
+		   AND deletion_scheduled_at IS NULL`)
 	if err != nil {
 		return nil, err
 	}
@@ -41,6 +42,27 @@ func (s *Store) BusinessesWithRetentionPolicies(ctx context.Context) ([]Business
 		out = append(out, p)
 	}
 	return out, rows.Err()
+}
+
+// EnsureBusinessMutable rejects destructive retention/cleanup while an organization
+// is archived or pending deletion. Read-only previews do not call this helper.
+func (s *Store) EnsureBusinessMutable(ctx context.Context, businessID string) error {
+	var archived, deletionPending bool
+	err := s.pool.QueryRow(ctx, `
+		SELECT archived_at IS NOT NULL, deletion_scheduled_at IS NOT NULL
+		  FROM businesses
+		 WHERE id = $1`, businessID,
+	).Scan(&archived, &deletionPending)
+	if err != nil {
+		return err
+	}
+	if deletionPending {
+		return ErrOrganizationDeletionPending
+	}
+	if archived {
+		return ErrOrganizationArchived
+	}
+	return nil
 }
 
 // CountActivityBefore returns managed activity rows that a retention sweep would remove.
@@ -87,6 +109,9 @@ func (s *Store) ScreenshotStatsBefore(ctx context.Context, businessID string, cu
 }
 
 func (s *Store) DeleteActivityBefore(ctx context.Context, businessID string, cutoffTs int64) (int64, error) {
+	if err := s.EnsureBusinessMutable(ctx, businessID); err != nil {
+		return 0, err
+	}
 	ct, err := s.pool.Exec(ctx,
 		`DELETE FROM activity_samples WHERE business_id = $1 AND ts < $2`,
 		businessID, cutoffTs,
@@ -98,6 +123,9 @@ func (s *Store) DeleteActivityBefore(ctx context.Context, businessID string, cut
 }
 
 func (s *Store) DeleteBrowserBefore(ctx context.Context, businessID string, cutoffTs int64) (int64, error) {
+	if err := s.EnsureBusinessMutable(ctx, businessID); err != nil {
+		return 0, err
+	}
 	ct, err := s.pool.Exec(ctx,
 		`DELETE FROM browser_visits WHERE business_id = $1 AND ts < $2`,
 		businessID, cutoffTs,
@@ -109,6 +137,9 @@ func (s *Store) DeleteBrowserBefore(ctx context.Context, businessID string, cuto
 }
 
 func (s *Store) DeleteKeystrokesBefore(ctx context.Context, businessID string, cutoffTs int64) (int64, error) {
+	if err := s.EnsureBusinessMutable(ctx, businessID); err != nil {
+		return 0, err
+	}
 	ct, err := s.pool.Exec(ctx,
 		`DELETE FROM keystroke_buckets WHERE business_id = $1 AND ts_bucket < $2`,
 		businessID, cutoffTs,
