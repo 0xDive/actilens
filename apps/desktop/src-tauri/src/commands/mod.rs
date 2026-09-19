@@ -482,20 +482,29 @@ pub async fn login(
     }
     settings.managed.lock().unwrap().monitoring_enabled = false;
 
-    // The login call itself just succeeded, so normally this resolves immediately.
-    // If the membership endpoint has a transient failure we intentionally stay
-    // disabled; the background sync/policy refresh will retry and re-enable only
-    // after the server explicitly says collection is allowed.
-    if let Ok(enabled) = client.monitoring_enabled(session.business_id.as_deref()).await {
-        control
-            .org_monitoring_enabled
-            .store(enabled, Ordering::Relaxed);
-        {
-            let mut current = settings.current.lock().unwrap();
-            current.org_monitoring_enabled = enabled;
-            let _ = crate::settings::save(&settings.path, &current);
+    control
+        .managed
+        .store(session.business_id.is_some(), Ordering::Relaxed);
+
+    // Resolve and apply the full organization policy before allowing any managed
+    // collection. A transient failure leaves the installation fail-closed; the
+    // background worker retries policy refresh later.
+    match client.fetch_policy(session.business_id.as_deref()).await {
+        Ok(policy) => {
+            let previous = settings.managed.lock().unwrap().monitoring_enabled;
+            let enabled = if policy.managed {
+                client
+                    .monitoring_enabled(session.business_id.as_deref())
+                    .await
+                    .unwrap_or(previous)
+            } else {
+                true
+            };
+            crate::settings::apply_managed_policy(&settings, &control, &policy, enabled);
         }
-        settings.managed.lock().unwrap().monitoring_enabled = enabled;
+        Err(e) => {
+            crate::log_warn!("policy", "initial policy fetch failed: {e}");
+        }
     }
 
     Ok(session)
@@ -570,16 +579,19 @@ pub async fn current_session(
     std::env::remove_var("ACTILENS_ENROLL_TOKEN");
 
     let client = BackendClient::new(backend_url(), auth.inner().clone());
-    if let Ok(enabled) = client.monitoring_enabled(session.business_id.as_deref()).await {
-        control
-  .org_monitoring_enabled
-  .store(enabled, Ordering::Relaxed);
-        {
-  let mut current = settings.current.lock().unwrap();
-  current.org_monitoring_enabled = enabled;
-  let _ = crate::settings::save(&settings.path, &current);
+    control.managed.store(true, Ordering::Relaxed);
+    match client.fetch_policy(session.business_id.as_deref()).await {
+        Ok(policy) => {
+            let previous = settings.managed.lock().unwrap().monitoring_enabled;
+            let enabled = client
+                .monitoring_enabled(session.business_id.as_deref())
+                .await
+                .unwrap_or(previous);
+            crate::settings::apply_managed_policy(&settings, &control, &policy, enabled);
         }
-        settings.managed.lock().unwrap().monitoring_enabled = enabled;
+        Err(e) => {
+            crate::log_warn!("policy", "enrollment policy fetch failed: {e}");
+        }
     }
 
     Ok(Some(session))
