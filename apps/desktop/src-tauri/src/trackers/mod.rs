@@ -634,6 +634,7 @@ pub fn capture_once(db: &Db, dir: &Path, control: &TrackerControl) -> usize {
                 }
             };
 
+            let capture_group_id = uuid::Uuid::new_v4().to_string();
             let mut saved = 0;
             for (i, monitor) in monitors.into_iter().enumerate() {
                 let img = match monitor.capture_image() {
@@ -656,7 +657,7 @@ pub fn capture_once(db: &Db, dir: &Path, control: &TrackerControl) -> usize {
                     width: Some(w as i64),
                     height: Some(h as i64),
                 };
-                if let Err(e) = db.insert_screenshot(&shot) {
+                if let Err(e) = db.insert_screenshot_with_group(&shot, Some(&capture_group_id)) {
                     crate::log_warn!("screenshot", "db insert failed: {e}");
                     continue;
                 }
