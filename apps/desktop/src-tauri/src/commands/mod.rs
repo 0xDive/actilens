@@ -11,7 +11,7 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::platform::{self, CapabilityRow, Permission};
-use crate::storage::Db;
+use crate::storage::{Db, SyncTable};
 use crate::trackers::TrackerControl;
 
 /// Temporary smoke-test command kept from the scaffold; remove once real
@@ -429,7 +429,7 @@ fn err<E: std::fmt::Display>(e: E) -> String {
 // ---------- auth / session (task 51) ----------
 
 use crate::sync::auth::{AuthState, Session};
-use crate::sync::client::{BackendClient, PublicBusiness};
+use crate::sync::client::{BackendClient, LoginAttempt, MembershipState, PublicBusiness};
 
 /// The backend base URL (compile-time default; env override for dev).
 fn backend_url() -> String {
@@ -452,8 +452,102 @@ pub async fn list_businesses(
     client.list_businesses().await
 }
 
-/// Log in and persist the session to disk. Wrong credentials surface a clear error
-/// and store nothing.
+#[derive(Serialize)]
+pub struct DesktopLoginResult {
+    pub status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session: Option<Session>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub challenge_token: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub business_id: Option<String>,
+    #[serde(default)]
+    pub organizations: Vec<MembershipState>,
+}
+
+fn suppress_pre_managed_backlog(db: &Db) -> Result<(), String> {
+    for table in [
+        SyncTable::Activity,
+        SyncTable::Keystroke,
+        SyncTable::Browser,
+        SyncTable::Screenshot,
+    ] {
+        db.suppress_pending(table).map_err(err)?;
+    }
+    Ok(())
+}
+
+async fn activate_authenticated_session(
+    session: Session,
+    auth: &Arc<AuthState>,
+    settings: &Arc<crate::settings::SettingsState>,
+    control: &Arc<TrackerControl>,
+    db: &Arc<Db>,
+) -> Result<DesktopLoginResult, String> {
+    let managed = session.business_id.is_some();
+
+    if managed {
+        // Privacy boundary: rows collected before organization binding remain local
+        // and are never silently uploaded into the new organization.
+        suppress_pre_managed_backlog(db)?;
+    }
+
+    auth.store(session.clone())?;
+
+    if managed {
+        control.managed.store(true, Ordering::Relaxed);
+        control
+            .org_monitoring_enabled
+            .store(false, Ordering::Relaxed);
+        {
+            let mut current = settings.current.lock().unwrap();
+            current.local_only = false;
+            current.org_monitoring_enabled = false;
+            let _ = crate::settings::save(&settings.path, &current);
+        }
+        {
+            let mut status = settings.managed.lock().unwrap();
+            status.managed = true;
+            status.allow_employee_override = false;
+            status.monitoring_enabled = false;
+        }
+
+        let client = BackendClient::new(backend_url(), auth.clone());
+        match client.fetch_policy(session.business_id.as_deref()).await {
+            Ok(policy) => {
+                let enabled = client
+                    .monitoring_enabled(session.business_id.as_deref())
+                    .await
+                    .unwrap_or(false);
+                crate::settings::apply_managed_policy(settings, control, &policy, enabled);
+            }
+            Err(e) => {
+                crate::log_warn!("policy", "initial managed policy fetch failed: {e}");
+            }
+        }
+    } else {
+        control.managed.store(false, Ordering::Relaxed);
+        control
+            .org_monitoring_enabled
+            .store(true, Ordering::Relaxed);
+        *settings.managed.lock().unwrap() = crate::settings::CaptureManaged::default();
+        let mut current = settings.current.lock().unwrap();
+        current.org_monitoring_enabled = true;
+        crate::settings::apply(&current, control);
+        let _ = crate::settings::save(&settings.path, &current);
+    }
+
+    Ok(DesktopLoginResult {
+        status: "authenticated".into(),
+        session: Some(session),
+        challenge_token: None,
+        business_id: None,
+        organizations: Vec::new(),
+    })
+}
+
+/// Password login. Multi-organization accounts select the governing organization
+/// before a session is created; MFA is completed in a separate command.
 #[tauri::command]
 pub async fn login(
     email: String,
@@ -462,52 +556,71 @@ pub async fn login(
     auth: State<'_, Arc<AuthState>>,
     settings: State<'_, Arc<crate::settings::SettingsState>>,
     control: State<'_, Arc<TrackerControl>>,
-) -> Result<Session, String> {
+    db: State<'_, Arc<Db>>,
+) -> Result<DesktopLoginResult, String> {
+    let client = BackendClient::new(backend_url(), auth.inner().clone());
+    match client
+        .login(&email, &password, business_id.as_deref())
+        .await?
+    {
+        LoginAttempt::Authenticated(session) => {
+            activate_authenticated_session(
+                session,
+                auth.inner(),
+                settings.inner(),
+                control.inner(),
+                db.inner(),
+            )
+            .await
+        }
+        LoginAttempt::MFARequired {
+            challenge_token,
+            business_id,
+        } => Ok(DesktopLoginResult {
+            status: "mfa_required".into(),
+            session: None,
+            challenge_token: Some(challenge_token),
+            business_id,
+            organizations: Vec::new(),
+        }),
+        LoginAttempt::OrganizationRequired { organizations } => Ok(DesktopLoginResult {
+            status: "organization_required".into(),
+            session: None,
+            challenge_token: None,
+            business_id: None,
+            organizations,
+        }),
+    }
+}
+
+#[tauri::command]
+pub async fn complete_mfa_login(
+    challenge_token: String,
+    code: String,
+    email: String,
+    business_id: Option<String>,
+    auth: State<'_, Arc<AuthState>>,
+    settings: State<'_, Arc<crate::settings::SettingsState>>,
+    control: State<'_, Arc<TrackerControl>>,
+    db: State<'_, Arc<Db>>,
+) -> Result<DesktopLoginResult, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
     let session = client
-        .login(&email, &password, business_id.as_deref())
+        .complete_mfa_login(
+            &challenge_token,
+            &code,
+            &email,
+            business_id.as_deref(),
+        )
         .await?;
-    auth.store(session.clone())?;
-
-    // Fail closed between authentication and membership-policy resolution. This
-    // prevents a completed onboarding session from collecting even a few local
-    // samples before the React policy effect runs.
-    control
-        .org_monitoring_enabled
-        .store(false, Ordering::Relaxed);
-    {
-        let mut current = settings.current.lock().unwrap();
-        current.org_monitoring_enabled = false;
-        let _ = crate::settings::save(&settings.path, &current);
-    }
-    settings.managed.lock().unwrap().monitoring_enabled = false;
-
-    control
-        .managed
-        .store(session.business_id.is_some(), Ordering::Relaxed);
-
-    // Resolve and apply the full organization policy before allowing any managed
-    // collection. A transient failure leaves the installation fail-closed; the
-    // background worker retries policy refresh later.
-    match client.fetch_policy(session.business_id.as_deref()).await {
-        Ok(policy) => {
-            let previous = settings.managed.lock().unwrap().monitoring_enabled;
-            let enabled = if policy.managed {
-                client
-                    .monitoring_enabled(session.business_id.as_deref())
-                    .await
-                    .unwrap_or(previous)
-            } else {
-                true
-            };
-            crate::settings::apply_managed_policy(&settings, &control, &policy, enabled);
-        }
-        Err(e) => {
-            crate::log_warn!("policy", "initial policy fetch failed: {e}");
-        }
-    }
-
-    Ok(session)
+    activate_authenticated_session(
+        session,
+        auth.inner(),
+        settings.inner(),
+        control.inner(),
+        db.inner(),
+    )
+    .await
 }
 
 /// Clear the stored session and release any organization-controlled
