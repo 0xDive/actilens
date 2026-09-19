@@ -181,6 +181,10 @@ func (h *ScreenshotHandler) Upload(c *gin.Context) {
 			apiError(c, http.StatusConflict, ErrCodeOrganizationDeletionPending, "organization deletion is pending", nil)
 		case errors.Is(err, store.ErrMembershipUnavailable):
 			apiError(c, http.StatusForbidden, ErrCodePermissionDenied, "monitoring is disabled for this membership", nil)
+		case errors.Is(err, store.ErrCollectionDisabled):
+			// Policy may have changed after the pre-write check. The blob was already
+			// removed above; acknowledge the client UUID so an old agent does not retry.
+			c.JSON(http.StatusOK, gin.H{"accepted": []string{clientUUID}})
 		default:
 			serverError(c, err)
 		}
