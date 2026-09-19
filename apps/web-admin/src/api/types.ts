@@ -222,7 +222,8 @@ export interface ScreenshotMeta {
   byte_size: number;
   width: number;
   height: number;
-  display_id: number;
+  display_id: number | null;
+  capture_group_id: string | null;
 }
 
 export interface ScreenshotsResponse {
