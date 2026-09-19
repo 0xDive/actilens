@@ -985,3 +985,69 @@ func TestIntegrationFourRoleCapabilityMatrix(t *testing.T) {
 		t.Fatalf("blocked manager permission error = %v, want ErrForbidden", err)
 	}
 }
+
+
+func TestIntegrationOrganizationDeviceLimit(t *testing.T) {
+	st, _ := integrationStore(t)
+	ctx := context.Background()
+
+	owner, err := st.CreateUser(ctx, "limit-owner@example.test", "", "hash", "Limit Owner", "manager")
+	if err != nil {
+		t.Fatalf("create owner: %v", err)
+	}
+	biz, err := st.CreateBusiness(ctx, owner.ID, "Limited devices", "team")
+	if err != nil {
+		t.Fatalf("create business: %v", err)
+	}
+	if err := st.UpdateBusinessSettingsAudited(
+		ctx, owner.ID, biz.ID, map[string]any{"device_limit": 1},
+	); err != nil {
+		t.Fatalf("set device limit: %v", err)
+	}
+
+	first, _, err := st.CreateEmployee(
+		ctx, owner.ID, &biz.ID, "", "limit_first", "hash", "First Member",
+	)
+	if err != nil {
+		t.Fatalf("create first member: %v", err)
+	}
+	second, _, err := st.CreateEmployee(
+		ctx, owner.ID, &biz.ID, "", "limit_second", "hash", "Second Member",
+	)
+	if err != nil {
+		t.Fatalf("create second member: %v", err)
+	}
+
+	firstDevice := uuid.NewString()
+	secondDevice := uuid.NewString()
+	if err := st.TouchDevice(ctx, first.ID, biz.ID, firstDevice, DeviceMetadata{}); err != nil {
+		t.Fatalf("enroll first device: %v", err)
+	}
+	if err := st.TouchDevice(ctx, second.ID, biz.ID, secondDevice, DeviceMetadata{}); !errors.Is(err, ErrDeviceLimitReached) {
+		t.Fatalf("second organization device = %v, want ErrDeviceLimitReached", err)
+	}
+
+	revoke := true
+	if _, err := st.UpdateDevice(ctx, owner.ID, firstDevice, nil, &revoke, biz.ID); err != nil {
+		t.Fatalf("revoke first device: %v", err)
+	}
+	if err := st.TouchDevice(ctx, second.ID, biz.ID, secondDevice, DeviceMetadata{}); err != nil {
+		t.Fatalf("enroll second device after revoke: %v", err)
+	}
+
+	restore := false
+	if _, err := st.UpdateDevice(ctx, owner.ID, firstDevice, nil, &restore, biz.ID); !errors.Is(err, ErrDeviceLimitReached) {
+		t.Fatalf("restore while slot occupied = %v, want ErrDeviceLimitReached", err)
+	}
+
+	if _, err := st.UpdateDevice(ctx, owner.ID, secondDevice, nil, &revoke, biz.ID); err != nil {
+		t.Fatalf("revoke second device: %v", err)
+	}
+	restored, err := st.UpdateDevice(ctx, owner.ID, firstDevice, nil, &restore, biz.ID)
+	if err != nil {
+		t.Fatalf("restore first device after slot freed: %v", err)
+	}
+	if restored.RevokedAt != nil {
+		t.Fatalf("restored device still revoked: %+v", restored)
+	}
+}
