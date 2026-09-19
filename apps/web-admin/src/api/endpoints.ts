@@ -278,10 +278,17 @@ export function organizationDeletionPreview(id: string) {
   );
 }
 
-export function scheduleOrganizationDeletion(id: string, reauthToken: string) {
+export function scheduleOrganizationDeletion(
+  id: string,
+  reauthToken: string,
+  confirmationName: string,
+) {
   return request<{ business: Business }>(`/v1/businesses/${id}/schedule-deletion`, {
     method: "POST",
-    body: { reauth_token: reauthToken },
+    body: {
+      reauth_token: reauthToken,
+      confirmation_name: confirmationName,
+    },
   });
 }
 
