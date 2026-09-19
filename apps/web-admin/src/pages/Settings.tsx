@@ -745,7 +745,9 @@ export function Settings() {
                 disabled={
                   cleanupPreviewing ||
                   cleanupClasses.length === 0 ||
-                  cleanupPreview.length !== cleanupClasses.length
+                  cleanupPreview.length !== cleanupClasses.length ||
+                  (cleanupMode === "range" &&
+                    (!cleanupFrom || !cleanupTo || cleanupFrom > cleanupTo))
                 }
                 onClick={runCleanup}
               >
