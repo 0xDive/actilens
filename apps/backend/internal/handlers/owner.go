@@ -319,6 +319,35 @@ func (h *OwnerHandler) UpdateSettings(c *gin.Context) {
 		fields["screenshot_skip_apps"] = cleaned
 	}
 
+	confirmRetentionReduction := false
+	if raw, ok := body["confirm_retention_reduction"]; ok {
+		if json.Unmarshal(raw, &confirmRetentionReduction) != nil {
+			badRequest(c, "confirm_retention_reduction must be a boolean")
+			return
+		}
+	}
+	if hasRetentionFields(fields) {
+		current, err := h.store.GetBusiness(c.Request.Context(), businessID)
+		if err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				notFound(c, "organization not found")
+			} else {
+				serverError(c, err)
+			}
+			return
+		}
+		if retentionReductionRequested(fields, current) && !confirmRetentionReduction {
+			apiError(
+				c,
+				http.StatusConflict,
+				"retention_confirmation_required",
+				"reducing retention requires an impact preview and explicit confirmation",
+				nil,
+			)
+			return
+		}
+	}
+
 	err := h.store.UpdateBusinessSettingsAudited(
 		c.Request.Context(), actorID, businessID, fields,
 	)
@@ -336,6 +365,53 @@ func (h *OwnerHandler) UpdateSettings(c *gin.Context) {
 	default:
 		serverError(c, err)
 	}
+}
+
+func hasRetentionFields(fields map[string]any) bool {
+	for _, key := range []string{
+		"activity_retention_days",
+		"screenshot_retention_days",
+		"browser_retention_days",
+		"keystroke_retention_days",
+		"audit_retention_days",
+	} {
+		if _, ok := fields[key]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func retentionReductionRequested(fields map[string]any, current store.Business) bool {
+	for key, currentDays := range map[string]int{
+		"activity_retention_days":  current.ActivityRetentionDays,
+		"browser_retention_days":   current.BrowserRetentionDays,
+		"keystroke_retention_days": current.KeystrokeRetentionDays,
+	} {
+		if raw, ok := fields[key]; ok {
+			if next, ok := raw.(int); ok && next < currentDays {
+				return true
+			}
+		}
+	}
+
+	for key, currentDays := range map[string]*int{
+		"screenshot_retention_days": current.ScreenshotRetentionDays,
+		"audit_retention_days":      current.AuditRetentionDays,
+	} {
+		raw, ok := fields[key]
+		if !ok || raw == nil {
+			continue // finite -> forever is an increase, not a destructive reduction
+		}
+		next, ok := raw.(int)
+		if !ok {
+			continue
+		}
+		if currentDays == nil || next < *currentDays {
+			return true
+		}
+	}
+	return false
 }
 
 // Policy returns the capture policy for the authenticated user's business, or
