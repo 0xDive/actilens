@@ -93,6 +93,10 @@ func (h *OwnerHandler) updateOrganizationDevice(c *gin.Context, businessID, devi
 		apiError(c, http.StatusConflict, ErrCodeDeviceLimitReached, "device limit reached", nil)
 	case errors.Is(err, store.ErrForbidden):
 		forbidden(c, "insufficient permission")
+	case errors.Is(err, store.ErrOrganizationArchived):
+		apiError(c, http.StatusConflict, ErrCodeOrganizationArchived, "organization is archived", nil)
+	case errors.Is(err, store.ErrOrganizationDeletionPending):
+		apiError(c, http.StatusConflict, ErrCodeOrganizationDeletionPending, "organization deletion is pending", nil)
 	default:
 		serverError(c, err)
 	}
