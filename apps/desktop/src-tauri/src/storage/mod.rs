@@ -517,6 +517,15 @@ impl Db {
         Ok(())
     }
 
+    /// Permanently suppress currently pending rows for a disabled collection
+    /// category without deleting the local history. Marking them synced prevents a
+    /// later re-enable from uploading data that was pending while policy was off.
+    pub fn suppress_pending(&self, table: SyncTable) -> Result<usize> {
+        let conn = self.conn.lock().unwrap();
+        let sql = format!("UPDATE {} SET synced = 1 WHERE synced = 0", table.name());
+        conn.execute(&sql, [])
+    }
+
     /// Total pending (unsynced) rows across all four tables — drives the sync
     /// status indicator (task 53).
     pub fn pending_count(&self) -> Result<i64> {
