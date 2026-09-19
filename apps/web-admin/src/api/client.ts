@@ -176,6 +176,33 @@ export async function request<T>(path: string, opts: RequestOpts = {}): Promise<
   return (await parseBody(res)) as T;
 }
 
+export async function fetchAuthenticatedBlob(
+  path: string,
+  retried = false,
+): Promise<Blob> {
+  const tok = tokenStore.getAccess();
+  const res = await fetch(buildUrl(path), {
+    headers: tok ? { Authorization: `Bearer ${tok}` } : {},
+  });
+  if (res.status === 401 && !retried) {
+    const ok = await refreshOnce();
+    if (ok) return fetchAuthenticatedBlob(path, true);
+    emitLogout();
+    throw new ApiError(401, "Session expired.", null, "session_revoked");
+  }
+  if (!res.ok) {
+    const body = await parseBody(res);
+    throw new ApiError(
+      res.status,
+      errorMessage(body, `Download failed (${res.status})`),
+      body,
+      errorCode(body),
+      errorDetails(body),
+    );
+  }
+  return res.blob();
+}
+
 // Auth-gated image fetch: pulls bytes with the Bearer header and returns an
 // object URL the caller can use as an <img src> (and must revoke later).
 export async function fetchImageObjectUrl(
