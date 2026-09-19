@@ -99,7 +99,11 @@ export function EmployeeDetail() {
   const business = businesses.find((item) => item.id === businessId);
   const terms = memberTerms(business?.kind);
   const isFormer = requestedFormer || false;
-  const mayManageDevices = !isFormer && canManageDevices(business?.role);
+  const organizationReadOnly = Boolean(
+    business?.archived_at || business?.deletion_scheduled_at,
+  );
+  const mayViewDevices = !isFormer && canManageDevices(business?.role);
+  const mayManageDevices = mayViewDevices && !organizationReadOnly;
 
   const [mode, setMode] = useState<"day" | "range">("day");
   const [day, setDay] = useState(() => isoDate(new Date()));
@@ -262,7 +266,7 @@ export function EmployeeDetail() {
         ? t(`employees.roles.${role}`)
         : terms.one;
 
-  const tabs: Tab[] = mayManageDevices
+  const tabs: Tab[] = mayViewDevices
     ? ["overview", "activity", "screenshots", "browser", "devices"]
     : ["overview", "activity", "screenshots", "browser"];
 
@@ -282,6 +286,12 @@ export function EmployeeDetail() {
       <Link className="employee-detail__back" to="/employees">
         ← {terms.many}
       </Link>
+
+      {business && organizationReadOnly && (
+        <div className="employee-detail__alert">
+          <Alert tone="info">{t("employees.lifecycle.readOnly")}</Alert>
+        </div>
+      )}
 
       {identityLoading ? (
         <DetailSkeleton />
@@ -589,11 +599,12 @@ export function EmployeeDetail() {
                   <EmptyState title={t("detail.v1.noBrowserData")} />
                 ))}
 
-              {tab === "devices" && mayManageDevices && (
+              {tab === "devices" && mayViewDevices && (
                 <DevicesCard
                   employee={liveEmployee}
                   employeeId={id}
                   businessId={businessId}
+                  canChange={mayManageDevices}
                 />
               )}
             </>
