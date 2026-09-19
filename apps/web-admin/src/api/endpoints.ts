@@ -271,7 +271,7 @@ export function updateBusinessSettings(id: string, patch: BusinessSettingsPatch)
 export function defaultMonitoringImpact(id: string, enabled: boolean) {
   return request<{ affected_count: number }>(
     `/v1/businesses/${id}/settings/default-monitoring-impact`,
-    { query: { enabled } },
+    { query: { enabled: enabled ? "true" : "false" } },
   );
 }
 
