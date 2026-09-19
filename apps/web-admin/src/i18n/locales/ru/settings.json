@@ -164,14 +164,22 @@
       "settingsRetentionChanged": "Политика хранения изменена",
       "settingsEnrollmentChanged": "Параметры подключения изменены",
       "settingsDeviceLimitChanged": "Лимит устройств изменён",
-      "settingsDefaultMonitoringChanged": "Мониторинг новых участников изменён"
+      "settingsDefaultMonitoringChanged": "Мониторинг новых участников изменён",
+      "memberProfileChanged": "Профиль участника изменён",
+      "memberLoginChanged": "Данные входа участника изменены",
+      "memberMfaReset": "Двухфакторная защита участника сброшена",
+      "deviceEnrolled": "Устройство подключено",
+      "dataExportRequested": "Запрошен экспорт данных",
+      "dataCleanupRequested": "Запрошена очистка данных",
+      "dataCleanupCompleted": "Очистка данных завершена"
     },
     "targets": {
       "employee": "сотрудник",
       "device": "устройство",
       "member": "участник",
       "organization": "организация",
-      "privacy_rule": "правило приватности"
+      "privacy_rule": "правило приватности",
+      "organization_export": "Экспорт"
     },
     "v1": {
       "emptyDescription": "Административные изменения будут появляться здесь по мере выполнения."
@@ -258,7 +266,25 @@
       "pattern": "Шаблон",
       "enabled": "Включено",
       "previous_role": "Предыдущая роль",
-      "previous_monitoring_enabled": "Предыдущий мониторинг"
+      "previous_monitoring_enabled": "Предыдущий мониторинг",
+      "mfa_enabled": "Двухфакторная защита",
+      "device_enrolled": "Подключение устройства",
+      "hostname": "Имя компьютера",
+      "platform": "Платформа",
+      "arch": "Архитектура",
+      "app_version": "Версия ActiLens",
+      "had_mfa": "MFA до сброса",
+      "data_classes": "Категории данных",
+      "deleted_count": "Всего удалено",
+      "activity_bytes_freed": "Освобождено активностью",
+      "screenshots_bytes_freed": "Освобождено скриншотами",
+      "browser_bytes_freed": "Освобождено браузером",
+      "keystrokes_bytes_freed": "Освобождено нажатиями",
+      "mode": "Режим очистки",
+      "older_than_days": "Старше",
+      "from": "Начало диапазона",
+      "to": "Конец диапазона",
+      "login_changed": "Данные входа изменены"
     },
     "values": {
       "notRecorded": "не сохранено в старой записи",
@@ -323,6 +349,22 @@
       "matchTypes": {
         "exact": "Точное совпадение",
         "contains": "Содержит"
+      },
+      "enabled": "Включена",
+      "disabled": "Отключена",
+      "revoked": "Отозвано",
+      "active": "Активно",
+      "enrolled": "Подключено",
+      "notEnrolled": "Не подключено",
+      "dataClasses": {
+        "activity": "Активность",
+        "screenshots": "Скриншоты",
+        "browser": "Браузер",
+        "keystrokes": "Нажатия клавиш"
+      },
+      "cleanupModes": {
+        "range": "Диапазон дат",
+        "older_than": "Старше указанного срока"
       }
     },
     "detail": {
@@ -396,7 +438,25 @@
       "pattern": "Шаблон",
       "enabled": "Включено",
       "previous_role": "Предыдущая роль",
-      "previous_monitoring_enabled": "Предыдущий мониторинг"
+      "previous_monitoring_enabled": "Предыдущий мониторинг",
+      "mfa_enabled": "Двухфакторная защита",
+      "device_enrolled": "Подключение устройства",
+      "hostname": "Имя компьютера",
+      "platform": "Платформа",
+      "arch": "Архитектура",
+      "app_version": "Версия ActiLens",
+      "had_mfa": "MFA до сброса",
+      "data_classes": "Категории данных",
+      "deleted_count": "Всего удалено",
+      "activity_bytes_freed": "Освобождено активностью",
+      "screenshots_bytes_freed": "Освобождено скриншотами",
+      "browser_bytes_freed": "Освобождено браузером",
+      "keystrokes_bytes_freed": "Освобождено нажатиями",
+      "mode": "Режим очистки",
+      "older_than_days": "Старше",
+      "from": "Начало диапазона",
+      "to": "Конец диапазона",
+      "login_changed": "Данные входа изменены"
     }
   },
   "saveError": "Не удалось сохранить настройки.",

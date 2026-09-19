@@ -162,14 +162,22 @@
       "settingsRetentionChanged": "Retention policy changed",
       "settingsEnrollmentChanged": "Enrollment policy changed",
       "settingsDeviceLimitChanged": "Device limit changed",
-      "settingsDefaultMonitoringChanged": "Default member monitoring changed"
+      "settingsDefaultMonitoringChanged": "Default member monitoring changed",
+      "memberProfileChanged": "Member profile changed",
+      "memberLoginChanged": "Member login changed",
+      "memberMfaReset": "Member two-factor authentication reset",
+      "deviceEnrolled": "Device enrolled",
+      "dataExportRequested": "Data export requested",
+      "dataCleanupRequested": "Data cleanup requested",
+      "dataCleanupCompleted": "Data cleanup completed"
     },
     "targets": {
       "employee": "employee",
       "device": "device",
       "member": "member",
       "organization": "organization",
-      "privacy_rule": "privacy rule"
+      "privacy_rule": "privacy rule",
+      "organization_export": "Export"
     },
     "v1": {
       "emptyDescription": "Administrative changes will appear here as they happen."
@@ -254,7 +262,25 @@
       "pattern": "Pattern",
       "enabled": "Enabled",
       "previous_role": "Previous role",
-      "previous_monitoring_enabled": "Previous monitoring"
+      "previous_monitoring_enabled": "Previous monitoring",
+      "mfa_enabled": "Two-factor authentication",
+      "device_enrolled": "Device enrollment",
+      "hostname": "Computer name",
+      "platform": "Platform",
+      "arch": "Architecture",
+      "app_version": "ActiLens version",
+      "had_mfa": "MFA before reset",
+      "data_classes": "Data classes",
+      "deleted_count": "Total deleted",
+      "activity_bytes_freed": "Activity space freed",
+      "screenshots_bytes_freed": "Screenshot space freed",
+      "browser_bytes_freed": "Browser space freed",
+      "keystrokes_bytes_freed": "Keystroke space freed",
+      "mode": "Cleanup mode",
+      "older_than_days": "Older than",
+      "from": "Range start",
+      "to": "Range end",
+      "login_changed": "Login changed"
     },
     "values": {
       "notRecorded": "not recorded in the legacy event",
@@ -311,6 +337,22 @@
       "matchTypes": {
         "exact": "Exact",
         "contains": "Contains"
+      },
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "revoked": "Revoked",
+      "active": "Active",
+      "enrolled": "Enrolled",
+      "notEnrolled": "Not enrolled",
+      "dataClasses": {
+        "activity": "Activity",
+        "screenshots": "Screenshots",
+        "browser": "Browser",
+        "keystrokes": "Keystrokes"
+      },
+      "cleanupModes": {
+        "range": "Date range",
+        "older_than": "Older than"
       }
     },
     "detail": {
@@ -384,7 +426,25 @@
       "pattern": "Pattern",
       "enabled": "Enabled",
       "previous_role": "Previous role",
-      "previous_monitoring_enabled": "Previous monitoring"
+      "previous_monitoring_enabled": "Previous monitoring",
+      "mfa_enabled": "Two-factor authentication",
+      "device_enrolled": "Device enrollment",
+      "hostname": "Computer name",
+      "platform": "Platform",
+      "arch": "Architecture",
+      "app_version": "ActiLens version",
+      "had_mfa": "MFA before reset",
+      "data_classes": "Data classes",
+      "deleted_count": "Total deleted",
+      "activity_bytes_freed": "Activity space freed",
+      "screenshots_bytes_freed": "Screenshot space freed",
+      "browser_bytes_freed": "Browser space freed",
+      "keystrokes_bytes_freed": "Keystroke space freed",
+      "mode": "Cleanup mode",
+      "older_than_days": "Older than",
+      "from": "Range start",
+      "to": "Range end",
+      "login_changed": "Login changed"
     }
   },
   "saveError": "Could not save settings.",
