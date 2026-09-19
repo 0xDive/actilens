@@ -367,6 +367,32 @@ export function cleanupScreenshots(id: string, olderThanDays: number) {
   );
 }
 
+export interface CleanupClassResult {
+  data_class: RetentionDataClass;
+  deleted_count: number;
+  bytes_freed: number;
+}
+
+export interface CleanupResult {
+  results: CleanupClassResult[];
+  deleted_count: number;
+  bytes_freed: number;
+}
+
+export function cleanupData(
+  id: string,
+  dataClasses: RetentionDataClass[],
+  olderThanDays: number,
+) {
+  return request<CleanupResult>(`/v1/businesses/${id}/data/cleanup`, {
+    method: "POST",
+    body: {
+      data_classes: dataClasses,
+      older_than_days: olderThanDays,
+    },
+  });
+}
+
 export function listAuditEvents(businessId: string, limit = 100) {
   return request<{ events: AuditEvent[] }>(`/v1/businesses/${businessId}/audit`, {
     query: { limit },
