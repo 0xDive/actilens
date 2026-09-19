@@ -275,7 +275,7 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
 
   function fieldLabel(field: string): string {
     return t("audit.fields." + field, {
-      defaultValue: field.replaceAll("_", " "),
+      defaultValue: field.replace(/_/g, " "),
     });
   }
 
