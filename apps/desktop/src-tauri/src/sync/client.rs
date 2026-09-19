@@ -625,7 +625,11 @@ fn net_err(e: reqwest::Error) -> String {
 }
 
 fn format_status_body(status: reqwest::StatusCode, body: &str) -> String {
-    format_status_body(status, &body)
+    if body.is_empty() {
+        format!("backend returned {status}")
+    } else {
+        format!("backend returned {status}: {body}")
+    }
 }
 
 /// Turn a non-2xx response into a readable error, including the body if short.
