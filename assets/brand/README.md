@@ -2,7 +2,7 @@
 
 This directory is the source of truth for the ActiLens product identity.
 
-## Files
+## Vector masters
 
 - `svg/mark.svg` — primary standalone mark.
 - `svg/mark-white.svg` — inverse single-color mark.
@@ -11,7 +11,13 @@ This directory is the source of truth for the ActiLens product identity.
 - `svg/lockup-inverse.svg` — horizontal white lockup.
 - `svg/app-icon.svg` — rounded-square application icon and raster export source.
 
-Runtime copies live next to the applications that consume them so builds do not depend on cross-workspace asset traversal.
+## Raster and platform exports
+
+- `png/app-icon-{16,32,48,128,180,256}.png` — standard web, extension, desktop, and Apple Touch sizes.
+- `platform/favicon.ico` — Windows/web ICO export.
+- `platform/icon.icns` — macOS ICNS export.
+
+Runtime copies live next to the applications that consume them so builds do not depend on cross-workspace asset traversal. The source-of-truth assets stay here; app-local copies are deployment artifacts.
 
 ## Core palette
 
