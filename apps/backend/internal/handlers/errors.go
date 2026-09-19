@@ -22,6 +22,7 @@ const (
 	ErrCodeMemberRemoved              = "member_removed"
 	ErrCodeOrganizationArchived       = "organization_archived"
 	ErrCodeOrganizationDeletionPending = "organization_deletion_pending"
+	ErrCodeOrganizationRequired       = "organization_required"
 	ErrCodeDeviceLimitReached         = "device_limit_reached"
 	ErrCodeDeviceRevoked              = "device_revoked"
 	ErrCodeIdentifierTaken            = "identifier_taken"
