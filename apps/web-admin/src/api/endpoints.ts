@@ -489,12 +489,13 @@ export function createEmployee(input: {
   username?: string;
   password: string;
   display_name: string;
-  business_id?: string;
+  business_id: string;
 }) {
-  return request<CreateEmployeeResponse>("/v1/employees", {
-    method: "POST",
-    body: input,
-  });
+  const { business_id, ...body } = input;
+  return request<CreateEmployeeResponse>(
+    `/v1/businesses/${business_id}/members`,
+    { method: "POST", body },
+  );
 }
 
 export function listBusinessEmployees(businessId: string) {
