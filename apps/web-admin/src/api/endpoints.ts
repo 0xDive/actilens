@@ -350,7 +350,9 @@ export type RetentionDataClass =
 
 export interface RetentionPreview {
   data_class: RetentionDataClass;
-  days: number;
+  days?: number;
+  from?: number;
+  to?: number;
   affected_count: number;
   bytes_freed: number;
 }
@@ -362,6 +364,17 @@ export function previewRetention(
 ) {
   return request<RetentionPreview>(`/v1/businesses/${id}/retention/preview`, {
     query: { class: dataClass, days },
+  });
+}
+
+export function previewCleanupRange(
+  id: string,
+  dataClass: RetentionDataClass,
+  from: number,
+  to: number,
+) {
+  return request<RetentionPreview>(`/v1/businesses/${id}/retention/preview`, {
+    query: { class: dataClass, from, to },
   });
 }
 
@@ -441,16 +454,20 @@ export interface CleanupResult {
   bytes_freed: number;
 }
 
+export type CleanupWindow =
+  | { older_than_days: number; from?: never; to?: never }
+  | { from: number; to: number; older_than_days?: never };
+
 export function cleanupData(
   id: string,
   dataClasses: RetentionDataClass[],
-  olderThanDays: number,
+  window: CleanupWindow,
 ) {
   return request<CleanupResult>(`/v1/businesses/${id}/data/cleanup`, {
     method: "POST",
     body: {
       data_classes: dataClasses,
-      older_than_days: olderThanDays,
+      ...window,
     },
   });
 }
