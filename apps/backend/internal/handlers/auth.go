@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
 	"time"
 
 	"actilens/backend/internal/auth"
+	"actilens/backend/internal/events"
 	"actilens/backend/internal/obs"
 	"actilens/backend/internal/store"
 
@@ -16,13 +18,26 @@ import (
 
 // AuthHandler serves registration, login, refresh, and the public picker.
 type AuthHandler struct {
-	store *store.Store
-	tok   *auth.Manager
+	store     *store.Store
+	tok       *auth.Manager
+	publisher events.Publisher
 }
 
 // NewAuthHandler wires the auth handler.
 func NewAuthHandler(s *store.Store, tok *auth.Manager) *AuthHandler {
-	return &AuthHandler{store: s, tok: tok}
+	return &AuthHandler{store: s, tok: tok, publisher: events.Discard{}}
+}
+
+func (h *AuthHandler) SetEventPublisher(publisher events.Publisher) {
+	if publisher != nil {
+		h.publisher = publisher
+	}
+}
+
+func (h *AuthHandler) publish(ctx context.Context, event events.Event) {
+	if h.publisher != nil {
+		h.publisher.Publish(ctx, event)
+	}
 }
 
 type registerReq struct {
