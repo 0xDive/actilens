@@ -171,7 +171,8 @@
       "restoreMonitoring": "Enable monitoring after restore",
       "restoreMonitoringHelp": "If disabled, the member is restored but managed monitoring remains off until an administrator enables it.",
       "restoredToast": "Member restored.",
-      "viewHistory": "View retained history"
+      "viewHistory": "View retained history",
+      "readOnly": "This organization is archived and read-only. Historical reports, members, former members and devices remain available until it is restored or deleted."
     }
   },
   "newBusinessModal": {
