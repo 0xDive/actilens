@@ -32,6 +32,9 @@ import type {
   MFAState,
   OrganizationPatch,
   PrivacyAppCategory,
+  PrivacyRule,
+  PrivacyRuleKind,
+  PrivacyRuleMatchType,
   RecoveryCodesResponse,
   PublicBusiness,
   ReportEmployee,
@@ -291,6 +294,38 @@ export function updateDefaultMonitoring(
 
 export function getPrivacyApps() {
   return request<{ categories: PrivacyAppCategory[] }>("/v1/public/screenshot-privacy-apps");
+}
+
+export function listPrivacyRules(businessId: string) {
+  return request<{ rules: PrivacyRule[] }>(`/v1/businesses/${businessId}/privacy-rules`);
+}
+
+export function createPrivacyRule(
+  businessId: string,
+  input: { kind: PrivacyRuleKind; match_type: PrivacyRuleMatchType; pattern: string },
+) {
+  return request<{ rule: PrivacyRule }>(`/v1/businesses/${businessId}/privacy-rules`, {
+    method: "POST",
+    body: input,
+  });
+}
+
+export function updatePrivacyRule(
+  businessId: string,
+  ruleId: string,
+  patch: Partial<Pick<PrivacyRule, "kind" | "match_type" | "pattern" | "enabled">>,
+) {
+  return request<{ rule: PrivacyRule }>(
+    `/v1/businesses/${businessId}/privacy-rules/${ruleId}`,
+    { method: "PATCH", body: patch },
+  );
+}
+
+export function deletePrivacyRule(businessId: string, ruleId: string) {
+  return request<{ status: string }>(
+    `/v1/businesses/${businessId}/privacy-rules/${ruleId}`,
+    { method: "DELETE" },
+  );
 }
 
 export function cleanupScreenshots(id: string, olderThanDays: number) {
