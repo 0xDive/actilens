@@ -418,3 +418,104 @@ func TestIntegrationCollectionPolicyEnforcedAtIngest(t *testing.T) {
 		t.Fatalf("screenshots has %d rows with collection disabled, want 0", screenshots)
 	}
 }
+
+
+func TestIntegrationOrganizationExportJobs(t *testing.T) {
+	st, pool := integrationStore(t)
+	ctx := context.Background()
+
+	owner, err := st.CreateUser(ctx, "export-owner@example.test", "", "hash", "Export Owner", "manager")
+	if err != nil {
+		t.Fatalf("create owner: %v", err)
+	}
+	biz, err := st.CreateBusiness(ctx, owner.ID, "Export team", "team")
+	if err != nil {
+		t.Fatalf("create business: %v", err)
+	}
+	employee, _, err := st.CreateEmployee(ctx, owner.ID, &biz.ID, "", "export_member", "hash", "Export Member")
+	if err != nil {
+		t.Fatalf("create employee: %v", err)
+	}
+
+	if _, err := st.CreateOrganizationExport(ctx, employee.ID, biz.ID, ExportFull); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("employee export request = %v, want ErrForbidden", err)
+	}
+	if _, err := st.CreateOrganizationExport(ctx, owner.ID, biz.ID, "not_a_kind"); !errors.Is(err, ErrConflict) {
+		t.Fatalf("invalid export kind = %v, want ErrConflict", err)
+	}
+
+	job, err := st.CreateOrganizationExport(ctx, owner.ID, biz.ID, ExportFull)
+	if err != nil {
+		t.Fatalf("create export job: %v", err)
+	}
+	if job.Status != "pending" || job.Kind != ExportFull {
+		t.Fatalf("unexpected created export: %+v", job)
+	}
+
+	var auditCount int
+	if err := pool.QueryRow(ctx,
+		`SELECT count(*) FROM audit_events
+		  WHERE business_id = $1 AND action = 'data.export_requested' AND target_id = $2`,
+		biz.ID, job.ID,
+	).Scan(&auditCount); err != nil {
+		t.Fatalf("query export audit: %v", err)
+	}
+	if auditCount != 1 {
+		t.Fatalf("export audit count = %d, want 1", auditCount)
+	}
+
+	claimed, err := st.ClaimNextOrganizationExport(ctx)
+	if err != nil {
+		t.Fatalf("claim export: %v", err)
+	}
+	if claimed == nil || claimed.ID != job.ID || claimed.Status != "running" {
+		t.Fatalf("unexpected claimed export: %+v", claimed)
+	}
+	none, err := st.ClaimNextOrganizationExport(ctx)
+	if err != nil {
+		t.Fatalf("claim empty queue: %v", err)
+	}
+	if none != nil {
+		t.Fatalf("second claim = %+v, want nil", none)
+	}
+
+	expires := time.Now().Add(time.Hour)
+	if err := st.CompleteOrganizationExport(ctx, job.ID, "exports/example.zip", expires); err != nil {
+		t.Fatalf("complete export: %v", err)
+	}
+	got, err := st.OrganizationExportForActor(ctx, owner.ID, biz.ID, job.ID)
+	if err != nil {
+		t.Fatalf("get completed export: %v", err)
+	}
+	if got.Status != "ready" || got.FilePath == nil || *got.FilePath != "exports/example.zip" {
+		t.Fatalf("unexpected completed export: %+v", got)
+	}
+
+	expiredJob, err := st.CreateOrganizationExport(ctx, owner.ID, biz.ID, ExportActivityJSON)
+	if err != nil {
+		t.Fatalf("create expiring export: %v", err)
+	}
+	claimed, err = st.ClaimNextOrganizationExport(ctx)
+	if err != nil || claimed == nil || claimed.ID != expiredJob.ID {
+		t.Fatalf("claim expiring export: %+v err=%v", claimed, err)
+	}
+	if err := st.CompleteOrganizationExport(
+		ctx, expiredJob.ID, "exports/expired.json", time.Now().Add(-time.Minute),
+	); err != nil {
+		t.Fatalf("complete expiring export: %v", err)
+	}
+	paths, err := st.ExpireOrganizationExports(ctx)
+	if err != nil {
+		t.Fatalf("expire exports: %v", err)
+	}
+	if len(paths) != 1 || paths[0] != "exports/expired.json" {
+		t.Fatalf("expired paths = %#v", paths)
+	}
+	got, err = st.OrganizationExportForActor(ctx, owner.ID, biz.ID, expiredJob.ID)
+	if err != nil {
+		t.Fatalf("get expired export: %v", err)
+	}
+	if got.Status != "expired" {
+		t.Fatalf("expired status = %q, want expired", got.Status)
+	}
+}
