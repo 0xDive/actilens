@@ -102,23 +102,39 @@ func (h *OwnerHandler) updateOrganizationDevice(c *gin.Context, businessID, devi
 	}
 }
 
-// ListAuditEvents returns the recent administrative history for an owned business.
+// ListAuditEvents returns the retained administrative history with server-side
+// pagination, search and filters.
 func (h *OwnerHandler) ListAuditEvents(c *gin.Context) {
 	actorID, _ := auth.UserID(c)
-	limit := 100
-	if raw := c.Query("limit"); raw != "" {
+	query := store.AuditQuery{
+		Limit:  50,
+		UserID: c.Query("user_id"),
+		Action: c.Query("action"),
+		Search: c.Query("search"),
+	}
+	if raw := strings.TrimSpace(c.Query("limit")); raw != "" {
 		v, err := strconv.Atoi(raw)
-		if err != nil || v < 1 || v > 200 {
-			badRequest(c, "limit must be between 1 and 200")
+		if err != nil || v < 1 || v > 100 {
+			badRequest(c, "limit must be between 1 and 100")
 			return
 		}
-		limit = v
+		query.Limit = v
+	}
+	if raw := strings.TrimSpace(c.Query("offset")); raw != "" {
+		v, err := strconv.Atoi(raw)
+		if err != nil || v < 0 {
+			badRequest(c, "offset must be a non-negative integer")
+			return
+		}
+		query.Offset = v
 	}
 
-	events, err := h.store.ListAuditEvents(c.Request.Context(), actorID, c.Param("id"), limit)
+	page, err := h.store.ListAuditEventsPage(
+		c.Request.Context(), actorID, c.Param("id"), query,
+	)
 	switch {
 	case err == nil:
-		c.JSON(http.StatusOK, gin.H{"events": events})
+		c.JSON(http.StatusOK, page)
 	case errors.Is(err, store.ErrForbidden):
 		forbidden(c, "insufficient permission")
 	default:

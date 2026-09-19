@@ -411,45 +411,236 @@ func insertAuditTx(ctx context.Context, tx pgx.Tx, businessID, actorUserID, acti
 	return err
 }
 
-// ListAuditEvents returns recent administrative actions for a business.
-func (s *Store) ListAuditEvents(ctx context.Context, actorID, businessID string, limit int) ([]AuditEvent, error) {
-	if limit <= 0 || limit > 200 {
-		limit = 100
+type AuditQuery struct {
+	Limit  int
+	Offset int
+	UserID string
+	Action string
+	Search string
+}
+
+type AuditUserFacet struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type AuditPage struct {
+	Events  []AuditEvent     `json:"events"`
+	Total   int64            `json:"total"`
+	Users   []AuditUserFacet `json:"users"`
+	Actions []string         `json:"actions"`
+}
+
+func normalizeAuditQuery(query AuditQuery) AuditQuery {
+	if query.Limit <= 0 || query.Limit > 100 {
+		query.Limit = 50
 	}
+	if query.Offset < 0 {
+		query.Offset = 0
+	}
+	query.UserID = strings.TrimSpace(query.UserID)
+	query.Action = strings.TrimSpace(query.Action)
+	query.Search = strings.TrimSpace(query.Search)
+	return query
+}
+
+func (s *Store) auditFacets(ctx context.Context, businessID string) ([]AuditUserFacet, []string, error) {
+	rows, err := s.pool.Query(ctx, `
+		WITH audit_people AS (
+			SELECT a.id AS event_id,
+			       a.actor_user_id::text AS user_id,
+			       COALESCE(
+			         NULLIF(a.details->'actor'->>'display_name', ''),
+			         NULLIF(u.display_name, ''),
+			         a.actor_user_id::text
+			       ) AS name
+			  FROM audit_events a
+			  LEFT JOIN users u ON u.id = a.actor_user_id
+			 WHERE a.business_id = $1
+			UNION ALL
+			SELECT a.id AS event_id,
+			       a.target_id::text AS user_id,
+			       COALESCE(
+			         NULLIF(a.details->'target'->>'display_name', ''),
+			         NULLIF(u.display_name, ''),
+			         a.target_id::text
+			       ) AS name
+			  FROM audit_events a
+			  LEFT JOIN users u ON u.id = a.target_id
+			 WHERE a.business_id = $1
+			   AND a.target_id IS NOT NULL
+			   AND a.target_type IN ('member', 'employee')
+		),
+		latest_people AS (
+			SELECT DISTINCT ON (user_id) user_id, name
+			  FROM audit_people
+			 WHERE user_id IS NOT NULL AND user_id <> ''
+			 ORDER BY user_id, event_id DESC
+		)
+		SELECT user_id, name
+		  FROM latest_people
+		 ORDER BY lower(name), user_id`,
+		businessID,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+	users := []AuditUserFacet{}
+	for rows.Next() {
+		var facet AuditUserFacet
+		if err := rows.Scan(&facet.ID, &facet.Name); err != nil {
+			rows.Close()
+			return nil, nil, err
+		}
+		users = append(users, facet)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, nil, err
+	}
+
+	actionRows, err := s.pool.Query(ctx, `
+		SELECT DISTINCT action
+		  FROM audit_events
+		 WHERE business_id = $1
+		 ORDER BY action`,
+		businessID,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer actionRows.Close()
+	actions := []string{}
+	for actionRows.Next() {
+		var action string
+		if err := actionRows.Scan(&action); err != nil {
+			return nil, nil, err
+		}
+		actions = append(actions, action)
+	}
+	return users, actions, actionRows.Err()
+}
+
+// ListAuditEventsPage returns one filtered slice of the full retained audit history.
+// Pagination is server-side so search and filters are not limited to the latest N rows.
+func (s *Store) ListAuditEventsPage(
+	ctx context.Context,
+	actorID, businessID string,
+	query AuditQuery,
+) (AuditPage, error) {
+	query = normalizeAuditQuery(query)
 	if err := s.BusinessPermissionOrForbidden(ctx, actorID, businessID, PermissionAudit); err != nil {
-		return nil, err
+		return AuditPage{}, err
+	}
+
+	search := query.Search
+	var total int64
+	err := s.pool.QueryRow(ctx, `
+		SELECT count(*)
+		  FROM audit_events a
+		  LEFT JOIN users actor ON actor.id = a.actor_user_id
+		  LEFT JOIN users target ON target.id = a.target_id
+		 WHERE a.business_id = $1
+		   AND (
+		     $2 = ''
+		     OR a.actor_user_id::text = $2
+		     OR a.target_id::text = $2
+		   )
+		   AND ($3 = '' OR a.action = $3)
+		   AND (
+		     $4 = ''
+		     OR a.action ILIKE '%' || $4 || '%'
+		     OR a.target_type ILIKE '%' || $4 || '%'
+		     OR COALESCE(a.target_id::text, '') ILIKE '%' || $4 || '%'
+		     OR a.actor_user_id::text ILIKE '%' || $4 || '%'
+		     OR COALESCE(actor.display_name, '') ILIKE '%' || $4 || '%'
+		     OR COALESCE(target.display_name, '') ILIKE '%' || $4 || '%'
+		     OR a.details::text ILIKE '%' || $4 || '%'
+		   )`,
+		businessID, query.UserID, query.Action, search,
+	).Scan(&total)
+	if err != nil {
+		return AuditPage{}, err
 	}
 
 	rows, err := s.pool.Query(ctx, `
-		SELECT id, business_id, actor_user_id, action, target_type,
-		       COALESCE(target_id, ''), details,
-		       extract(epoch FROM created_at)::bigint
-		  FROM audit_events
-		 WHERE business_id = $1
-		 ORDER BY created_at DESC, id DESC
-		 LIMIT $2`, businessID, limit)
+		SELECT a.id, a.business_id, a.actor_user_id, a.action, a.target_type,
+		       COALESCE(a.target_id, ''), a.details,
+		       extract(epoch FROM a.created_at)::bigint
+		  FROM audit_events a
+		  LEFT JOIN users actor ON actor.id = a.actor_user_id
+		  LEFT JOIN users target ON target.id = a.target_id
+		 WHERE a.business_id = $1
+		   AND (
+		     $2 = ''
+		     OR a.actor_user_id::text = $2
+		     OR a.target_id::text = $2
+		   )
+		   AND ($3 = '' OR a.action = $3)
+		   AND (
+		     $4 = ''
+		     OR a.action ILIKE '%' || $4 || '%'
+		     OR a.target_type ILIKE '%' || $4 || '%'
+		     OR COALESCE(a.target_id::text, '') ILIKE '%' || $4 || '%'
+		     OR a.actor_user_id::text ILIKE '%' || $4 || '%'
+		     OR COALESCE(actor.display_name, '') ILIKE '%' || $4 || '%'
+		     OR COALESCE(target.display_name, '') ILIKE '%' || $4 || '%'
+		     OR a.details::text ILIKE '%' || $4 || '%'
+		   )
+		 ORDER BY a.created_at DESC, a.id DESC
+		 LIMIT $5 OFFSET $6`,
+		businessID, query.UserID, query.Action, search, query.Limit, query.Offset,
+	)
 	if err != nil {
-		return nil, err
+		return AuditPage{}, err
 	}
 	defer rows.Close()
 
-	out := []AuditEvent{}
+	events := []AuditEvent{}
 	for rows.Next() {
 		var ev AuditEvent
 		var raw []byte
-		if err := rows.Scan(&ev.ID, &ev.BusinessID, &ev.ActorUserID, &ev.Action,
-			&ev.TargetType, &ev.TargetID, &raw, &ev.CreatedAt); err != nil {
-			return nil, err
+		if err := rows.Scan(
+			&ev.ID, &ev.BusinessID, &ev.ActorUserID, &ev.Action,
+			&ev.TargetType, &ev.TargetID, &raw, &ev.CreatedAt,
+		); err != nil {
+			return AuditPage{}, err
 		}
 		ev.Details = map[string]any{}
 		if len(raw) > 0 {
 			if err := json.Unmarshal(raw, &ev.Details); err != nil {
-				return nil, err
+				return AuditPage{}, err
 			}
 		}
-		out = append(out, ev)
+		events = append(events, ev)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return AuditPage{}, err
+	}
+
+	users, actions, err := s.auditFacets(ctx, businessID)
+	if err != nil {
+		return AuditPage{}, err
+	}
+	return AuditPage{
+		Events: events,
+		Total: total,
+		Users: users,
+		Actions: actions,
+	}, nil
+}
+
+// ListAuditEvents keeps the original store API for integrations that only need
+// the newest unfiltered rows.
+func (s *Store) ListAuditEvents(
+	ctx context.Context,
+	actorID, businessID string,
+	limit int,
+) ([]AuditEvent, error) {
+	page, err := s.ListAuditEventsPage(ctx, actorID, businessID, AuditQuery{Limit: limit})
+	if err != nil {
+		return nil, err
+	}
+	return page.Events, nil
 }
 
 
