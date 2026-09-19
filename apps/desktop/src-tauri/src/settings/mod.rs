@@ -32,6 +32,14 @@ pub struct Settings {
     /// captured. Pre-rename values ("full_screen"/"active_window") still parse.
     #[serde(default = "default_screenshot_mode")]
     pub screenshot_mode: String,
+    /// Explicit screenshot scope: active_window | active_display | all_displays.
+    /// Missing on older settings files and normalized from screenshot_mode on load.
+    #[serde(default)]
+    pub screenshot_capture_scope: String,
+    /// Last server-confirmed privacy rules. Cached locally so an offline restart
+    /// keeps the same pre-capture exclusions instead of widening capture.
+    #[serde(default)]
+    pub screenshot_privacy_rules: Vec<crate::sync::client::PrivacyRule>,
     /// App names for which the capture tick is skipped entirely while that app is
     /// frontmost (case-insensitive whole-word match on the active window's app
     /// name). Prefilled with the curated sensitive-app rules; user-editable.
@@ -152,6 +160,8 @@ impl Default for Settings {
             hide_dock: false,
             capture_screenshots: true,
             screenshot_mode: default_screenshot_mode(),
+            screenshot_capture_scope: "active_window".into(),
+            screenshot_privacy_rules: Vec::new(),
             screenshot_skip_apps: default_skip_apps(),
             count_keystrokes: true,
             consented: false,
@@ -166,10 +176,20 @@ impl Default for Settings {
 
 /// Load settings from `path`, falling back to defaults if missing/invalid.
 pub fn load(path: &Path) -> Settings {
-    std::fs::read_to_string(path)
+    let mut settings: Settings = std::fs::read_to_string(path)
         .ok()
         .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or_default()
+        .unwrap_or_default();
+    // Upgrade older settings without changing their effective screenshot behavior.
+    // The old "normal" mode captured every display; privacy/active_window captured
+    // only the foreground window.
+    if settings.screenshot_capture_scope.trim().is_empty() {
+        settings.screenshot_capture_scope = match settings.screenshot_mode.as_str() {
+            "normal" | "full_screen" => "all_displays".into(),
+            _ => "active_window".into(),
+        };
+    }
+    settings
 }
 
 /// Load settings and guarantee a stable `device_id`. On first run (or an upgrade
@@ -204,11 +224,19 @@ pub fn apply(s: &Settings, control: &crate::trackers::TrackerControl) {
         .screenshot_retention_days
         .store(s.screenshot_retention_days, Relaxed);
     control.domain_only.store(s.domain_only, Relaxed);
-    control.screenshot_mode.store(
-        crate::trackers::shot_mode_from_str(&s.screenshot_mode),
-        Relaxed,
-    );
+    let scope = if s.screenshot_capture_scope.trim().is_empty() {
+        match s.screenshot_mode.as_str() {
+            "normal" | "full_screen" => "all_displays",
+            _ => "active_window",
+        }
+    } else {
+        s.screenshot_capture_scope.as_str()
+    };
+    control
+        .screenshot_mode
+        .store(crate::trackers::shot_mode_from_str(scope), Relaxed);
     *control.screenshot_skip_apps.write().unwrap() = s.screenshot_skip_apps.clone();
+    *control.screenshot_privacy_rules.write().unwrap() = s.screenshot_privacy_rules.clone();
 
     // Capture opt-outs. On Windows nothing captures until the user has consented
     // (there are no per-feature OS prompts); macOS relies on TCC and ignores consent.
