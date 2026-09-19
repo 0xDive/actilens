@@ -263,7 +263,7 @@ func (h *OwnerHandler) UpdateSettings(c *gin.Context) {
 		"activity_retention_days": {1, 3650},
 		"browser_retention_days":  {1, 3650},
 		"keystroke_retention_days": {1, 3650},
-		"enrollment_token_ttl_s": {300, 2592000},
+		"enrollment_token_ttl_s": {300, 604800},
 	} {
 		if raw, ok := body[key]; ok {
 			var value int
