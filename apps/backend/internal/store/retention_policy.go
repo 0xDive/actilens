@@ -103,6 +103,44 @@ func (s *Store) CountKeystrokesBefore(ctx context.Context, businessID string, cu
 	return count, err
 }
 
+func (s *Store) CountActivityRange(ctx context.Context, businessID string, fromTs, toTs int64) (int64, error) {
+	var count int64
+	err := s.pool.QueryRow(ctx,
+		`SELECT count(*) FROM activity_samples WHERE business_id = $1 AND ts >= $2 AND ts < $3`,
+		businessID, fromTs, toTs,
+	).Scan(&count)
+	return count, err
+}
+
+func (s *Store) CountBrowserRange(ctx context.Context, businessID string, fromTs, toTs int64) (int64, error) {
+	var count int64
+	err := s.pool.QueryRow(ctx,
+		`SELECT count(*) FROM browser_visits WHERE business_id = $1 AND ts >= $2 AND ts < $3`,
+		businessID, fromTs, toTs,
+	).Scan(&count)
+	return count, err
+}
+
+func (s *Store) CountKeystrokesRange(ctx context.Context, businessID string, fromTs, toTs int64) (int64, error) {
+	var count int64
+	err := s.pool.QueryRow(ctx,
+		`SELECT count(*) FROM keystroke_buckets WHERE business_id = $1 AND ts_bucket >= $2 AND ts_bucket < $3`,
+		businessID, fromTs, toTs,
+	).Scan(&count)
+	return count, err
+}
+
+func (s *Store) ScreenshotStatsRange(ctx context.Context, businessID string, fromTs, toTs int64) (int64, int64, error) {
+	var count, bytes int64
+	err := s.pool.QueryRow(ctx, `
+		SELECT count(*), COALESCE(sum(byte_size), 0)
+		  FROM screenshots
+		 WHERE business_id = $1 AND ts >= $2 AND ts < $3`,
+		businessID, fromTs, toTs,
+	).Scan(&count, &bytes)
+	return count, bytes, err
+}
+
 // ScreenshotStatsBefore returns the count and stored bytes that a screenshot
 // retention or cleanup operation would remove.
 func (s *Store) ScreenshotStatsBefore(ctx context.Context, businessID string, cutoffTs int64) (int64, int64, error) {
@@ -114,6 +152,48 @@ func (s *Store) ScreenshotStatsBefore(ctx context.Context, businessID string, cu
 		businessID, cutoffTs,
 	).Scan(&count, &bytes)
 	return count, bytes, err
+}
+
+func (s *Store) DeleteActivityRange(ctx context.Context, businessID string, fromTs, toTs int64) (int64, error) {
+	if err := s.EnsureBusinessMutable(ctx, businessID); err != nil {
+		return 0, err
+	}
+	ct, err := s.pool.Exec(ctx,
+		`DELETE FROM activity_samples WHERE business_id = $1 AND ts >= $2 AND ts < $3`,
+		businessID, fromTs, toTs,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return ct.RowsAffected(), nil
+}
+
+func (s *Store) DeleteBrowserRange(ctx context.Context, businessID string, fromTs, toTs int64) (int64, error) {
+	if err := s.EnsureBusinessMutable(ctx, businessID); err != nil {
+		return 0, err
+	}
+	ct, err := s.pool.Exec(ctx,
+		`DELETE FROM browser_visits WHERE business_id = $1 AND ts >= $2 AND ts < $3`,
+		businessID, fromTs, toTs,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return ct.RowsAffected(), nil
+}
+
+func (s *Store) DeleteKeystrokesRange(ctx context.Context, businessID string, fromTs, toTs int64) (int64, error) {
+	if err := s.EnsureBusinessMutable(ctx, businessID); err != nil {
+		return 0, err
+	}
+	ct, err := s.pool.Exec(ctx,
+		`DELETE FROM keystroke_buckets WHERE business_id = $1 AND ts_bucket >= $2 AND ts_bucket < $3`,
+		businessID, fromTs, toTs,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return ct.RowsAffected(), nil
 }
 
 func (s *Store) DeleteActivityBefore(ctx context.Context, businessID string, cutoffTs int64) (int64, error) {
