@@ -172,11 +172,24 @@ pub async fn run_once(ctx: &SyncContext) -> PassOutcome {
         return PassOutcome::Skipped;
     }
 
+    // Collection switches govern transmission as well as new local writes. Drop
+    // pending upload eligibility for disabled optional categories so data queued
+    // before a policy change cannot leak later if the category is re-enabled.
+    if !ctx.control.count_keystrokes.load(Ordering::Relaxed) {
+        let _ = ctx.db.suppress_pending(SyncTable::Keystroke);
+    }
+    if !ctx.control.collect_browser_activity.load(Ordering::Relaxed) {
+        let _ = ctx.db.suppress_pending(SyncTable::Browser);
+    }
+    if !ctx.control.capture_screenshots.load(Ordering::Relaxed) {
+        let _ = ctx.db.suppress_pending(SyncTable::Screenshot);
+    }
+
     let mut failed = false;
 
     // --- JSON batch: activity + keystrokes + browser ---
     loop {
-        let activity = match ctx.db.pending_activity(BATCH_LIMIT) {
+        let mut activity = match ctx.db.pending_activity(BATCH_LIMIT) {
             Ok(v) => v,
             Err(e) => {
                 ctx.status
@@ -186,6 +199,21 @@ pub async fn run_once(ctx: &SyncContext) -> PassOutcome {
         };
         let keystrokes = ctx.db.pending_keystrokes(BATCH_LIMIT).unwrap_or_default();
         let browser = ctx.db.pending_browser(BATCH_LIMIT).unwrap_or_default();
+
+        // Active/idle duration is mandatory for managed mode, but app identity and
+        // titles are optional. Redact old pending rows at transmission time too,
+        // because they may have been recorded before the administrator changed policy.
+        let collect_apps = ctx.control.collect_app_activity.load(Ordering::Relaxed);
+        let collect_titles = ctx.control.collect_window_titles.load(Ordering::Relaxed);
+        for sample in &mut activity {
+            if !collect_apps {
+                sample.app_name.clear();
+                sample.window_title = None;
+                sample.pid = None;
+            } else if !collect_titles {
+                sample.window_title = None;
+            }
+        }
 
         if activity.is_empty() && keystrokes.is_empty() && browser.is_empty() {
             break;
