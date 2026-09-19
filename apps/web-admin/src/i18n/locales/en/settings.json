@@ -280,7 +280,9 @@
       "older_than_days": "Older than",
       "from": "Range start",
       "to": "Range end",
-      "login_changed": "Login changed"
+      "login_changed": "Login changed",
+      "previous_owner": "Previous owner",
+      "new_owner": "New owner"
     },
     "values": {
       "notRecorded": "not recorded in the legacy event",
@@ -444,7 +446,9 @@
       "older_than_days": "Older than",
       "from": "Range start",
       "to": "Range end",
-      "login_changed": "Login changed"
+      "login_changed": "Login changed",
+      "previous_owner": "Previous owner",
+      "new_owner": "New owner"
     }
   },
   "saveError": "Could not save settings.",

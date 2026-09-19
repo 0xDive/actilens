@@ -461,6 +461,15 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
   }
 
   function metadataValue(key: string, value: unknown): string {
+    const snapshot = asRecord(value);
+    if (snapshot) {
+      const name = snapshotName(snapshot);
+      const id = readString(snapshot, "id");
+      const secondary = snapshotSecondary(snapshot, id);
+      if (name) {
+        return secondary ? name + " · " + secondary : name;
+      }
+    }
     if (
       (key === "bytes_freed" || key.endsWith("_bytes_freed")) &&
       typeof value === "number"
