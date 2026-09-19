@@ -236,6 +236,32 @@ func (h *RetentionHandler) CleanupData(c *gin.Context) {
 	if retentionMutationError(c, err) {
 		return
 	}
+	completedDetails := map[string]any{
+		"data_classes":  classes,
+		"result":        result.Results,
+		"deleted_count": result.Deleted,
+		"bytes_freed":   result.BytesFreed,
+	}
+	if rangeMode {
+		completedDetails["from"] = *req.From
+		completedDetails["to"] = *req.To
+		completedDetails["mode"] = "range"
+	} else {
+		completedDetails["older_than_days"] = *req.OlderThanDays
+		completedDetails["mode"] = "older_than"
+	}
+	if err := h.store.RecordSettingsAudit(
+		c.Request.Context(),
+		actorID,
+		businessID,
+		"data.cleanup_completed",
+		"organization",
+		businessID,
+		completedDetails,
+	); err != nil {
+		serverError(c, err)
+		return
+	}
 	c.JSON(http.StatusOK, result)
 }
 

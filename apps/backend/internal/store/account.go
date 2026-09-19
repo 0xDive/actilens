@@ -289,10 +289,21 @@ func (s *Store) UpdateManagedMemberIdentity(
 		if loginChanged {
 			action = "member.login_changed"
 		}
+		changes := []AuditChange{}
+		if curEmail != nextEmail {
+			changes = append(changes, auditChange("email", curEmail, nextEmail))
+		}
+		if curUsername != nextUsername {
+			changes = append(changes, auditChange("username", curUsername, nextUsername))
+		}
+		if curName != nextName {
+			changes = append(changes, auditChange("display_name", curName, nextName))
+		}
 		if err := insertAuditTx(ctx, tx, businessID, actorID, action, "member", targetUserID, map[string]any{
 			"display_name": nextName,
 			"role":         string(access.TargetRole),
 			"login_changed": loginChanged,
+			"changes":      changes,
 		}); err != nil {
 			return Employee{}, err
 		}
@@ -415,7 +426,11 @@ func (s *Store) ResetManagedMemberPassword(
 	}
 	if err := insertAuditTx(
 		ctx, tx, businessID, actorID, "employee.password_reset", "member", targetUserID,
-		map[string]any{"role": string(access.TargetRole)},
+		map[string]any{
+			"role":                 string(access.TargetRole),
+			"credentials_changed":  true,
+			"sessions_invalidated": true,
+		},
 	); err != nil {
 		return err
 	}

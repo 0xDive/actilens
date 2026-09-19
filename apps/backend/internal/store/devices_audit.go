@@ -187,7 +187,20 @@ func touchDeviceTx(
 		optionalText(meta.Label), optionalText(meta.Hostname),
 		optionalText(meta.Platform), optionalText(meta.Arch), optionalText(meta.AppVersion),
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	return insertAuditTx(ctx, tx, businessID, userID, "device.enrolled", "device", deviceID, map[string]any{
+		"employee_id": userID,
+		"label":       meta.Label,
+		"hostname":    meta.Hostname,
+		"platform":    meta.Platform,
+		"arch":        meta.Arch,
+		"app_version": meta.AppVersion,
+		"changes": auditChanges(
+			auditChange("device_enrolled", false, true),
+		),
+	})
 }
 
 // TouchDevice refreshes last_seen for screenshot-only syncs and enforces

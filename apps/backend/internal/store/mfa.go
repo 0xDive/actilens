@@ -201,6 +201,16 @@ func (s *Store) ResetManagedMemberMFA(ctx context.Context, actorID, businessID, 
 		return err
 	}
 
+	var hadMFA bool
+	if err := tx.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1 FROM user_mfa
+			 WHERE user_id = $1 AND enabled_at IS NOT NULL
+		)`, targetUserID,
+	).Scan(&hadMFA); err != nil {
+		return err
+	}
+
 	if _, err := tx.Exec(ctx, `DELETE FROM user_mfa WHERE user_id = $1`, targetUserID); err != nil {
 		return err
 	}
@@ -216,7 +226,13 @@ func (s *Store) ResetManagedMemberMFA(ctx context.Context, actorID, businessID, 
 	if err := insertSecurityEventTx(ctx, tx, targetUserID, actorID, "security.mfa_reset", map[string]any{"business_id": businessID}); err != nil {
 		return err
 	}
-	if err := insertAuditTx(ctx, tx, businessID, actorID, "member.mfa_reset", "member", targetUserID, nil); err != nil {
+	if err := insertAuditTx(ctx, tx, businessID, actorID, "member.mfa_reset", "member", targetUserID, map[string]any{
+		"had_mfa":              hadMFA,
+		"sessions_invalidated": true,
+		"changes": auditChanges(
+			auditChange("mfa_enabled", hadMFA, false),
+		),
+	}); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
