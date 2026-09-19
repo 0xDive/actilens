@@ -263,6 +263,82 @@ pub fn apply(s: &Settings, control: &crate::trackers::TrackerControl) {
         .store(s.count_keystrokes && consent_ok, Relaxed);
 }
 
+/// Apply one server policy snapshot atomically to persisted settings + live trackers.
+/// Managed policy is authoritative; employee-local capture switches are ignored.
+pub fn apply_managed_policy(
+    state: &SettingsState,
+    control: &crate::trackers::TrackerControl,
+    policy: &crate::sync::client::Policy,
+    monitoring_enabled: bool,
+) -> CaptureManaged {
+    use std::sync::atomic::Ordering::Relaxed;
+
+    let status = CaptureManaged {
+        managed: policy.managed,
+        allow_employee_override: false,
+        family: policy.kind.as_deref() == Some("family"),
+        monitoring_enabled,
+    };
+
+    control.managed.store(policy.managed, Relaxed);
+    control
+        .org_monitoring_enabled
+        .store(monitoring_enabled, Relaxed);
+    *state.managed.lock().unwrap() = status;
+
+    if policy.managed {
+        let mut settings = state.current.lock().unwrap().clone();
+        settings.local_only = false;
+        settings.org_monitoring_enabled = monitoring_enabled;
+        settings.collect_app_activity = policy.collect_app_activity;
+        settings.collect_window_titles = policy.collect_window_titles;
+        settings.collect_browser_activity = policy.collect_browser_activity;
+        settings.capture_screenshots = policy.collect_screenshots;
+        settings.count_keystrokes = policy.collect_keystroke_counts;
+
+        if let Some(value) = policy.screenshot_interval_s {
+            settings.screenshot_interval_s = value;
+        }
+        if let Some(value) = policy.idle_threshold_s {
+            settings.idle_threshold_s = value;
+        }
+        // null server retention means indefinite. Local pruning must not become
+        // more aggressive as a side effect, so keep the last finite local value.
+        if let Some(value) = policy.screenshot_retention_days {
+            settings.screenshot_retention_days = value;
+        }
+        if let Some(scope) = policy.screenshot_capture_scope.clone() {
+            settings.screenshot_capture_scope = scope.clone();
+            settings.screenshot_mode = if scope == "active_window" {
+                "privacy".into()
+            } else {
+                "normal".into()
+            };
+        } else if let Some(mode) = policy.screenshot_mode.clone() {
+            settings.screenshot_mode = mode.clone();
+            settings.screenshot_capture_scope = match mode.as_str() {
+                "active_display" => "active_display".into(),
+                "normal" | "full_screen" | "all_displays" => "all_displays".into(),
+                _ => "active_window".into(),
+            };
+        }
+        if let Some(skip) = policy.screenshot_skip_apps.clone() {
+            settings.screenshot_skip_apps = skip;
+        }
+        settings.screenshot_privacy_rules = policy.privacy_rules.clone();
+
+        apply(&settings, control);
+        let _ = save(&state.path, &settings);
+        *state.current.lock().unwrap() = settings;
+    } else {
+        // Leaving managed mode restores the persisted local settings behavior.
+        let settings = state.current.lock().unwrap().clone();
+        apply(&settings, control);
+    }
+
+    status
+}
+
 /// Whether the org controls capture settings for the signed-in employee. Default
 /// (unmanaged) lets the user edit freely — used for standalone users and before a
 /// policy is fetched.
