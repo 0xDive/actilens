@@ -130,8 +130,8 @@
       "employeeCreated": "Создан сотрудник",
       "employeeUpdated": "Изменён аккаунт сотрудника",
       "employeePasswordReset": "Сброшен пароль сотрудника",
-      "employeeArchived": "Сотрудник заблокирован",
-      "employeeRestored": "Сотрудник разблокирован",
+      "employeeArchived": "Аккаунт сотрудника отключён",
+      "employeeRestored": "Аккаунт сотрудника включён",
       "deviceUpdated": "Изменено устройство",
       "deviceRevoked": "Устройство отозвано",
       "deviceRestored": "Устройство восстановлено",
@@ -286,7 +286,8 @@
       "to": "Конец диапазона",
       "login_changed": "Данные входа изменены",
       "previous_owner": "Предыдущий владелец",
-      "new_owner": "Новый владелец"
+      "new_owner": "Новый владелец",
+      "operation_id": "ID операции"
     },
     "values": {
       "notRecorded": "не сохранено в старой записи",
@@ -460,7 +461,8 @@
       "to": "Конец диапазона",
       "login_changed": "Данные входа изменены",
       "previous_owner": "Предыдущий владелец",
-      "new_owner": "Новый владелец"
+      "new_owner": "Новый владелец",
+      "operation_id": "ID операции"
     }
   },
   "saveError": "Не удалось сохранить настройки.",

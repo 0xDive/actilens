@@ -128,8 +128,8 @@
       "employeeCreated": "Employee created",
       "employeeUpdated": "Employee account updated",
       "employeePasswordReset": "Employee password reset",
-      "employeeArchived": "Employee blocked",
-      "employeeRestored": "Employee unblocked",
+      "employeeArchived": "Employee account disabled",
+      "employeeRestored": "Employee account enabled",
       "deviceUpdated": "Device updated",
       "deviceRevoked": "Device revoked",
       "deviceRestored": "Device restored",
@@ -282,7 +282,8 @@
       "to": "Range end",
       "login_changed": "Login changed",
       "previous_owner": "Previous owner",
-      "new_owner": "New owner"
+      "new_owner": "New owner",
+      "operation_id": "Operation ID"
     },
     "values": {
       "notRecorded": "not recorded in the legacy event",
@@ -448,7 +449,8 @@
       "to": "Range end",
       "login_changed": "Login changed",
       "previous_owner": "Previous owner",
-      "new_owner": "New owner"
+      "new_owner": "New owner",
+      "operation_id": "Operation ID"
     }
   },
   "saveError": "Could not save settings.",

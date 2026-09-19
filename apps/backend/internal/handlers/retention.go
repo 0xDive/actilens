@@ -11,6 +11,7 @@ import (
 	"actilens/backend/internal/store"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 // RetentionHandler serves the owner's manual screenshot cleanup.
@@ -198,7 +199,9 @@ func (h *RetentionHandler) CleanupData(c *gin.Context) {
 		previews = append(previews, preview)
 	}
 
+	operationID := uuid.NewString()
 	details := map[string]any{
+		"operation_id": operationID,
 		"data_classes": classes,
 		"preview":      previews,
 	}
@@ -237,6 +240,7 @@ func (h *RetentionHandler) CleanupData(c *gin.Context) {
 		return
 	}
 	completedDetails := map[string]any{
+		"operation_id":  operationID,
 		"data_classes":  classes,
 		"result":        result.Results,
 		"deleted_count": result.Deleted,
