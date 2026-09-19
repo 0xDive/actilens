@@ -306,6 +306,9 @@ func (s *Store) UpdateMembershipRole(ctx context.Context, actorID, businessID, t
 	if _, err := requireBusinessPermissionTx(ctx, tx, actorID, businessID, PermissionManageRoles); err != nil {
 		return err
 	}
+	if err := lockMutableOrganizationTx(ctx, tx, businessID); err != nil {
+		return err
+	}
 
 	var current BusinessRole
 	err = tx.QueryRow(ctx,
@@ -349,6 +352,9 @@ func (s *Store) UpdateMembershipMonitoring(ctx context.Context, actorID, busines
 
 	actorRole, err := requireBusinessPermissionTx(ctx, tx, actorID, businessID, PermissionManageEmployees)
 	if err != nil {
+		return err
+	}
+	if err := lockMutableOrganizationTx(ctx, tx, businessID); err != nil {
 		return err
 	}
 
