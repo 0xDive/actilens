@@ -92,10 +92,8 @@ func (h *SyncHandler) Batch(c *gin.Context) {
 			badRequest(c, fmt.Sprintf("activity[%d]: %v", i, err))
 			return
 		}
-		if a.AppName == "" {
-			badRequest(c, fmt.Sprintf("activity[%d]: app_name required", i))
-			return
-		}
+		// app_name may be empty when managed policy keeps mandatory active/idle
+		// duration but disables application identity collection.
 		act = append(act, store.ActivityRow{
 			ClientUUID: a.ClientUUID, Ts: a.Ts, AppName: a.AppName, WindowTitle: a.WindowTitle,
 			Pid: a.Pid, DurationS: a.DurationS, ClientUpdatedAt: a.UpdatedAt,
