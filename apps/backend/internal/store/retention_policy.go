@@ -1,6 +1,11 @@
 package store
 
-import "context"
+import (
+	"context"
+	"errors"
+
+	"github.com/jackc/pgx/v5"
+)
 
 // BusinessRetentionPolicy is the automatic retention configuration for one
 // organization. Audit retention is intentionally omitted from automatic cleanup;
@@ -53,6 +58,9 @@ func (s *Store) EnsureBusinessMutable(ctx context.Context, businessID string) er
 		  FROM businesses
 		 WHERE id = $1`, businessID,
 	).Scan(&archived, &deletionPending)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
 	if err != nil {
 		return err
 	}
