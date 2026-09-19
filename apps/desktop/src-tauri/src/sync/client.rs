@@ -37,11 +37,17 @@ struct PublicBusinessesResp {
     businesses: Vec<PublicBusiness>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
-struct MembershipState {
-    business_id: String,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MembershipState {
+    pub business_id: String,
+    #[serde(default)]
+    pub business_name: String,
+    #[serde(default)]
+    pub role: String,
+    #[serde(default)]
+    pub status: String,
     #[serde(default = "default_true")]
-    monitoring_enabled: bool,
+    pub monitoring_enabled: bool,
 }
 
 #[derive(Deserialize)]
@@ -55,10 +61,40 @@ fn default_true() -> bool {
 
 #[derive(Serialize)]
 struct LoginReq<'a> {
-    email: &'a str,
+    identifier: &'a str,
     password: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]
     business_id: Option<&'a str>,
+    client_type: &'static str,
+    client_label: &'static str,
+}
+
+#[derive(Serialize)]
+struct MFACompleteReq<'a> {
+    challenge_token: &'a str,
+    code: &'a str,
+    client_type: &'static str,
+    client_label: &'static str,
+}
+
+#[derive(Debug, Clone)]
+pub enum LoginAttempt {
+    Authenticated(Session),
+    MFARequired { challenge_token: String },
+}
+
+#[derive(Deserialize)]
+struct APIErrorBody {
+    #[serde(default)]
+    code: Option<String>,
+    #[serde(default)]
+    details: Option<APIErrorDetails>,
+}
+
+#[derive(Deserialize)]
+struct APIErrorDetails {
+    #[serde(default)]
+    challenge_token: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -242,35 +278,106 @@ impl BackendClient {
         Ok(parsed.businesses)
     }
 
-    /// `POST /v1/auth/login`. On success returns the session (does NOT persist it —
-    /// the command stores it so the keychain write is explicit).
+    /// Password login. MFA-enabled accounts return a short-lived challenge instead
+    /// of creating a desktop session until the second factor succeeds.
     pub async fn login(
         &self,
-        email: &str,
+        identifier: &str,
         password: &str,
         business_id: Option<&str>,
-    ) -> Result<Session, String> {
+    ) -> Result<LoginAttempt, String> {
         let resp = self
             .http
             .post(self.url("/v1/auth/login"))
             .json(&LoginReq {
-                email,
+                identifier,
                 password,
                 business_id,
+                client_type: "desktop",
+                client_label: "ActiLens Desktop",
             })
             .send()
             .await
             .map_err(net_err)?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            if let Ok(parsed) = serde_json::from_str::<APIErrorBody>(&body) {
+                if parsed.code.as_deref() == Some("mfa_required") {
+                    if let Some(challenge_token) =
+                        parsed.details.and_then(|details| details.challenge_token)
+                    {
+                        return Ok(LoginAttempt::MFARequired { challenge_token });
+                    }
+                }
+            }
+            return Err(format_status_body(status, &body));
+        }
+
+        let parsed: LoginResp = resp.json().await.map_err(|e| e.to_string())?;
+        Ok(LoginAttempt::Authenticated(Session {
+            access_token: parsed.tokens.access_token,
+            refresh_token: parsed.tokens.refresh_token,
+            email: identifier.to_string(),
+            business_id: business_id.map(str::to_string),
+        }))
+    }
+
+    pub async fn complete_mfa_login(
+        &self,
+        challenge_token: &str,
+        code: &str,
+        identifier: &str,
+        business_id: Option<&str>,
+    ) -> Result<Session, String> {
+        let resp = self
+            .http
+            .post(self.url("/v1/auth/mfa/complete"))
+            .json(&MFACompleteReq {
+                challenge_token,
+                code,
+                client_type: "desktop",
+                client_label: "ActiLens Desktop",
+            })
+            .send()
+            .await
+            .map_err(net_err)?;
+
         if !resp.status().is_success() {
             return Err(status_err(resp).await);
         }
+
         let parsed: LoginResp = resp.json().await.map_err(|e| e.to_string())?;
         Ok(Session {
             access_token: parsed.tokens.access_token,
             refresh_token: parsed.tokens.refresh_token,
-            email: email.to_string(),
-            business_id: business_id.map(|s| s.to_string()),
+            email: identifier.to_string(),
+            business_id: business_id.map(str::to_string),
         })
+    }
+
+    pub async fn memberships(&self) -> Result<Vec<MembershipState>, String> {
+        let mut token = self.access_token()?;
+        for attempt in 0..2 {
+            let resp = self
+                .http
+                .get(self.url("/v1/memberships/mine"))
+                .bearer_auth(&token)
+                .send()
+                .await
+                .map_err(net_err)?;
+            if resp.status() == reqwest::StatusCode::UNAUTHORIZED && attempt == 0 {
+                token = self.refresh().await?;
+                continue;
+            }
+            if !resp.status().is_success() {
+                return Err(status_err(resp).await);
+            }
+            let parsed: MembershipsResp = resp.json().await.map_err(|e| e.to_string())?;
+            return Ok(parsed.memberships);
+        }
+        Err("memberships: unreachable retry exhaustion".into())
     }
 
     /// `POST /v1/auth/refresh`. Updates the stored tokens in place on success.
@@ -515,6 +622,10 @@ impl BackendClient {
 /// these as "offline / backend down" → backoff, not a hard error.
 fn net_err(e: reqwest::Error) -> String {
     format!("network error: {e}")
+}
+
+fn format_status_body(status: reqwest::StatusCode, body: &str) -> String {
+    format_status_body(status, &body)
 }
 
 /// Turn a non-2xx response into a readable error, including the body if short.
