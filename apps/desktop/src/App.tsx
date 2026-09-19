@@ -396,7 +396,7 @@ function App() {
             </svg>
           </span>
           <span className="brand-text">
-            <span className="brand-name">Bi<span className="brand-accent">Bo</span>Tracking</span>
+            <span className="brand-name">Acti<span className="brand-accent">Lens</span></span>
             {version && <span className="brand-version">v{version}</span>}
           </span>
         </div>
