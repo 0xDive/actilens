@@ -38,6 +38,18 @@ export interface PrivacyAppCategory {
   apps: string[];
 }
 
+export type PrivacyRuleKind = "app" | "window_title";
+export type PrivacyRuleMatchType = "exact" | "contains";
+
+export interface PrivacyRule {
+  id: string;
+  business_id: string;
+  kind: PrivacyRuleKind;
+  match_type: PrivacyRuleMatchType;
+  pattern: string;
+  enabled: boolean;
+}
+
 export interface Business {
   id: string;
   name: string;
