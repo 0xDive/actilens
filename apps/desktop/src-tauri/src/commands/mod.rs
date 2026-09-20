@@ -1002,7 +1002,7 @@ pub fn runtime_state(
     let permissions = platform::capability_rows(&local);
     let permission_attention = permissions
         .iter()
-        .filter(|cap| cap.required && cap.state != "granted")
+        .filter(|cap| cap.required && cap.state != platform::PermissionState::Granted)
         .count();
 
     RuntimeStateView {
@@ -1063,7 +1063,7 @@ pub async fn runtime_diagnostics(
     let permissions = platform::capability_rows(&current);
     let missing = permissions
         .iter()
-        .filter(|cap| cap.required && cap.state != "granted")
+        .filter(|cap| cap.required && cap.state != platform::PermissionState::Granted)
         .count();
 
     let mut checks = Vec::new();

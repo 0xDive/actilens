@@ -255,6 +255,51 @@ function StepPermissions({ t }: { t: TF }) {
   );
 }
 
+function ManagedOnboarding({
+  onFinish,
+}: {
+  onFinish: () => void;
+}) {
+  const { t } = useTranslation(["onboarding", "auth"]);
+  return (
+    <div className="login welcome onboarding-screen">
+      <AuthTitleBar />
+      <div className="welcome-lang">
+        <LanguageSwitcher compact />
+      </div>
+
+      <div className="capture-steps">
+        <div className="capture-pips">
+          <span className="pip on" />
+        </div>
+        <span className="capture-step-label">{t("managed.step")}</span>
+      </div>
+
+      <div className="login-card">
+        <span className="perm-shield" aria-hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 3l8 3v5c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z" />
+            <path d="M9 12l2 2 4-4" />
+          </svg>
+        </span>
+        <h1 className="login-title">{t("managed.title")}</h1>
+        <p className="login-sub">{t("managed.subtitle")}</p>
+        <div className="onb-perms">
+          <Permissions compact />
+        </div>
+      </div>
+
+      <div className="capture-foot capture-foot--managed">
+        <span className="capture-skip">{t("managed.managedNote")}</span>
+        <button type="button" className="auth-btn capture-next" onClick={onFinish}>
+          <CheckIcon />
+          {t("managed.finish")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Onboarding — the post-auth 3-step flow (until `onboarding_completed`), matching
  * the offline-app mockup: centered surface, a step-pip header, and a Skip/Back +
@@ -272,6 +317,11 @@ export function Onboarding({
   onFinish: () => void;
 }) {
   const { t } = useTranslation(["onboarding", "welcome", "media", "auth", "settings"]);
+
+  if (captureManaged?.managed) {
+    return <ManagedOnboarding onFinish={onFinish} />;
+  }
+
   const [step, setStep] = useState(1);
 
   const persona: Persona = settings.local_only

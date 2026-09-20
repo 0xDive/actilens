@@ -54,5 +54,12 @@
     "back": "← Back",
     "finish": "Finish",
     "skip": "Skip for now"
+  },
+  "managed": {
+    "step": "Device setup",
+    "title": "Finish setting up this computer",
+    "subtitle": "Grant the system permissions ActiLens needs to run reliably in the background.",
+    "managedNote": "Organization settings are managed in the web dashboard.",
+    "finish": "Finish setup"
   }
 }
