@@ -161,5 +161,15 @@
     "justNow": "только что",
     "minutesAgo": "{{count}} мин назад",
     "hoursAgo": "{{count}} ч назад"
+  },
+  "runtime": {
+    "running": "Работает",
+    "idle": "Простой",
+    "paused": "Пауза",
+    "blocked": "Заблокировано",
+    "offline": "Нет сети",
+    "attention": "Требуется внимание",
+    "revoked": "Отозвано",
+    "loading": "Загрузка…"
   }
 }
