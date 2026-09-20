@@ -1,0 +1,179 @@
+{
+  "nav": {
+    "home": "ホーム",
+    "device": "デバイス",
+    "permissions": "アクセス許可",
+    "settings": "設定"
+  },
+  "common": {
+    "loading": "読み込み中…"
+  },
+  "actions": {
+    "retry": "再試行",
+    "refresh": "更新",
+    "openPermissions": "アクセス許可を開く",
+    "openDevice": "デバイスを開く",
+    "openWeb": "Web ダッシュボードを開く",
+    "copy": "コピー",
+    "copied": "コピーしました",
+    "signOut": "サインアウト",
+    "setupAgain": "サインイン",
+    "manageWeb": "Web で管理"
+  },
+  "home": {
+    "status": "このコンピューター",
+    "unavailable": "実行状態を取得できません",
+    "unavailableBody": "ActiLens のネイティブ実行状態を読み取れませんでした。",
+    "connection": "接続",
+    "sync": "同期",
+    "lastSync": "前回の同期成功：{{value}}",
+    "pending": "アップロード待ち：{{count}} 件",
+    "noPending": "アップロード待ちのデータはありません。",
+    "attention": "要確認",
+    "hero": {
+      "healthy": {
+        "title": "ActiLens は動作中です",
+        "body": "このコンピューターの収集と同期は正常に動作しています。"
+      },
+      "idle": {
+        "title": "ActiLens は動作中です",
+        "body": "コンピューターはアイドル状態ですが、ActiLens はバックグラウンドで稼働しています。"
+      },
+      "paused": {
+        "title": "ActiLens は一時停止中です",
+        "body": "ローカル収集は現在一時停止しています。"
+      },
+      "offline": {
+        "title": "接続がありません",
+        "body": "ActiLens はデータをこのコンピューターに安全に保存し、サーバー接続が戻ると同期します。"
+      },
+      "permissions": {
+        "title": "システムのアクセス許可が必要です",
+        "body": "{{count}} 件の必須アクセス許可を確認してください。"
+      },
+      "syncError": {
+        "title": "同期を確認してください",
+        "body": "直近の同期を完了できませんでした。"
+      },
+      "revoked": {
+        "title": "このデバイスは切断されました",
+        "body": "サーバーはこのインストールからのデータを受け付けていません。"
+      },
+      "blocked": {
+        "title": "収集できません",
+        "body": "組織またはメンバーの現在の状態により、このコンピューターでは収集できません。"
+      }
+    },
+    "localStored": "ローカルモードではデータはこのコンピューターに保存されます。"
+  },
+  "attention": {
+    "deviceRevoked": "このデバイスは無効化されています",
+    "deviceBlocked": "組織へのアクセスは現在利用できません",
+    "permissions": "{{count}} 件のシステムアクセス許可を確認してください",
+    "offline": "現在サーバーに接続できません",
+    "sync": "同期に失敗しました"
+  },
+  "connection": {
+    "online": "接続済み",
+    "offline": "オフライン",
+    "checking": "接続を確認中…",
+    "signed_out": "サインインが必要です",
+    "local": "ローカルモード"
+  },
+  "sync": {
+    "synced": "すべて同期済み",
+    "syncing": "同期中…",
+    "queued": "同期待ち",
+    "error": "同期エラー",
+    "signed_out": "サインインが必要です",
+    "local": "ローカルのみ"
+  },
+  "deviceState": {
+    "active": "有効",
+    "revoked": "無効化済み",
+    "blocked": "ブロック中",
+    "enrollment_required": "再接続が必要です",
+    "local": "ローカルモード"
+  },
+  "device": {
+    "thisDevice": "このデバイス",
+    "installation": "インストール",
+    "version": "バージョン",
+    "deviceState": "状態",
+    "deviceId": "デバイス ID",
+    "account": "アカウント",
+    "connectionSync": "接続と同期",
+    "connection": "接続",
+    "lastSync": "前回の同期成功",
+    "queue": "アップロードキュー",
+    "allSynced": "すべて同期済み",
+    "pendingCount": "待機中：{{count}}",
+    "browserBridge": "ブラウザーブリッジ",
+    "ready": "準備完了",
+    "notReady": "利用できません",
+    "localStorage": "ローカルに保存",
+    "reconnect": "デバイスを再接続",
+    "reconnectBody": "再接続すると新しいデバイス ID が作成されます。無効化された ID の未送信データはローカルに残り、再割り当てされません。",
+    "organization": "組織",
+    "organizationId": "組織 ID"
+  },
+  "diagnostics": {
+    "title": "診断",
+    "subtitle": "ローカルランタイムと ActiLens への接続を確認します。",
+    "run": "診断を実行",
+    "running": "確認中…",
+    "copy": "診断レポートをコピー",
+    "checks": {
+      "local_database": "ローカルデータベース",
+      "session": "セッション",
+      "device": "デバイス ID",
+      "permissions": "システムアクセス許可",
+      "collector": "コレクター",
+      "uploader": "アップローダー",
+      "browser_bridge": "ブラウザーブリッジ",
+      "backend": "サーバー"
+    }
+  },
+  "settings": {
+    "appearance": "外観",
+    "theme": "テーマ",
+    "themeBody": "システム設定に従うか、固定テーマを選択します。",
+    "language": "言語",
+    "languageBody": "アプリとシステムトレイは同じ言語を使用します。",
+    "behavior": "アプリの動作",
+    "background": "バックグラウンドで実行を継続",
+    "backgroundBody": "ウィンドウを閉じると ActiLens は非表示になりますが、ネイティブエージェントは動作を続けます。",
+    "alwaysOn": "常に有効",
+    "hideDock": "Dock / タスクバーから隠す",
+    "hideDockBody": "常駐アイコンを表示せず、システムトレイから ActiLens を利用します。",
+    "updates": "更新",
+    "currentVersion": "現在のバージョン：{{version}}",
+    "about": "ActiLens について",
+    "aboutBody": "このコンピューター用のデスクトップエージェントです。",
+    "managedUpdates": "この管理対象インストールの更新は管理者が配布します。",
+    "manualUpdates": "新しい ActiLens は配布されたインストーラーで導入してください。",
+    "managed": "管理対象",
+    "manual": "インストーラー"
+  },
+  "theme": {
+    "light": "ライト",
+    "dark": "ダーク",
+    "system": "システム"
+  },
+  "time": {
+    "never": "未実行",
+    "justNow": "たった今",
+    "minutesAgo": "{{count}} 分前",
+    "hoursAgo": "{{count}} 時間前"
+  },
+  "runtime": {
+    "running": "実行中",
+    "idle": "アイドル",
+    "paused": "一時停止",
+    "blocked": "ブロック中",
+    "offline": "オフライン",
+    "attention": "要確認",
+    "revoked": "無効化済み",
+    "loading": "読み込み中…"
+  }
+}

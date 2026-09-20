@@ -1,0 +1,179 @@
+{
+  "nav": {
+    "home": "主页",
+    "device": "设备",
+    "permissions": "权限",
+    "settings": "设置"
+  },
+  "common": {
+    "loading": "正在加载…"
+  },
+  "actions": {
+    "retry": "重试",
+    "refresh": "刷新",
+    "openPermissions": "打开权限",
+    "openDevice": "打开设备",
+    "openWeb": "打开网页控制台",
+    "copy": "复制",
+    "copied": "已复制",
+    "signOut": "退出登录",
+    "setupAgain": "登录",
+    "manageWeb": "在网页中管理"
+  },
+  "home": {
+    "status": "这台电脑",
+    "unavailable": "运行状态不可用",
+    "unavailableBody": "ActiLens 无法读取原生运行状态。",
+    "connection": "连接",
+    "sync": "同步",
+    "lastSync": "上次成功同步：{{value}}",
+    "pending": "有 {{count}} 项等待上传",
+    "noPending": "没有待上传数据。",
+    "attention": "需要处理",
+    "hero": {
+      "healthy": {
+        "title": "ActiLens 正在运行",
+        "body": "这台电脑上的采集与同步工作正常。"
+      },
+      "idle": {
+        "title": "ActiLens 正在运行",
+        "body": "电脑当前空闲，ActiLens 仍在后台运行。"
+      },
+      "paused": {
+        "title": "ActiLens 已暂停",
+        "body": "本地采集当前已暂停。"
+      },
+      "offline": {
+        "title": "无连接",
+        "body": "ActiLens 会把数据安全保存在本机，并在服务器恢复连接后同步。"
+      },
+      "permissions": {
+        "title": "需要系统权限",
+        "body": "有 {{count}} 项必需权限需要处理。"
+      },
+      "syncError": {
+        "title": "同步需要处理",
+        "body": "ActiLens 无法完成最近一次同步。"
+      },
+      "revoked": {
+        "title": "此设备已断开",
+        "body": "服务器已不再接受此安装发送的数据。"
+      },
+      "blocked": {
+        "title": "采集不可用",
+        "body": "当前组织或成员状态不允许此电脑进行采集。"
+      }
+    },
+    "localStored": "本地模式下，数据仅保存在此电脑。"
+  },
+  "attention": {
+    "deviceRevoked": "此设备已被撤销",
+    "deviceBlocked": "当前无法访问组织",
+    "permissions": "有 {{count}} 项系统权限需要处理",
+    "offline": "当前无法连接服务器",
+    "sync": "同步失败"
+  },
+  "connection": {
+    "online": "已连接",
+    "offline": "离线",
+    "checking": "正在检查连接…",
+    "signed_out": "需要登录",
+    "local": "本地模式"
+  },
+  "sync": {
+    "synced": "全部已同步",
+    "syncing": "正在同步…",
+    "queued": "等待同步",
+    "error": "同步错误",
+    "signed_out": "需要登录",
+    "local": "仅本地"
+  },
+  "deviceState": {
+    "active": "活动",
+    "revoked": "已撤销",
+    "blocked": "已阻止",
+    "enrollment_required": "需要重新连接",
+    "local": "本地模式"
+  },
+  "device": {
+    "thisDevice": "此设备",
+    "installation": "安装信息",
+    "version": "版本",
+    "deviceState": "状态",
+    "deviceId": "设备 ID",
+    "account": "账户",
+    "connectionSync": "连接与同步",
+    "connection": "连接",
+    "lastSync": "上次成功同步",
+    "queue": "上传队列",
+    "allSynced": "全部已同步",
+    "pendingCount": "等待：{{count}}",
+    "browserBridge": "浏览器桥接",
+    "ready": "就绪",
+    "notReady": "不可用",
+    "localStorage": "本地保存",
+    "reconnect": "重新连接设备",
+    "reconnectBody": "重新连接会创建新的设备身份。被撤销身份的未发送数据保留在本机且不会重新分配。",
+    "organization": "组织",
+    "organizationId": "组织 ID"
+  },
+  "diagnostics": {
+    "title": "诊断",
+    "subtitle": "检查本地运行状态及其与 ActiLens 的连接。",
+    "run": "运行诊断",
+    "running": "正在检查…",
+    "copy": "复制诊断报告",
+    "checks": {
+      "local_database": "本地数据库",
+      "session": "会话",
+      "device": "设备身份",
+      "permissions": "系统权限",
+      "collector": "采集器",
+      "uploader": "上传器",
+      "browser_bridge": "浏览器桥接",
+      "backend": "服务器"
+    }
+  },
+  "settings": {
+    "appearance": "外观",
+    "theme": "主题",
+    "themeBody": "跟随系统外观或选择固定主题。",
+    "language": "语言",
+    "languageBody": "应用和系统托盘使用同一语言。",
+    "behavior": "应用行为",
+    "background": "在后台持续运行",
+    "backgroundBody": "关闭窗口只会隐藏 ActiLens；原生代理会继续运行。",
+    "alwaysOn": "始终开启",
+    "hideDock": "从 Dock / 任务栏隐藏",
+    "hideDockBody": "通过系统托盘使用 ActiLens，而无需常驻应用图标。",
+    "updates": "更新",
+    "currentVersion": "当前版本：{{version}}",
+    "about": "关于",
+    "aboutBody": "此电脑上的 ActiLens 桌面代理。",
+    "managedUpdates": "此受管安装的更新由管理员分发。",
+    "manualUpdates": "请使用部署提供的安装程序安装新版 ActiLens。",
+    "managed": "受管理",
+    "manual": "安装程序"
+  },
+  "theme": {
+    "light": "浅色",
+    "dark": "深色",
+    "system": "系统"
+  },
+  "time": {
+    "never": "从未",
+    "justNow": "刚刚",
+    "minutesAgo": "{{count}} 分钟前",
+    "hoursAgo": "{{count}} 小时前"
+  },
+  "runtime": {
+    "running": "运行中",
+    "idle": "空闲",
+    "paused": "已暂停",
+    "blocked": "已阻止",
+    "offline": "离线",
+    "attention": "需要处理",
+    "revoked": "已撤销",
+    "loading": "正在加载…"
+  }
+}

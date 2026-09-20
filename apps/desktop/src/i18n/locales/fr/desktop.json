@@ -1,0 +1,179 @@
+{
+  "nav": {
+    "home": "Accueil",
+    "device": "Appareil",
+    "permissions": "Autorisations",
+    "settings": "Paramètres"
+  },
+  "common": {
+    "loading": "Chargement…"
+  },
+  "actions": {
+    "retry": "Réessayer",
+    "refresh": "Actualiser",
+    "openPermissions": "Ouvrir les autorisations",
+    "openDevice": "Ouvrir l’appareil",
+    "openWeb": "Ouvrir le tableau de bord web",
+    "copy": "Copier",
+    "copied": "Copié",
+    "signOut": "Se déconnecter",
+    "setupAgain": "Se connecter",
+    "manageWeb": "Gérer sur le web"
+  },
+  "home": {
+    "status": "Cet ordinateur",
+    "unavailable": "État d’exécution indisponible",
+    "unavailableBody": "ActiLens n’a pas pu lire l’état du runtime natif.",
+    "connection": "Connexion",
+    "sync": "Synchronisation",
+    "lastSync": "Dernière synchronisation réussie : {{value}}",
+    "pending": "{{count}} élément(s) en attente d’envoi",
+    "noPending": "Aucune donnée en attente d’envoi.",
+    "attention": "Attention requise",
+    "hero": {
+      "healthy": {
+        "title": "ActiLens fonctionne",
+        "body": "La collecte et la synchronisation fonctionnent normalement sur cet ordinateur."
+      },
+      "idle": {
+        "title": "ActiLens fonctionne",
+        "body": "L’ordinateur est inactif. ActiLens continue de fonctionner en arrière-plan."
+      },
+      "paused": {
+        "title": "ActiLens est en pause",
+        "body": "La collecte locale est actuellement en pause."
+      },
+      "offline": {
+        "title": "Aucune connexion",
+        "body": "ActiLens conserve les données sur cet ordinateur et les synchronisera dès que le serveur sera de nouveau accessible."
+      },
+      "permissions": {
+        "title": "Autorisation système requise",
+        "body": "{{count}} autorisation(s) requise(s) nécessitent votre attention."
+      },
+      "syncError": {
+        "title": "La synchronisation nécessite votre attention",
+        "body": "ActiLens n’a pas pu terminer la dernière synchronisation."
+      },
+      "revoked": {
+        "title": "Cet appareil a été déconnecté",
+        "body": "Le serveur n’accepte plus les données de cette installation."
+      },
+      "blocked": {
+        "title": "Collecte indisponible",
+        "body": "L’état actuel de l’organisation ou du membre empêche la collecte sur cet ordinateur."
+      }
+    },
+    "localStored": "En mode local, les données restent sur cet ordinateur."
+  },
+  "attention": {
+    "deviceRevoked": "Cet appareil a été révoqué",
+    "deviceBlocked": "L’accès à l’organisation est actuellement indisponible",
+    "permissions": "{{count}} autorisation(s) système nécessitent votre attention",
+    "offline": "Le serveur est actuellement inaccessible",
+    "sync": "La synchronisation a échoué"
+  },
+  "connection": {
+    "online": "Connecté",
+    "offline": "Hors ligne",
+    "checking": "Vérification de la connexion…",
+    "signed_out": "Connexion requise",
+    "local": "Mode local"
+  },
+  "sync": {
+    "synced": "Tout est synchronisé",
+    "syncing": "Synchronisation…",
+    "queued": "En attente de synchronisation",
+    "error": "Erreur de synchronisation",
+    "signed_out": "Connexion requise",
+    "local": "Local uniquement"
+  },
+  "deviceState": {
+    "active": "Actif",
+    "revoked": "Révoqué",
+    "blocked": "Bloqué",
+    "enrollment_required": "Reconnexion requise",
+    "local": "Mode local"
+  },
+  "device": {
+    "thisDevice": "Cet appareil",
+    "installation": "Installation",
+    "version": "Version",
+    "deviceState": "État",
+    "deviceId": "ID de l’appareil",
+    "account": "Compte",
+    "connectionSync": "Connexion et synchronisation",
+    "connection": "Connexion",
+    "lastSync": "Dernière synchronisation réussie",
+    "queue": "File d’envoi",
+    "allSynced": "Tout est synchronisé",
+    "pendingCount": "En attente : {{count}}",
+    "browserBridge": "Pont navigateur",
+    "ready": "Prêt",
+    "notReady": "Indisponible",
+    "localStorage": "Stocké localement",
+    "reconnect": "Reconnecter l’appareil",
+    "reconnectBody": "La reconnexion crée une nouvelle identité d’appareil. Les données non envoyées de l’identité révoquée restent locales et ne sont pas réattribuées.",
+    "organization": "Organisation",
+    "organizationId": "ID de l’organisation"
+  },
+  "diagnostics": {
+    "title": "Diagnostic",
+    "subtitle": "Vérifier le runtime local et sa connexion à ActiLens.",
+    "run": "Lancer le diagnostic",
+    "running": "Vérification…",
+    "copy": "Copier le rapport de diagnostic",
+    "checks": {
+      "local_database": "Base de données locale",
+      "session": "Session",
+      "device": "Identité de l’appareil",
+      "permissions": "Autorisations système",
+      "collector": "Collecteur",
+      "uploader": "Envoi",
+      "browser_bridge": "Pont navigateur",
+      "backend": "Serveur"
+    }
+  },
+  "settings": {
+    "appearance": "Apparence",
+    "theme": "Thème",
+    "themeBody": "Utiliser l’apparence du système ou choisir un thème fixe.",
+    "language": "Langue",
+    "languageBody": "L’application et la zone de notification utilisent la même langue.",
+    "behavior": "Comportement de l’application",
+    "background": "Continuer à fonctionner en arrière-plan",
+    "backgroundBody": "Fermer la fenêtre masque ActiLens ; l’agent natif continue de fonctionner.",
+    "alwaysOn": "Toujours actif",
+    "hideDock": "Masquer du Dock / de la barre des tâches",
+    "hideDockBody": "Garder ActiLens accessible depuis la zone de notification sans icône permanente.",
+    "updates": "Mises à jour",
+    "currentVersion": "Version actuelle : {{version}}",
+    "about": "À propos",
+    "aboutBody": "Agent de bureau pour cet ordinateur.",
+    "managedUpdates": "Les mises à jour de cette installation gérée sont distribuées par votre administrateur.",
+    "manualUpdates": "Installez une version plus récente d’ActiLens avec l’installateur de votre déploiement.",
+    "managed": "Géré",
+    "manual": "Installateur"
+  },
+  "theme": {
+    "light": "Clair",
+    "dark": "Sombre",
+    "system": "Système"
+  },
+  "time": {
+    "never": "Jamais",
+    "justNow": "à l’instant",
+    "minutesAgo": "il y a {{count}} min",
+    "hoursAgo": "il y a {{count}} h"
+  },
+  "runtime": {
+    "running": "En cours",
+    "idle": "Inactif",
+    "paused": "En pause",
+    "blocked": "Bloqué",
+    "offline": "Hors ligne",
+    "attention": "Attention requise",
+    "revoked": "Révoqué",
+    "loading": "Chargement…"
+  }
+}

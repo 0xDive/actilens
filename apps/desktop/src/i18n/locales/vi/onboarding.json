@@ -54,5 +54,12 @@
     "back": "← Quay lại",
     "finish": "Hoàn tất",
     "skip": "Bỏ qua lúc này"
+  },
+  "managed": {
+    "step": "Thiết lập thiết bị",
+    "title": "Hoàn tất thiết lập máy tính này",
+    "subtitle": "Cấp các quyền hệ thống cần thiết để ActiLens hoạt động ổn định trong nền.",
+    "managedNote": "Cài đặt tổ chức được quản lý trên bảng điều khiển web.",
+    "finish": "Hoàn tất thiết lập"
   }
 }

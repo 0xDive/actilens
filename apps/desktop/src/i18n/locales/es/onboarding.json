@@ -54,5 +54,12 @@
     "back": "← Atrás",
     "finish": "Finalizar",
     "skip": "Omitir por ahora"
+  },
+  "managed": {
+    "step": "Configuración del dispositivo",
+    "title": "Finalice la configuración de este equipo",
+    "subtitle": "Conceda los permisos del sistema que ActiLens necesita para funcionar correctamente en segundo plano.",
+    "managedNote": "Los ajustes de la organización se gestionan en el panel web.",
+    "finish": "Finalizar configuración"
   }
 }

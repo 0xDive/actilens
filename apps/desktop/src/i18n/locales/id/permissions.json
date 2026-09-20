@@ -36,5 +36,8 @@
       "label": "Tangkapan layar",
       "description": "Mengambil tangkapan layar Anda secara berkala."
     }
-  }
+  },
+  "noneRequiredTitle": "Tidak diperlukan izin sistem tambahan",
+  "noneRequiredBody": "Sistem operasi ini tidak memerlukan izin ActiLens terpisah.",
+  "ready": "Siap"
 }

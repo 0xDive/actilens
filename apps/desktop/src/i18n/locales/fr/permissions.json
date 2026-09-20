@@ -36,5 +36,8 @@
       "label": "Captures d'écran",
       "description": "Réalise des captures d'écran périodiques de votre/vos écran(s)."
     }
-  }
+  },
+  "noneRequiredTitle": "Aucune autorisation système supplémentaire requise",
+  "noneRequiredBody": "Ce système d’exploitation ne nécessite pas d’autorisations ActiLens distinctes.",
+  "ready": "Prêt"
 }

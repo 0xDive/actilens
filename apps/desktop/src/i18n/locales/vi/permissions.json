@@ -36,5 +36,8 @@
       "label": "Ảnh chụp màn hình",
       "description": "Chụp ảnh màn hình của bạn định kỳ."
     }
-  }
+  },
+  "noneRequiredTitle": "Không cần thêm quyền hệ thống",
+  "noneRequiredBody": "Hệ điều hành này không yêu cầu quyền riêng cho ActiLens.",
+  "ready": "Sẵn sàng"
 }

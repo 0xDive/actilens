@@ -1,0 +1,179 @@
+{
+  "nav": {
+    "home": "Beranda",
+    "device": "Perangkat",
+    "permissions": "Izin",
+    "settings": "Pengaturan"
+  },
+  "common": {
+    "loading": "Memuat…"
+  },
+  "actions": {
+    "retry": "Coba lagi",
+    "refresh": "Segarkan",
+    "openPermissions": "Buka izin",
+    "openDevice": "Buka perangkat",
+    "openWeb": "Buka dasbor web",
+    "copy": "Salin",
+    "copied": "Disalin",
+    "signOut": "Keluar",
+    "setupAgain": "Masuk",
+    "manageWeb": "Kelola di web"
+  },
+  "home": {
+    "status": "Komputer ini",
+    "unavailable": "Status runtime tidak tersedia",
+    "unavailableBody": "ActiLens tidak dapat membaca status runtime native.",
+    "connection": "Koneksi",
+    "sync": "Sinkronisasi",
+    "lastSync": "Sinkronisasi berhasil terakhir: {{value}}",
+    "pending": "{{count}} item menunggu diunggah",
+    "noPending": "Tidak ada data yang menunggu diunggah.",
+    "attention": "Perlu perhatian",
+    "hero": {
+      "healthy": {
+        "title": "ActiLens sedang berjalan",
+        "body": "Pengumpulan dan sinkronisasi di komputer ini berjalan normal."
+      },
+      "idle": {
+        "title": "ActiLens sedang berjalan",
+        "body": "Komputer sedang tidak aktif. ActiLens tetap berjalan di latar belakang."
+      },
+      "paused": {
+        "title": "ActiLens dijeda",
+        "body": "Pengumpulan lokal sedang dijeda."
+      },
+      "offline": {
+        "title": "Tidak ada koneksi",
+        "body": "ActiLens menyimpan data dengan aman di komputer ini dan akan menyinkronkannya saat server kembali terjangkau."
+      },
+      "permissions": {
+        "title": "Izin sistem diperlukan",
+        "body": "Ada {{count}} izin wajib yang perlu diperhatikan."
+      },
+      "syncError": {
+        "title": "Sinkronisasi perlu diperiksa",
+        "body": "ActiLens tidak dapat menyelesaikan sinkronisasi terakhir."
+      },
+      "revoked": {
+        "title": "Perangkat ini terputus",
+        "body": "Server tidak lagi menerima data dari instalasi ini."
+      },
+      "blocked": {
+        "title": "Pengumpulan tidak tersedia",
+        "body": "Status organisasi atau anggota saat ini tidak mengizinkan pengumpulan di komputer ini."
+      }
+    },
+    "localStored": "Dalam mode lokal, data tetap tersimpan di komputer ini."
+  },
+  "attention": {
+    "deviceRevoked": "Perangkat ini telah dicabut",
+    "deviceBlocked": "Akses organisasi saat ini tidak tersedia",
+    "permissions": "{{count}} izin sistem perlu diperhatikan",
+    "offline": "Server saat ini tidak dapat dijangkau",
+    "sync": "Sinkronisasi gagal"
+  },
+  "connection": {
+    "online": "Terhubung",
+    "offline": "Offline",
+    "checking": "Memeriksa koneksi…",
+    "signed_out": "Perlu masuk",
+    "local": "Mode lokal"
+  },
+  "sync": {
+    "synced": "Semua telah disinkronkan",
+    "syncing": "Menyinkronkan…",
+    "queued": "Menunggu sinkronisasi",
+    "error": "Kesalahan sinkronisasi",
+    "signed_out": "Perlu masuk",
+    "local": "Lokal saja"
+  },
+  "deviceState": {
+    "active": "Aktif",
+    "revoked": "Dicabut",
+    "blocked": "Diblokir",
+    "enrollment_required": "Perlu disambungkan ulang",
+    "local": "Mode lokal"
+  },
+  "device": {
+    "thisDevice": "Perangkat ini",
+    "installation": "Instalasi",
+    "version": "Versi",
+    "deviceState": "Status",
+    "deviceId": "ID perangkat",
+    "account": "Akun",
+    "connectionSync": "Koneksi & sinkronisasi",
+    "connection": "Koneksi",
+    "lastSync": "Sinkronisasi berhasil terakhir",
+    "queue": "Antrean unggahan",
+    "allSynced": "Semua telah disinkronkan",
+    "pendingCount": "Menunggu: {{count}}",
+    "browserBridge": "Jembatan browser",
+    "ready": "Siap",
+    "notReady": "Tidak tersedia",
+    "localStorage": "Disimpan lokal",
+    "reconnect": "Sambungkan ulang perangkat",
+    "reconnectBody": "Penyambungan ulang membuat identitas perangkat baru. Data belum terkirim dari identitas yang dicabut tetap lokal dan tidak dialihkan.",
+    "organization": "Organisasi",
+    "organizationId": "ID organisasi"
+  },
+  "diagnostics": {
+    "title": "Diagnostik",
+    "subtitle": "Periksa runtime lokal dan koneksinya ke ActiLens.",
+    "run": "Jalankan diagnostik",
+    "running": "Memeriksa…",
+    "copy": "Salin laporan diagnostik",
+    "checks": {
+      "local_database": "Basis data lokal",
+      "session": "Sesi",
+      "device": "Identitas perangkat",
+      "permissions": "Izin sistem",
+      "collector": "Pengumpul",
+      "uploader": "Pengunggah",
+      "browser_bridge": "Jembatan browser",
+      "backend": "Server"
+    }
+  },
+  "settings": {
+    "appearance": "Tampilan",
+    "theme": "Tema",
+    "themeBody": "Ikuti tampilan sistem atau pilih tema tetap.",
+    "language": "Bahasa",
+    "languageBody": "Aplikasi dan tray sistem menggunakan bahasa yang sama.",
+    "behavior": "Perilaku aplikasi",
+    "background": "Tetap berjalan di latar belakang",
+    "backgroundBody": "Menutup jendela hanya menyembunyikan ActiLens; agent native tetap berjalan.",
+    "alwaysOn": "Selalu aktif",
+    "hideDock": "Sembunyikan dari Dock / taskbar",
+    "hideDockBody": "Gunakan ActiLens dari tray sistem tanpa ikon aplikasi permanen.",
+    "updates": "Pembaruan",
+    "currentVersion": "Versi saat ini: {{version}}",
+    "about": "Tentang",
+    "aboutBody": "Desktop agent untuk komputer ini.",
+    "managedUpdates": "Pembaruan instalasi terkelola ini didistribusikan oleh administrator.",
+    "manualUpdates": "Pasang ActiLens versi baru dengan installer dari deployment Anda.",
+    "managed": "Dikelola",
+    "manual": "Installer"
+  },
+  "theme": {
+    "light": "Terang",
+    "dark": "Gelap",
+    "system": "Sistem"
+  },
+  "time": {
+    "never": "Belum pernah",
+    "justNow": "baru saja",
+    "minutesAgo": "{{count}} menit lalu",
+    "hoursAgo": "{{count}} jam lalu"
+  },
+  "runtime": {
+    "running": "Berjalan",
+    "idle": "Tidak aktif",
+    "paused": "Dijeda",
+    "blocked": "Diblokir",
+    "offline": "Offline",
+    "attention": "Perlu perhatian",
+    "revoked": "Dicabut",
+    "loading": "Memuat…"
+  }
+}
