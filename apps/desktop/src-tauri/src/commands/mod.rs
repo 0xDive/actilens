@@ -11,7 +11,7 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::platform::{self, CapabilityRow, Permission};
-use crate::storage::Db;
+use crate::storage::{Db, SyncTable};
 use crate::trackers::TrackerControl;
 
 /// UI reports whether the user is still on the setup surfaces (welcome/login/

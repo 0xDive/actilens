@@ -73,6 +73,17 @@ impl SyncStatus {
         self.pending.store(pending.max(0) as u64, Ordering::Relaxed);
         *self.last_error.lock().unwrap() = msg;
     }
+
+    /// Reset status metadata that belongs to a previous authenticated
+    /// device/session. Local data rows are intentionally untouched.
+    pub fn reset_identity_state(&self, pending: i64) {
+        self.last_sync_ts.store(0, Ordering::Relaxed);
+        self.last_attempt_ts.store(0, Ordering::Relaxed);
+        self.last_policy_ts.store(0, Ordering::Relaxed);
+        self.pending.store(pending.max(0) as u64, Ordering::Relaxed);
+        self.syncing.store(false, Ordering::Relaxed);
+        *self.last_error.lock().unwrap() = String::new();
+    }
 }
 
 /// Everything a sync pass needs. Cloneable handles shared with the worker thread.
