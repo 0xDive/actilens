@@ -350,7 +350,7 @@
 
 .report-timeline__segment:focus-visible {
   z-index: 3;
-  outline: 2px solid var(--ds-focus);
+  outline: 2px solid var(--ds-brand);
   outline-offset: -2px;
 }
 
@@ -368,7 +368,7 @@
   gap: 8px;
   transform: translateX(-50%);
   background: var(--ds-bg-surface);
-  box-shadow: var(--ds-shadow-md);
+  box-shadow: var(--ds-shadow-popover);
   color: var(--ds-text-primary);
   font-size: 11px;
   line-height: 16px;
