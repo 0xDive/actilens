@@ -636,3 +636,47 @@
   border-top: 1px solid var(--border-subtle);
   font-size: 11px;
 }
+
+
+/* Collector health is operational device information, not a web-dashboard copy.
+   Keep it prominent enough to verify that the native agent is actually writing. */
+.desktop-v2-card--collector {
+  grid-column: 1 / -1;
+}
+
+.desktop-collector-metrics {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 16px;
+}
+
+.desktop-collector-metrics span {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.desktop-v2-dot.is-idle {
+  background: var(--warn);
+}
+
+.desktop-v2-dot.is-paused {
+  background: var(--text-muted);
+}
+
+.desktop-v2-dot.is-blocked {
+  background: var(--danger);
+}
+
+/* Windows already has native caption controls. The old custom overlay strip was
+   empty there, so dialogs and content should use the full client area. */
+.desktop-v2-shell--windows .desktop-v2-dialog-layer {
+  inset: 0;
+}
+
+@media (max-width: 720px) {
+  .desktop-collector-metrics {
+    grid-template-columns: 1fr;
+  }
+}
