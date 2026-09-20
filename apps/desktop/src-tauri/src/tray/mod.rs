@@ -27,8 +27,7 @@ struct MenuItems {
     open: MenuItem<tauri::Wry>,
     web: MenuItem<tauri::Wry>,
     sync: MenuItem<tauri::Wry>,
-    start: MenuItem<tauri::Wry>,
-    stop: MenuItem<tauri::Wry>,
+    tracking: MenuItem<tauri::Wry>,
     quit: MenuItem<tauri::Wry>,
 }
 
@@ -139,25 +138,35 @@ fn tr(locale: &str, key: &str) -> String {
             "requiere atención",
             "требуется внимание",
         ),
-        "start" => s(
-            "Start",
-            "开始",
-            "開始",
-            "Bắt đầu",
-            "Mulai",
-            "Démarrer",
-            "Iniciar",
-            "Начать",
+        "pause_tracking" => s(
+            "Pause tracking",
+            "暂停跟踪",
+            "トラッキングを一時停止",
+            "Tạm dừng theo dõi",
+            "Jeda pelacakan",
+            "Mettre le suivi en pause",
+            "Pausar seguimiento",
+            "Приостановить",
         ),
-        "stop" => s(
-            "Stop",
-            "停止",
-            "停止",
-            "Dừng",
-            "Hentikan",
-            "Arrêter",
-            "Detener",
-            "Остановить",
+        "resume_tracking" => s(
+            "Resume tracking",
+            "继续跟踪",
+            "トラッキングを再開",
+            "Tiếp tục theo dõi",
+            "Lanjutkan pelacakan",
+            "Reprendre le suivi",
+            "Reanudar seguimiento",
+            "Продолжить",
+        ),
+        "managed_tracking" => s(
+            "Tracking managed by organization",
+            "跟踪由组织管理",
+            "トラッキングは組織によって管理されています",
+            "Theo dõi do tổ chức quản lý",
+            "Pelacakan dikelola organisasi",
+            "Suivi géré par l’organisation",
+            "Seguimiento gestionado por la organización",
+            "Отслеживание управляется организацией",
         ),
         "quit" => s(
             "Quit ActiLens",
@@ -256,9 +265,15 @@ pub fn build(app: &AppHandle, control: Arc<TrackerControl>) -> tauri::Result<()>
         false,
         None::<&str>,
     )?;
-    // Local/personal mode can pause. Managed collection remains server-controlled.
-    let start = MenuItem::with_id(app, "start", tr(&loc, "start"), false, None::<&str>)?;
-    let stop = MenuItem::with_id(app, "stop", tr(&loc, "stop"), true, None::<&str>)?;
+    // Local/personal mode gets one contextual Pause/Resume action. Managed
+    // collection remains server-controlled and renders the item read-only.
+    let tracking = MenuItem::with_id(
+        app,
+        "tracking",
+        tr(&loc, "pause_tracking"),
+        true,
+        None::<&str>,
+    )?;
     let quit = MenuItem::with_id(app, "quit", tr(&loc, "quit"), true, None::<&str>)?;
     let menu = Menu::with_items(
         app,
@@ -267,8 +282,7 @@ pub fn build(app: &AppHandle, control: Arc<TrackerControl>) -> tauri::Result<()>
             &web,
             &sync,
             &PredefinedMenuItem::separator(app)?,
-            &start,
-            &stop,
+            &tracking,
             &PredefinedMenuItem::separator(app)?,
             &quit,
         ],
@@ -284,8 +298,17 @@ pub fn build(app: &AppHandle, control: Arc<TrackerControl>) -> tauri::Result<()>
                 show_main(app);
                 let _ = app.emit("open-web-dashboard", ());
             }
-            "start" => set_paused(app, false),
-            "stop" => set_paused(app, true),
+            "tracking" => {
+                let managed = app
+                    .try_state::<Arc<TrackerControl>>()
+                    .is_some_and(|control| control.managed.load(Ordering::Relaxed));
+                if !managed {
+                    let paused = app
+                        .try_state::<Arc<TrackerControl>>()
+                        .is_some_and(|control| control.effective_paused());
+                    set_paused(app, !paused);
+                }
+            },
             "quit" => app.exit(0),
             _ => {}
         })
@@ -297,8 +320,7 @@ pub fn build(app: &AppHandle, control: Arc<TrackerControl>) -> tauri::Result<()>
         open,
         web,
         sync,
-        start,
-        stop,
+        tracking,
         quit,
     });
 
@@ -431,10 +453,19 @@ fn render(app: &AppHandle, state: State) {
             .sync
             .set_text(format!("{}: {}", tr(&current_locale(app), "sync"), sync_word));
 
-        let _ = items.start.set_enabled(
-            !managed && paused && org_enabled && !IN_SETUP.load(Ordering::Relaxed),
-        );
-        let _ = items.stop.set_enabled(!managed && !paused && org_enabled);
+        if managed {
+            let _ = items.tracking.set_text(tr(&current_locale(app), "managed_tracking"));
+            let _ = items.tracking.set_enabled(false);
+        } else {
+            let _ = items.tracking.set_text(if paused {
+                tr(&current_locale(app), "resume_tracking")
+            } else {
+                tr(&current_locale(app), "pause_tracking")
+            });
+            let _ = items.tracking.set_enabled(
+                org_enabled && !IN_SETUP.load(Ordering::Relaxed),
+            );
+        }
     }
 }
 
@@ -445,8 +476,19 @@ pub fn relabel(app: &AppHandle) {
     if let Some(items) = app.try_state::<MenuItems>() {
         let _ = items.open.set_text(tr(&loc, "open"));
         let _ = items.web.set_text(tr(&loc, "web"));
-        let _ = items.start.set_text(tr(&loc, "start"));
-        let _ = items.stop.set_text(tr(&loc, "stop"));
+        let managed = app
+            .try_state::<Arc<TrackerControl>>()
+            .is_some_and(|control| control.managed.load(Ordering::Relaxed));
+        let paused = app
+            .try_state::<Arc<TrackerControl>>()
+            .is_some_and(|control| control.effective_paused());
+        let _ = items.tracking.set_text(if managed {
+            tr(&loc, "managed_tracking")
+        } else if paused {
+            tr(&loc, "resume_tracking")
+        } else {
+            tr(&loc, "pause_tracking")
+        });
         let _ = items.quit.set_text(tr(&loc, "quit"));
     }
     refresh(app); // re-renders the localized tooltip
