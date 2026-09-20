@@ -49,6 +49,7 @@ export function Home({
     );
   }
 
+  const recentMinutes = Math.round((state.recent_activity_s / 60) * 10) / 10;
   const key = heroKey(state);
   const tone = ["revoked", "blocked", "syncError"].includes(key)
     ? "danger"
@@ -104,6 +105,25 @@ export function Home({
                 ? t("home.pending", { count: state.pending })
                 : t("home.noPending")}
           </p>
+        </section>
+
+        <section className="desktop-v2-card desktop-v2-card--collector">
+          <div className="desktop-v2-card__head">
+            <div>
+              <span className="desktop-v2-kicker">{t("home.collection")}</span>
+              <h3>{t(`runtime.${state.agent}`)}</h3>
+            </div>
+            <span className={`desktop-v2-dot is-${state.agent}`} />
+          </div>
+          <div className="desktop-collector-metrics">
+            <span>{t("home.recentActivity", { minutes: recentMinutes })}</span>
+            <span>
+              {t("home.lastLocalActivity", {
+                value: relativeTime(state.last_activity_ts, t),
+              })}
+            </span>
+            <span>{t("home.systemIdle", { seconds: state.idle_seconds })}</span>
+          </div>
         </section>
       </div>
 
