@@ -17,6 +17,7 @@ export function Device() {
   const [copied, setCopied] = useState<string | null>(null);
 
   if (!state) return <div className="desktop-v2-loading">{t("common.loading")}</div>;
+  const runtime = state;
 
   async function openWeb() {
     try {
@@ -50,12 +51,12 @@ export function Device() {
   async function copyReport() {
     if (!report) return;
     const text = [
-      `ActiLens ${state.app_version}`,
-      `${state.os} ${state.arch}`,
-      `Device: ${state.device}`,
-      `Connection: ${state.connection}`,
-      `Sync: ${state.sync}`,
-      `Pending: ${state.pending}`,
+      `ActiLens ${runtime.app_version}`,
+      `${runtime.os} ${runtime.arch}`,
+      `Device: ${runtime.device}`,
+      `Connection: ${runtime.connection}`,
+      `Sync: ${runtime.sync}`,
+      `Pending: ${runtime.pending}`,
       "",
       ...report.checks.map((check) => `[${check.state.toUpperCase()}] ${check.key}: ${check.detail}`),
     ].join("\n");
@@ -67,10 +68,10 @@ export function Device() {
       <div className="desktop-v2-page-head">
         <div>
           <span className="desktop-v2-kicker">{t("device.thisDevice")}</span>
-          <h2>{state.hostname}</h2>
-          <p>{state.os} · {state.arch}</p>
+          <h2>{runtime.hostname}</h2>
+          <p>{runtime.os} · {runtime.arch}</p>
         </div>
-        {!state.local_only && (
+        {!runtime.local_only && (
           <button className="actilens-btn actilens-btn--secondary" onClick={() => void openWeb()}>
             {t("actions.openWeb")} ↗
           </button>
@@ -81,26 +82,26 @@ export function Device() {
         <section className="desktop-v2-card">
           <span className="desktop-v2-kicker">{t("device.installation")}</span>
           <div className="desktop-v2-data-list">
-            <div><span>{t("device.version")}</span><strong>v{state.app_version}</strong></div>
-            <div><span>{t("device.deviceState")}</span><strong>{t(`deviceState.${state.device}`)}</strong></div>
+            <div><span>{t("device.version")}</span><strong>v{runtime.app_version}</strong></div>
+            <div><span>{t("device.deviceState")}</span><strong>{t(`deviceState.${runtime.device}`)}</strong></div>
             <div>
               <span>{t("device.deviceId")}</span>
-              <button className="desktop-v2-copy" onClick={() => void copy(state.device_id, "device")}>
-                <code>{state.device_id}</code>
+              <button className="desktop-v2-copy" onClick={() => void copy(runtime.device_id, "device")}>
+                <code>{runtime.device_id}</code>
                 <span>{copied === "device" ? t("actions.copied") : t("actions.copy")}</span>
               </button>
             </div>
-            {state.email && <div><span>{t("device.account")}</span><strong>{state.email}</strong></div>}
+            {runtime.email && <div><span>{t("device.account")}</span><strong>{runtime.email}</strong></div>}
           </div>
         </section>
 
         <section className="desktop-v2-card">
           <span className="desktop-v2-kicker">{t("device.connectionSync")}</span>
           <div className="desktop-v2-data-list">
-            <div><span>{t("device.connection")}</span><strong>{t(`connection.${state.connection}`)}</strong></div>
-            <div><span>{t("device.lastSync")}</span><strong>{formatTime(state.last_sync_ts, t("time.never"))}</strong></div>
-            <div><span>{t("device.queue")}</span><strong>{state.pending ? t("device.pendingCount", { count: state.pending }) : t("device.allSynced")}</strong></div>
-            <div><span>{t("device.browserBridge")}</span><strong>{state.browser_bridge_ready ? t("device.ready") : t("device.notReady")}</strong></div>
+            <div><span>{t("device.connection")}</span><strong>{t(`connection.${runtime.connection}`)}</strong></div>
+            <div><span>{t("device.lastSync")}</span><strong>{formatTime(runtime.last_sync_ts, t("time.never"))}</strong></div>
+            <div><span>{t("device.queue")}</span><strong>{runtime.pending ? t("device.pendingCount", { count: runtime.pending }) : t("device.allSynced")}</strong></div>
+            <div><span>{t("device.browserBridge")}</span><strong>{runtime.browser_bridge_ready ? t("device.ready") : t("device.notReady")}</strong></div>
           </div>
         </section>
       </div>
