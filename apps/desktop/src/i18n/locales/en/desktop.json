@@ -1,0 +1,165 @@
+{
+  "nav": {
+    "home": "Home",
+    "device": "Device",
+    "permissions": "Permissions",
+    "settings": "Settings"
+  },
+  "common": {
+    "loading": "Loading…"
+  },
+  "actions": {
+    "retry": "Retry",
+    "refresh": "Refresh",
+    "openPermissions": "Open permissions",
+    "openDevice": "Open device",
+    "openWeb": "Open web dashboard",
+    "copy": "Copy",
+    "copied": "Copied",
+    "signOut": "Sign out",
+    "setupAgain": "Sign in",
+    "manageWeb": "Manage on web"
+  },
+  "home": {
+    "status": "This computer",
+    "unavailable": "Runtime status unavailable",
+    "unavailableBody": "ActiLens could not read its native runtime state.",
+    "connection": "Connection",
+    "sync": "Synchronization",
+    "lastSync": "Last successful sync: {{value}}",
+    "pending": "{{count}} item(s) waiting to upload",
+    "noPending": "Nothing is waiting to upload.",
+    "attention": "Needs attention",
+    "hero": {
+      "healthy": {
+        "title": "ActiLens is running",
+        "body": "Collection and synchronization are operating normally on this computer."
+      },
+      "idle": {
+        "title": "ActiLens is running",
+        "body": "The computer is idle. ActiLens remains active in the background."
+      },
+      "paused": {
+        "title": "ActiLens is paused",
+        "body": "Local collection is currently paused."
+      },
+      "offline": {
+        "title": "No connection",
+        "body": "ActiLens keeps data safely on this computer and will synchronize when the server is reachable again."
+      },
+      "permissions": {
+        "title": "System permission required",
+        "body": "{{count}} required permission(s) need attention."
+      },
+      "syncError": {
+        "title": "Synchronization needs attention",
+        "body": "ActiLens could not complete the latest synchronization attempt."
+      },
+      "revoked": {
+        "title": "This device was disconnected",
+        "body": "The server no longer accepts data from this installation."
+      },
+      "blocked": {
+        "title": "Collection is unavailable",
+        "body": "The organization or membership currently prevents collection on this computer."
+      }
+    }
+  },
+  "attention": {
+    "deviceRevoked": "This device has been revoked",
+    "deviceBlocked": "Organization access is currently unavailable",
+    "permissions": "{{count}} system permission(s) require attention",
+    "offline": "The server is currently unreachable",
+    "sync": "Synchronization failed"
+  },
+  "connection": {
+    "online": "Connected",
+    "offline": "Offline",
+    "checking": "Checking connection…",
+    "signed_out": "Sign-in required",
+    "local": "Local mode"
+  },
+  "sync": {
+    "synced": "Everything is synced",
+    "syncing": "Synchronizing…",
+    "queued": "Waiting to sync",
+    "error": "Sync error",
+    "signed_out": "Sign-in required",
+    "local": "Local only"
+  },
+  "deviceState": {
+    "active": "Active",
+    "revoked": "Revoked",
+    "blocked": "Blocked",
+    "enrollment_required": "Reconnect required",
+    "local": "Local mode"
+  },
+  "device": {
+    "thisDevice": "This device",
+    "installation": "Installation",
+    "version": "Version",
+    "deviceState": "State",
+    "deviceId": "Device ID",
+    "account": "Account",
+    "connectionSync": "Connection & sync",
+    "connection": "Connection",
+    "lastSync": "Last successful sync",
+    "queue": "Upload queue",
+    "allSynced": "Everything is synced",
+    "pendingCount": "{{count}} waiting",
+    "browserBridge": "Browser bridge",
+    "ready": "Ready",
+    "notReady": "Not available"
+  },
+  "diagnostics": {
+    "title": "Diagnostics",
+    "subtitle": "Check the local runtime and its connection to ActiLens.",
+    "run": "Run diagnostics",
+    "running": "Checking…",
+    "copy": "Copy diagnostic report",
+    "checks": {
+      "local_database": "Local database",
+      "session": "Session",
+      "device": "Device identity",
+      "permissions": "System permissions",
+      "collector": "Collector",
+      "uploader": "Uploader",
+      "browser_bridge": "Browser bridge",
+      "backend": "Server"
+    }
+  },
+  "settings": {
+    "appearance": "Appearance",
+    "theme": "Theme",
+    "themeBody": "Use the system appearance or choose a fixed theme.",
+    "language": "Language",
+    "languageBody": "The app and native tray use the same language.",
+    "behavior": "Application behavior",
+    "background": "Keep running in background",
+    "backgroundBody": "Closing the window hides ActiLens; the native agent keeps running.",
+    "alwaysOn": "Always on",
+    "hideDock": "Hide Dock / taskbar presence",
+    "hideDockBody": "Keep ActiLens available from the system tray without a persistent app icon.",
+    "updates": "Updates",
+    "currentVersion": "Current version: {{version}}",
+    "updateBody": "ActiLens checks for signed updates in the background.",
+    "checkUpdates": "Check now",
+    "checking": "Checking for updates…",
+    "available": "Version {{version}} is available.",
+    "ready": "Version {{version}} is ready to install.",
+    "updateError": "Update check failed.",
+    "about": "About",
+    "aboutBody": "Desktop agent for this computer."
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "time": {
+    "never": "Never",
+    "justNow": "just now",
+    "minutesAgo": "{{count}} min ago",
+    "hoursAgo": "{{count}} h ago"
+  }
+}

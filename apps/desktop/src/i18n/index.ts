@@ -10,6 +10,7 @@ import enSettings from "./locales/en/settings.json";
 import enPermissions from "./locales/en/permissions.json";
 import enScreens from "./locales/en/screens.json";
 import enMedia from "./locales/en/media.json";
+import enDesktop from "./locales/en/desktop.json";
 
 import ruCommon from "./locales/ru/common.json";
 import ruAuth from "./locales/ru/auth.json";
@@ -19,6 +20,7 @@ import ruSettings from "./locales/ru/settings.json";
 import ruPermissions from "./locales/ru/permissions.json";
 import ruScreens from "./locales/ru/screens.json";
 import ruMedia from "./locales/ru/media.json";
+import ruDesktop from "./locales/ru/desktop.json";
 
 import zhCommon from "./locales/zh/common.json";
 import zhAuth from "./locales/zh/auth.json";
@@ -89,8 +91,8 @@ export const LOCALES = [
 export type LocaleCode = (typeof LOCALES)[number]["code"];
 
 const resources = {
-  en: { common: enCommon, auth: enAuth, onboarding: enOnboarding, welcome: enWelcome, settings: enSettings, permissions: enPermissions, screens: enScreens, media: enMedia },
-  ru: { common: ruCommon, auth: ruAuth, onboarding: ruOnboarding, welcome: ruWelcome, settings: ruSettings, permissions: ruPermissions, screens: ruScreens, media: ruMedia },
+  en: { common: enCommon, auth: enAuth, onboarding: enOnboarding, welcome: enWelcome, settings: enSettings, permissions: enPermissions, screens: enScreens, media: enMedia, desktop: enDesktop },
+  ru: { common: ruCommon, auth: ruAuth, onboarding: ruOnboarding, welcome: ruWelcome, settings: ruSettings, permissions: ruPermissions, screens: ruScreens, media: ruMedia, desktop: ruDesktop },
   zh: { common: zhCommon, auth: zhAuth, onboarding: zhOnboarding, welcome: zhWelcome, settings: zhSettings, permissions: zhPermissions, screens: zhScreens, media: zhMedia },
   ja: { common: jaCommon, auth: jaAuth, onboarding: jaOnboarding, welcome: jaWelcome, settings: jaSettings, permissions: jaPermissions, screens: jaScreens, media: jaMedia },
   vi: { common: viCommon, auth: viAuth, onboarding: viOnboarding, welcome: viWelcome, settings: viSettings, permissions: viPermissions, screens: viScreens, media: viMedia },
@@ -108,7 +110,7 @@ i18n
     supportedLngs: LOCALES.map((l) => l.code),
     load: "languageOnly",
     nonExplicitSupportedLngs: true,
-    ns: ["common", "auth", "onboarding", "welcome", "settings", "permissions", "screens", "media"],
+    ns: ["common", "auth", "onboarding", "welcome", "settings", "permissions", "screens", "media", "desktop"],
     defaultNS: "common",
     interpolation: { escapeValue: false },
     detection: {
