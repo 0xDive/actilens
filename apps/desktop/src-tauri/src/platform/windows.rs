@@ -116,25 +116,88 @@ pub fn run_keyboard_tap() -> bool {
     true
 }
 
-/// Seconds since the last user input (keyboard or mouse), via `GetLastInputInfo`.
-/// Needs no special permission. Like the macOS path, it grows while the session is
-/// locked or the display is asleep, so those states count as idle.
+fn gamepad_activity_now() -> bool {
+    use std::sync::{Mutex, OnceLock};
+    use windows::Win32::UI::Input::XboxController::{XInputGetState, XINPUT_STATE};
+
+    // Packet numbers let us notice short controller interactions that happened
+    // between polls. We never retain buttons, axes or any input contents.
+    static PACKETS: OnceLock<Mutex<[u32; 4]>> = OnceLock::new();
+    let packets = PACKETS.get_or_init(|| Mutex::new([0; 4]));
+    let mut packets = packets.lock().unwrap();
+    let mut active = false;
+
+    for index in 0..4u32 {
+        let mut state = XINPUT_STATE::default();
+        let result = unsafe { XInputGetState(index, &mut state) };
+        if result.0 != 0 {
+            packets[index as usize] = 0;
+            continue;
+        }
+
+        let previous = packets[index as usize];
+        if previous != 0 && previous != state.dwPacketNumber {
+            active = true;
+        }
+        packets[index as usize] = state.dwPacketNumber;
+
+        // Treat a meaningfully engaged control as ongoing activity. Standard
+        // XInput deadzones avoid common analogue-stick drift keeping a machine
+        // permanently active.
+        let pad = state.Gamepad;
+        let stick_active =
+            i32::from(pad.sThumbLX).abs() > 7849
+                || i32::from(pad.sThumbLY).abs() > 7849
+                || i32::from(pad.sThumbRX).abs() > 8689
+                || i32::from(pad.sThumbRY).abs() > 8689;
+        if pad.wButtons != 0
+            || pad.bLeftTrigger > 30
+            || pad.bRightTrigger > 30
+            || stick_active
+        {
+            active = true;
+        }
+    }
+
+    active
+}
+
+/// Seconds since the last user interaction. Keyboard/mouse idle comes from
+/// `GetLastInputInfo`; XInput controller activity is folded in separately so
+/// controller-driven games do not become false idle time. No input contents are
+/// persisted.
 pub fn idle_seconds() -> f64 {
-    use windows::Win32::System::SystemInformation::GetTickCount;
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use windows::Win32::System::SystemInformation::{GetTickCount, GetTickCount64};
     use windows::Win32::UI::Input::KeyboardAndMouse::{GetLastInputInfo, LASTINPUTINFO};
+
+    static LAST_GAMEPAD_INPUT_MS: AtomicU64 = AtomicU64::new(0);
 
     let mut info = LASTINPUTINFO {
         cbSize: std::mem::size_of::<LASTINPUTINFO>() as u32,
         dwTime: 0,
     };
+
     unsafe {
-        if GetLastInputInfo(&mut info).as_bool() {
+        let now64 = GetTickCount64();
+        if gamepad_activity_now() {
+            LAST_GAMEPAD_INPUT_MS.store(now64, Ordering::Relaxed);
+        }
+
+        let keyboard_mouse_idle = if GetLastInputInfo(&mut info).as_bool() {
             // Both are 32-bit millisecond tick counts that wrap ~every 49 days;
             // wrapping_sub gives the correct elapsed interval across a wrap.
-            let idle_ms = GetTickCount().wrapping_sub(info.dwTime);
-            idle_ms as f64 / 1000.0
+            GetTickCount().wrapping_sub(info.dwTime) as f64 / 1000.0
         } else {
             0.0
+        };
+
+        let gamepad_last = LAST_GAMEPAD_INPUT_MS.load(Ordering::Relaxed);
+        if gamepad_last == 0 {
+            keyboard_mouse_idle
+        } else {
+            let gamepad_idle = now64.saturating_sub(gamepad_last) as f64 / 1000.0;
+            keyboard_mouse_idle.min(gamepad_idle)
         }
     }
 }
