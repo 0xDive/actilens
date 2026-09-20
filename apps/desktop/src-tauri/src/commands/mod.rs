@@ -498,7 +498,7 @@ fn suppress_pre_managed_backlog(db: &Db) -> Result<(), String> {
 }
 
 async fn activate_authenticated_session(
-    session: Session,
+    mut session: Session,
     auth: &Arc<AuthState>,
     settings: &Arc<crate::settings::SettingsState>,
     control: &Arc<TrackerControl>,
@@ -522,6 +522,19 @@ async fn activate_authenticated_session(
     auth.store(session.clone())?;
 
     if let Some(business_id) = managed_business_id.as_deref() {
+        let identity_client = BackendClient::new(backend_url(), auth.clone());
+        if let Ok(memberships) = identity_client.memberships().await {
+            if let Some(membership) = memberships
+                .into_iter()
+                .find(|membership| membership.business_id == business_id)
+            {
+                if !membership.business_name.trim().is_empty() {
+                    session.business_name = membership.business_name;
+                    let _ = auth.store(session.clone());
+                }
+            }
+        }
+
         control.managed.store(true, Ordering::Relaxed);
         control
             .org_monitoring_enabled
@@ -723,8 +736,8 @@ pub async fn current_session(
     control: State<'_, Arc<TrackerControl>>,
     db: State<'_, Arc<Db>>,
 ) -> Result<Option<Session>, String> {
-    if let Some(session) = auth.session() {
-        if let Some(business_id) = session.business_id.as_deref() {
+    if let Some(mut session) = auth.session() {
+        if let Some(business_id) = session.business_id.clone().as_deref() {
             let suppress = settings
                 .current
                 .lock()
@@ -750,6 +763,19 @@ pub async fn current_session(
             }
 
             let client = BackendClient::new(backend_url(), auth.inner().clone());
+            if session.business_name.trim().is_empty() {
+                if let Ok(memberships) = client.memberships().await {
+                    if let Some(membership) = memberships
+                        .into_iter()
+                        .find(|membership| membership.business_id == business_id)
+                    {
+                        if !membership.business_name.trim().is_empty() {
+                            session.business_name = membership.business_name;
+                            let _ = auth.store(session.clone());
+                        }
+                    }
+                }
+            }
             match client.fetch_policy(session.business_id.as_deref()).await {
                 Ok(policy) => {
                     let previous = settings.managed.lock().unwrap().monitoring_enabled;
@@ -843,6 +869,22 @@ pub async fn current_session(
     std::env::remove_var("ACTILENS_ENROLL_TOKEN");
 
     let client = BackendClient::new(backend_url(), auth.inner().clone());
+    let mut session = session;
+    if session.business_name.trim().is_empty() {
+        if let Some(business_id) = session.business_id.clone() {
+            if let Ok(memberships) = client.memberships().await {
+                if let Some(membership) = memberships
+                    .into_iter()
+                    .find(|membership| membership.business_id == business_id)
+                {
+                    if !membership.business_name.trim().is_empty() {
+                        session.business_name = membership.business_name;
+                        let _ = auth.store(session.clone());
+                    }
+                }
+            }
+        }
+    }
     control.managed.store(true, Ordering::Relaxed);
     match client.fetch_policy(session.business_id.as_deref()).await {
         Ok(policy) => {
@@ -908,6 +950,7 @@ pub struct RuntimeStateView {
     pub hostname: String,
     pub email: String,
     pub business_id: String,
+    pub business_name: String,
     pub local_only: bool,
     pub managed: bool,
     pub pause_allowed: bool,
@@ -1063,6 +1106,10 @@ pub fn runtime_state(
         business_id: session
             .as_ref()
             .and_then(|s| s.business_id.clone())
+            .unwrap_or_default(),
+        business_name: session
+            .as_ref()
+            .map(|s| s.business_name.clone())
             .unwrap_or_default(),
         local_only: local.local_only,
         managed: managed.managed,

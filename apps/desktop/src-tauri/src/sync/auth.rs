@@ -21,6 +21,9 @@ pub struct Session {
     /// Resolved business id, if the login picked one.
     #[serde(default)]
     pub business_id: Option<String>,
+    /// Human-readable organization name cached for offline desktop display.
+    #[serde(default)]
+    pub business_name: String,
 }
 
 /// Managed Tauri state: the current session, mirrored to a file on disk.

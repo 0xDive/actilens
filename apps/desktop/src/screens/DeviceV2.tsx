@@ -114,6 +114,12 @@ export function Device() {
               </button>
             </div>
             {runtime.email && <div><span>{t("device.account")}</span><strong>{runtime.email}</strong></div>}
+            {runtime.business_name && (
+              <div><span>{t("device.organization")}</span><strong>{runtime.business_name}</strong></div>
+            )}
+            {!runtime.business_name && runtime.business_id && (
+              <div><span>{t("device.organizationId")}</span><code>{runtime.business_id}</code></div>
+            )}
           </div>
         </section>
 

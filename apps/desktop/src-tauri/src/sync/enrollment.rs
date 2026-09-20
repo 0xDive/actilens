@@ -137,6 +137,7 @@ pub async fn redeem(base_url: &str, token: &str) -> Result<Session, String> {
         refresh_token: parsed.tokens.refresh_token,
         email: identity,
         business_id: Some(parsed.business_id),
+        business_name: String::new(),
     })
 }
 

@@ -73,6 +73,7 @@ export type RuntimeState = {
   hostname: string;
   email: string;
   business_id: string;
+  business_name: string;
   local_only: boolean;
   managed: boolean;
   pause_allowed: boolean;

@@ -348,6 +348,7 @@ impl BackendClient {
             business_id: parsed
                 .business_id
                 .or_else(|| business_id.map(str::to_string)),
+            business_name: String::new(),
         }))
     }
 
@@ -384,6 +385,7 @@ impl BackendClient {
             business_id: parsed
                 .business_id
                 .or_else(|| business_id.map(str::to_string)),
+            business_name: String::new(),
         })
     }
 

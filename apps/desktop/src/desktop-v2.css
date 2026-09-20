@@ -547,3 +547,19 @@
   flex-wrap: wrap;
   justify-content: flex-end;
 }
+
+.desktop-v2-account-org {
+  margin: -2px 0 2px 30px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desktop-v2-data-list code {
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  font-size: 10px;
+  text-align: right;
+}

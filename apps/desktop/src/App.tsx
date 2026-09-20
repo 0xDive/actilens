@@ -209,6 +209,11 @@ function DesktopShell({
                   <span className="account-ic"><UserIcon /></span>
                   <span className="account-text" title={session.email}>{session.email}</span>
                 </div>
+                {state?.business_name && (
+                  <div className="desktop-v2-account-org" title={state.business_name}>
+                    {state.business_name}
+                  </div>
+                )}
                 <button className="account-link desktop-v2-web-link" onClick={() => void openWebDashboard()}>
                   <ExternalIcon /> {t("actions.manageWeb")}
                 </button>
