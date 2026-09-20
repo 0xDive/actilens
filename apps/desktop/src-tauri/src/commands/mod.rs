@@ -1416,3 +1416,42 @@ mod tests {
         std::fs::remove_dir_all(&dir).ok();
     }
 }
+
+#[cfg(test)]
+mod desktop_v2_runtime_reason_tests {
+    use super::runtime_reason;
+
+    #[test]
+    fn runtime_reason_prefers_stable_codes() {
+        assert_eq!(
+            runtime_reason("code:device_revoked: translated message"),
+            "device_revoked"
+        );
+        assert_eq!(
+            runtime_reason("code:member_removed: translated message"),
+            "member_removed"
+        );
+        assert_eq!(
+            runtime_reason("code:organization_archived: translated message"),
+            "organization_archived"
+        );
+        assert_eq!(
+            runtime_reason("code:session_revoked: translated message"),
+            "session_revoked"
+        );
+    }
+
+    #[test]
+    fn runtime_reason_distinguishes_network_from_server_state() {
+        assert_eq!(
+            runtime_reason("network error: connection refused"),
+            "network_error"
+        );
+        assert_eq!(
+            runtime_reason("backend returned 500 Internal Server Error"),
+            "sync_error"
+        );
+        assert_eq!(runtime_reason(""), "");
+    }
+}
+

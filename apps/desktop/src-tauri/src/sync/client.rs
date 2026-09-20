@@ -685,3 +685,33 @@ async fn status_err(resp: reqwest::Response) -> String {
     let body = resp.text().await.unwrap_or_default();
     format_status_body(status, &body)
 }
+
+#[cfg(test)]
+mod desktop_v2_error_contract_tests {
+    use super::*;
+
+    #[test]
+    fn status_body_preserves_stable_api_code() {
+        let message = format_status_body(
+            reqwest::StatusCode::FORBIDDEN,
+            r#"{"error":"this device was revoked","code":"device_revoked"}"#,
+        );
+        assert_eq!(message, "code:device_revoked: this device was revoked");
+    }
+
+    #[test]
+    fn status_body_keeps_legacy_error_readable() {
+        let message = format_status_body(
+            reqwest::StatusCode::FORBIDDEN,
+            r#"{"error":"legacy denial"}"#,
+        );
+        assert_eq!(message, "backend returned 403 Forbidden: legacy denial");
+    }
+
+    #[test]
+    fn status_body_handles_empty_response() {
+        let message = format_status_body(reqwest::StatusCode::BAD_GATEWAY, "");
+        assert_eq!(message, "backend returned 502 Bad Gateway");
+    }
+}
+
