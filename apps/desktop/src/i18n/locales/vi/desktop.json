@@ -66,7 +66,11 @@
       }
     },
     "localStored": "Ở chế độ cục bộ, dữ liệu chỉ được lưu trên máy này.",
-    "localConnection": "Chế độ cục bộ không sử dụng kết nối máy chủ."
+    "localConnection": "Chế độ cục bộ không sử dụng kết nối máy chủ.",
+    "collection": "Thu thập",
+    "recentActivity": "Đã ghi cục bộ trong 15 phút qua: {{minutes}} phút",
+    "lastLocalActivity": "Bản ghi hoạt động cục bộ gần nhất: {{value}}",
+    "systemIdle": "Thời gian Windows không hoạt động: {{seconds}} giây"
   },
   "attention": {
     "deviceRevoked": "Thiết bị này đã bị thu hồi",
