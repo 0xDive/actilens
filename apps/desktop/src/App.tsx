@@ -301,6 +301,7 @@ function App() {
   }, [session]);
 
   const pastAuthGate = session != null || settings?.local_only === true;
+  const managedSession = Boolean(session?.business_id);
 
   useEffect(() => {
     if (session === undefined || settings === null) return;
@@ -309,7 +310,11 @@ function App() {
     }
   }, [session, settings, pastAuthGate]);
 
-  const inSetup = !pastAuthGate || settings?.onboarding_completed === false;
+  // Managed collection is native-owned after a server-authorized enrollment.
+  // The onboarding window may still explain permissions, but it must not pause the
+  // agent merely because React is showing that surface.
+  const inSetup =
+    !pastAuthGate || (!managedSession && settings?.onboarding_completed === false);
   useEffect(() => {
     if (session === undefined || settings === null) return;
     invoke("set_in_setup", { inSetup }).catch(() => {});
