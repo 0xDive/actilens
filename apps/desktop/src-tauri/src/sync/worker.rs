@@ -9,10 +9,12 @@
 //! Offline / logged-out / no backend → the pass is a no-op and rows stay pending,
 //! which is the whole point of local-first.
 
-use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
+
+use tauri::Emitter;
 
 use super::auth::AuthState;
 use super::client::BackendClient;
@@ -47,8 +49,14 @@ fn apply_activity_collection_policy(
 pub struct SyncStatus {
     /// Unix seconds of the last *successful* pass (0 = never).
     pub last_sync_ts: AtomicI64,
+    /// Unix seconds when the most recent sync pass started.
+    pub last_attempt_ts: AtomicI64,
+    /// Unix seconds of the last successful policy refresh.
+    pub last_policy_ts: AtomicI64,
     /// Rows still pending after the last pass.
     pub pending: AtomicU64,
+    /// Whether a pass is currently active.
+    pub syncing: AtomicBool,
     /// Last error message, if the last pass failed (empty = ok).
     pub last_error: Mutex<String>,
 }
@@ -77,6 +85,7 @@ pub struct SyncContext {
     /// Backend base URL + device_id are read fresh each pass so settings changes
     /// (and the first-run device_id) take effect without a restart.
     pub settings: Arc<crate::settings::SettingsState>,
+    pub app: tauri::AppHandle,
 }
 
 /// Spawn the worker on its own thread with a dedicated single-thread tokio runtime
@@ -102,7 +111,14 @@ async fn run(ctx: SyncContext) {
     let mut backoff = BASE_INTERVAL;
 
     loop {
-        match run_once(&ctx).await {
+        ctx.status
+            .last_attempt_ts
+            .store(crate::now_unix(), Ordering::Relaxed);
+        ctx.status.syncing.store(true, Ordering::Relaxed);
+        let outcome = run_once(&ctx).await;
+        ctx.status.syncing.store(false, Ordering::Relaxed);
+        let _ = ctx.app.emit("runtime-state-changed", ());
+        match outcome {
             PassOutcome::Ok => {
                 backoff = BASE_INTERVAL;
             }
@@ -145,6 +161,9 @@ pub async fn run_once(ctx: &SyncContext) -> PassOutcome {
 
     match client.fetch_policy(business_id.as_deref()).await {
         Ok(policy) => {
+            ctx.status
+                .last_policy_ts
+                .store(crate::now_unix(), Ordering::Relaxed);
             let previous = ctx.settings.managed.lock().unwrap().monitoring_enabled;
             let enabled = if policy.managed {
                 client

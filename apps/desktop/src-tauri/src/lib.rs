@@ -119,6 +119,9 @@ pub fn run() {
             commands::logout,
             commands::current_session,
             commands::sync_status,
+            commands::runtime_state,
+            commands::runtime_diagnostics,
+            commands::web_dashboard_url,
             commands::apply_org_policy,
             commands::capture_policy,
             commands::privacy_apps,
@@ -230,6 +233,7 @@ pub fn run() {
                 status,
                 control: control.clone(),
                 settings: settings_state,
+                app: app.handle().clone(),
             });
 
             // Manage remaining state so commands can reach the DB.

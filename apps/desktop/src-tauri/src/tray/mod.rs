@@ -315,6 +315,7 @@ pub fn refresh(app: &AppHandle) {
     // Broadcast to the UI only when the state actually changes.
     if LAST_STATE.swap(state.code(), Ordering::Relaxed) != state.code() {
         let _ = app.emit("tracking-state", state.label());
+        let _ = app.emit("runtime-state-changed", ());
     }
 
     let app2 = app.clone();

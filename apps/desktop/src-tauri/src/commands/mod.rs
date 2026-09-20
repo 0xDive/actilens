@@ -157,6 +157,7 @@ pub fn set_settings(
     // state, so preserve both instead of letting serde defaults reset them.
     let current = state.current.lock().unwrap().clone();
     value.locale = current.locale;
+    value.device_id = current.device_id.clone();
     value.last_managed_business_id = current.last_managed_business_id.clone();
     value.collection_scope_dirty =
         current.collection_scope_dirty || current.local_only || value.local_only;
@@ -444,6 +445,11 @@ fn backend_url() -> String {
 #[tauri::command]
 pub fn signup_url() -> String {
     format!("{}/admin/signup", backend_url().trim_end_matches('/'))
+}
+
+#[tauri::command]
+pub fn web_dashboard_url() -> String {
+    format!("{}/admin/", backend_url().trim_end_matches('/'))
 }
 
 /// `GET /v1/public/businesses` — the login picker's list of companies/owners.
@@ -825,7 +831,10 @@ pub async fn current_session(
 #[derive(Serialize)]
 pub struct SyncStatusView {
     pub last_sync_ts: i64,
+    pub last_attempt_ts: i64,
+    pub last_policy_ts: i64,
     pub pending: u64,
+    pub syncing: bool,
     pub last_error: String,
 }
 
@@ -835,8 +844,318 @@ pub fn sync_status(status: State<Arc<crate::sync::worker::SyncStatus>>) -> SyncS
     use std::sync::atomic::Ordering;
     SyncStatusView {
         last_sync_ts: status.last_sync_ts.load(Ordering::Relaxed),
+        last_attempt_ts: status.last_attempt_ts.load(Ordering::Relaxed),
+        last_policy_ts: status.last_policy_ts.load(Ordering::Relaxed),
         pending: status.pending.load(Ordering::Relaxed),
+        syncing: status.syncing.load(Ordering::Relaxed),
         last_error: status.last_error.lock().unwrap().clone(),
+    }
+}
+
+#[derive(Serialize)]
+pub struct RuntimeStateView {
+    pub agent: String,
+    pub connection: String,
+    pub sync: String,
+    pub device: String,
+    pub reason: String,
+    pub last_sync_ts: i64,
+    pub last_attempt_ts: i64,
+    pub last_policy_ts: i64,
+    pub pending: u64,
+    pub syncing: bool,
+    pub last_error: String,
+    pub permission_attention: usize,
+    pub device_id: String,
+    pub app_version: String,
+    pub os: String,
+    pub arch: String,
+    pub hostname: String,
+    pub email: String,
+    pub business_id: String,
+    pub local_only: bool,
+    pub managed: bool,
+    pub pause_allowed: bool,
+    pub browser_bridge_ready: bool,
+}
+
+fn runtime_reason(last_error: &str) -> &'static str {
+    let lower = last_error.to_ascii_lowercase();
+    if lower.contains("device was revoked") || lower.contains("device_revoked") {
+        "device_revoked"
+    } else if lower.contains("member_blocked") {
+        "member_blocked"
+    } else if lower.contains("member_removed") {
+        "member_removed"
+    } else if lower.contains("organization_archived") {
+        "organization_archived"
+    } else if lower.contains("organization_deletion_pending") {
+        "organization_deletion_pending"
+    } else if lower.contains("session revoked") || lower.contains("session_revoked") {
+        "session_revoked"
+    } else if lower.contains("network error")
+        || lower.contains("connection")
+        || lower.contains("timed out")
+        || lower.contains("timeout")
+    {
+        "network_error"
+    } else if !last_error.trim().is_empty() {
+        "sync_error"
+    } else {
+        ""
+    }
+}
+
+fn runtime_hostname() -> String {
+    std::env::var("COMPUTERNAME")
+        .or_else(|_| std::env::var("HOSTNAME"))
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| "This device".to_string())
+}
+
+#[tauri::command]
+pub fn runtime_state(
+    app: tauri::AppHandle,
+    auth: State<Arc<AuthState>>,
+    settings: State<Arc<crate::settings::SettingsState>>,
+    control: State<Arc<TrackerControl>>,
+    status: State<Arc<crate::sync::worker::SyncStatus>>,
+    db: State<Arc<Db>>,
+    browser: State<crate::server::BrowserLink>,
+) -> RuntimeStateView {
+    use std::sync::atomic::Ordering;
+
+    let local = settings.current.lock().unwrap().clone();
+    let managed = *settings.managed.lock().unwrap();
+    let session = auth.session();
+    let last_error = status.last_error.lock().unwrap().clone();
+    let reason = runtime_reason(&last_error).to_string();
+    let last_sync_ts = status.last_sync_ts.load(Ordering::Relaxed);
+    let last_attempt_ts = status.last_attempt_ts.load(Ordering::Relaxed);
+    let last_policy_ts = status.last_policy_ts.load(Ordering::Relaxed);
+    let syncing = status.syncing.load(Ordering::Relaxed);
+    let pending = db
+        .pending_count()
+        .map(|value| value.max(0) as u64)
+        .unwrap_or_else(|_| status.pending.load(Ordering::Relaxed));
+
+    let paused = control.effective_paused();
+    let org_enabled = control.org_monitoring_enabled.load(Ordering::Relaxed);
+    let agent = if !org_enabled && managed.managed {
+        "blocked"
+    } else if paused {
+        "paused"
+    } else if platform::idle_seconds()
+        >= control.idle_threshold_s.load(Ordering::Relaxed) as f64
+    {
+        "idle"
+    } else {
+        "running"
+    };
+
+    let device = if local.local_only {
+        "local"
+    } else if session.is_none() {
+        "enrollment_required"
+    } else if reason == "device_revoked" {
+        "revoked"
+    } else if matches!(
+        reason.as_str(),
+        "member_blocked"
+            | "member_removed"
+            | "organization_archived"
+            | "organization_deletion_pending"
+    ) || (!org_enabled && managed.managed)
+    {
+        "blocked"
+    } else {
+        "active"
+    };
+
+    let connection = if local.local_only {
+        "local"
+    } else if session.is_none() {
+        "signed_out"
+    } else if reason == "network_error" {
+        "offline"
+    } else if syncing || last_sync_ts > 0 || last_error.is_empty() {
+        "online"
+    } else {
+        "checking"
+    };
+
+    let sync_state = if local.local_only {
+        "local"
+    } else if session.is_none() {
+        "signed_out"
+    } else if syncing {
+        "syncing"
+    } else if !last_error.is_empty() {
+        "error"
+    } else if pending > 0 {
+        "queued"
+    } else {
+        "synced"
+    };
+
+    let permissions = platform::capability_rows(&local);
+    let permission_attention = permissions
+        .iter()
+        .filter(|cap| cap.required && cap.state != "granted")
+        .count();
+
+    RuntimeStateView {
+        agent: agent.into(),
+        connection: connection.into(),
+        sync: sync_state.into(),
+        device: device.into(),
+        reason,
+        last_sync_ts,
+        last_attempt_ts,
+        last_policy_ts,
+        pending,
+        syncing,
+        last_error,
+        permission_attention,
+        device_id: local.device_id,
+        app_version: app.package_info().version.to_string(),
+        os: std::env::consts::OS.to_string(),
+        arch: std::env::consts::ARCH.to_string(),
+        hostname: runtime_hostname(),
+        email: session.as_ref().map(|s| s.email.clone()).unwrap_or_default(),
+        business_id: session
+            .as_ref()
+            .and_then(|s| s.business_id.clone())
+            .unwrap_or_default(),
+        local_only: local.local_only,
+        managed: managed.managed,
+        pause_allowed: !managed.managed,
+        browser_bridge_ready: browser.port.is_some() && !browser.token.is_empty(),
+    }
+}
+
+#[derive(Serialize)]
+pub struct DiagnosticCheck {
+    pub key: String,
+    pub state: String,
+    pub detail: String,
+}
+
+#[derive(Serialize)]
+pub struct DiagnosticsReport {
+    pub generated_at: i64,
+    pub checks: Vec<DiagnosticCheck>,
+}
+
+#[tauri::command]
+pub async fn runtime_diagnostics(
+    auth: State<'_, Arc<AuthState>>,
+    settings: State<'_, Arc<crate::settings::SettingsState>>,
+    control: State<'_, Arc<TrackerControl>>,
+    status: State<'_, Arc<crate::sync::worker::SyncStatus>>,
+    db: State<'_, Arc<Db>>,
+    browser: State<'_, crate::server::BrowserLink>,
+) -> DiagnosticsReport {
+    use std::sync::atomic::Ordering;
+
+    let current = settings.current.lock().unwrap().clone();
+    let permissions = platform::capability_rows(&current);
+    let missing = permissions
+        .iter()
+        .filter(|cap| cap.required && cap.state != "granted")
+        .count();
+
+    let mut checks = Vec::new();
+    checks.push(DiagnosticCheck {
+        key: "local_database".into(),
+        state: if db.pending_count().is_ok() { "ok" } else { "error" }.into(),
+        detail: "Local data store".into(),
+    });
+    checks.push(DiagnosticCheck {
+        key: "session".into(),
+        state: if current.local_only || auth.session().is_some() { "ok" } else { "warning" }.into(),
+        detail: if current.local_only {
+            "Local mode".into()
+        } else if auth.session().is_some() {
+            "Signed in".into()
+        } else {
+            "Sign-in required".into()
+        },
+    });
+    checks.push(DiagnosticCheck {
+        key: "device".into(),
+        state: if current.device_id.is_empty() { "error" } else { "ok" }.into(),
+        detail: if current.device_id.is_empty() {
+            "Device identifier is missing".into()
+        } else {
+            current.device_id.clone()
+        },
+    });
+    checks.push(DiagnosticCheck {
+        key: "permissions".into(),
+        state: if missing == 0 { "ok" } else { "warning" }.into(),
+        detail: format!("{missing} required permission(s) need attention"),
+    });
+    checks.push(DiagnosticCheck {
+        key: "collector".into(),
+        state: if control.effective_paused() { "warning" } else { "ok" }.into(),
+        detail: if control.effective_paused() {
+            "Collector is paused".into()
+        } else {
+            "Collector is running".into()
+        },
+    });
+
+    let sync_error = status.last_error.lock().unwrap().clone();
+    checks.push(DiagnosticCheck {
+        key: "uploader".into(),
+        state: if sync_error.is_empty() { "ok" } else { "warning" }.into(),
+        detail: if sync_error.is_empty() {
+            "Uploader is healthy".into()
+        } else {
+            sync_error.clone()
+        },
+    });
+    checks.push(DiagnosticCheck {
+        key: "browser_bridge".into(),
+        state: if browser.port.is_some() { "ok" } else { "warning" }.into(),
+        detail: browser
+            .port
+            .map(|port| format!("Local bridge listening on 127.0.0.1:{port}"))
+            .unwrap_or_else(|| "Browser bridge is not listening".into()),
+    });
+
+    if !current.local_only {
+        let health_url = format!("{}/healthz", backend_url().trim_end_matches('/'));
+        let backend_ok = match reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()
+        {
+            Ok(client) => client
+                .get(health_url)
+                .send()
+                .await
+                .map(|response| response.status().is_success())
+                .unwrap_or(false),
+            Err(_) => false,
+        };
+        checks.push(DiagnosticCheck {
+            key: "backend".into(),
+            state: if backend_ok { "ok" } else { "warning" }.into(),
+            detail: if backend_ok {
+                "Server is reachable".into()
+            } else {
+                "Server is not reachable".into()
+            },
+        });
+    }
+
+    let _ = status.last_attempt_ts.load(Ordering::Relaxed);
+
+    DiagnosticsReport {
+        generated_at: crate::now_unix(),
+        checks,
     }
 }
 
