@@ -736,7 +736,7 @@ pub async fn current_session(
     control: State<'_, Arc<TrackerControl>>,
     db: State<'_, Arc<Db>>,
 ) -> Result<Option<Session>, String> {
-    if let Some(mut session) = auth.session() {
+    if let Some(session) = auth.session() {
         if let Some(business_id) = session.business_id.clone().as_deref() {
             let suppress = settings
                 .current
@@ -1100,7 +1100,7 @@ pub async fn runtime_diagnostics(
     status: State<'_, Arc<crate::sync::worker::SyncStatus>>,
     db: State<'_, Arc<Db>>,
     browser: State<'_, crate::server::BrowserLink>,
-) -> DiagnosticsReport {
+) -> Result<DiagnosticsReport, String> {
     use std::sync::atomic::Ordering;
 
     let current = settings.current.lock().unwrap().clone();
@@ -1197,10 +1197,10 @@ pub async fn runtime_diagnostics(
 
     let _ = status.last_attempt_ts.load(Ordering::Relaxed);
 
-    DiagnosticsReport {
+    Ok(DiagnosticsReport {
         generated_at: crate::now_unix(),
         checks,
-    }
+    })
 }
 
 // ---------- export ----------
