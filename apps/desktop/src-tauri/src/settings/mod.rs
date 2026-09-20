@@ -89,6 +89,10 @@ pub struct Settings {
     /// restart never silently re-enables monitoring that an administrator disabled.
     #[serde(default = "default_true")]
     pub org_monitoring_enabled: bool,
+    /// Unix seconds when a managed policy was last successfully confirmed by the
+    /// backend. This metadata survives restarts; policy contents remain internal.
+    #[serde(default)]
+    pub last_policy_sync_ts: i64,
 }
 
 fn default_true() -> bool {
@@ -192,6 +196,7 @@ impl Default for Settings {
             device_id: String::new(),
             locale: default_locale(),
             org_monitoring_enabled: true,
+            last_policy_sync_ts: 0,
         }
     }
 }
@@ -315,6 +320,7 @@ pub fn apply_managed_policy(
         let mut settings = state.current.lock().unwrap().clone();
         settings.local_only = false;
         settings.org_monitoring_enabled = monitoring_enabled;
+        settings.last_policy_sync_ts = crate::now_unix();
         settings.collect_app_activity = policy.collect_app_activity;
         settings.collect_window_titles = policy.collect_window_titles;
         settings.collect_browser_activity = policy.collect_browser_activity;

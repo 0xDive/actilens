@@ -132,7 +132,8 @@
       "collector": "Pengumpul",
       "uploader": "Pengunggah",
       "browser_bridge": "Jembatan browser",
-      "backend": "Server"
+      "backend": "Server",
+      "policy_cache": "Cache konfigurasi"
     }
   },
   "settings": {

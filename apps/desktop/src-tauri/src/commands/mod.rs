@@ -158,6 +158,7 @@ pub fn set_settings(
     let current = state.current.lock().unwrap().clone();
     value.locale = current.locale;
     value.device_id = current.device_id.clone();
+    value.last_policy_sync_ts = current.last_policy_sync_ts;
     value.last_managed_business_id = current.last_managed_business_id.clone();
     value.collection_scope_dirty =
         current.collection_scope_dirty || current.local_only || value.local_only;
@@ -972,7 +973,10 @@ pub fn runtime_state(
     let reason = runtime_reason(&last_error).to_string();
     let last_sync_ts = status.last_sync_ts.load(Ordering::Relaxed);
     let last_attempt_ts = status.last_attempt_ts.load(Ordering::Relaxed);
-    let last_policy_ts = status.last_policy_ts.load(Ordering::Relaxed);
+    let last_policy_ts = status
+        .last_policy_ts
+        .load(Ordering::Relaxed)
+        .max(local.last_policy_sync_ts);
     let syncing = status.syncing.load(Ordering::Relaxed);
     let pending = db
         .pending_count()
@@ -1150,6 +1154,18 @@ pub async fn runtime_diagnostics(
             "Collector is running".into()
         },
     });
+
+    if !current.local_only {
+        checks.push(DiagnosticCheck {
+            key: "policy_cache".into(),
+            state: if current.last_policy_sync_ts > 0 { "ok" } else { "warning" }.into(),
+            detail: if current.last_policy_sync_ts > 0 {
+                format!("Last confirmed at unix {}", current.last_policy_sync_ts)
+            } else {
+                "No server-confirmed policy has been cached yet".into()
+            },
+        });
+    }
 
     let sync_error = status.last_error.lock().unwrap().clone();
     checks.push(DiagnosticCheck {

@@ -132,7 +132,8 @@
       "collector": "Bộ thu thập",
       "uploader": "Bộ tải lên",
       "browser_bridge": "Cầu nối trình duyệt",
-      "backend": "Máy chủ"
+      "backend": "Máy chủ",
+      "policy_cache": "Bộ nhớ đệm cấu hình"
     }
   },
   "settings": {

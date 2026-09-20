@@ -132,7 +132,8 @@
       "collector": "Recopilador",
       "uploader": "Subida",
       "browser_bridge": "Puente del navegador",
-      "backend": "Servidor"
+      "backend": "Servidor",
+      "policy_cache": "Caché de configuración"
     }
   },
   "settings": {

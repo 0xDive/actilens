@@ -132,7 +132,8 @@
       "collector": "采集器",
       "uploader": "上传器",
       "browser_bridge": "浏览器桥接",
-      "backend": "服务器"
+      "backend": "服务器",
+      "policy_cache": "配置缓存"
     }
   },
   "settings": {

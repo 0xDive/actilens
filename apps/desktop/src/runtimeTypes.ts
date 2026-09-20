@@ -28,6 +28,7 @@ export type AppSettings = {
   device_id: string;
   locale: string;
   org_monitoring_enabled: boolean;
+  last_policy_sync_ts: number;
 };
 
 export type CaptureManaged = {

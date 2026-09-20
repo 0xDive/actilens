@@ -132,7 +132,8 @@
       "collector": "Collecteur",
       "uploader": "Envoi",
       "browser_bridge": "Pont navigateur",
-      "backend": "Serveur"
+      "backend": "Serveur",
+      "policy_cache": "Cache de configuration"
     }
   },
   "settings": {

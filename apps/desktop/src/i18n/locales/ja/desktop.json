@@ -132,7 +132,8 @@
       "collector": "コレクター",
       "uploader": "アップローダー",
       "browser_bridge": "ブラウザーブリッジ",
-      "backend": "サーバー"
+      "backend": "サーバー",
+      "policy_cache": "設定キャッシュ"
     }
   },
   "settings": {

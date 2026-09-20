@@ -132,7 +132,8 @@
       "collector": "Сборщик",
       "uploader": "Отправка данных",
       "browser_bridge": "Связь с браузером",
-      "backend": "Сервер"
+      "backend": "Сервер",
+      "policy_cache": "Кэш конфигурации"
     }
   },
   "settings": {
