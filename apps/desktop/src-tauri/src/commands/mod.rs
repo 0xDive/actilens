@@ -528,6 +528,7 @@ pub async fn current_session(
                 let _ = crate::settings::save(&settings.path, &current);
             }
             control.managed.store(true, Ordering::Relaxed);
+            control.in_setup.store(false, Ordering::Relaxed);
             {
                 let mut managed = settings.managed.lock().unwrap();
                 managed.managed = true;
@@ -621,6 +622,7 @@ pub async fn current_session(
         }
     }
     control.managed.store(true, Ordering::Relaxed);
+    control.in_setup.store(false, Ordering::Relaxed);
     match client.fetch_policy(session.business_id.as_deref()).await {
         Ok(policy) => {
             let previous = settings.managed.lock().unwrap().monitoring_enabled;
