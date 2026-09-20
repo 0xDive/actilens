@@ -33,6 +33,14 @@ for path in REQUIRED:
     if not path.is_file():
         raise SystemExit(f"Desktop v2 contract failed: missing {path.relative_to(ROOT)}")
 
+for locale in ("en", "ru", "zh", "ja", "vi", "id", "fr", "es"):
+    desktop_locale = DESKTOP / "i18n" / "locales" / locale / "desktop.json"
+    if not desktop_locale.is_file():
+        raise SystemExit(
+            "Desktop v2 contract failed: missing locale "
+            f"{desktop_locale.relative_to(ROOT)}"
+        )
+
 for path in REMOVED_LEGACY_UI:
     if path.exists():
         raise SystemExit(

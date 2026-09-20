@@ -473,6 +473,7 @@ mod tests {
         assert!(status.monitoring_enabled);
 
         let persisted = state.current.lock().unwrap().clone();
+        assert!(persisted.last_policy_sync_ts > 0);
         assert!(!persisted.collect_app_activity);
         assert!(!persisted.collect_window_titles);
         assert!(!persisted.collect_browser_activity);
@@ -496,6 +497,7 @@ mod tests {
         );
 
         let reloaded = load(&path);
+        assert_eq!(reloaded.last_policy_sync_ts, persisted.last_policy_sync_ts);
         assert!(!reloaded.collect_app_activity);
         assert!(!reloaded.collect_window_titles);
         assert!(!reloaded.collect_browser_activity);
