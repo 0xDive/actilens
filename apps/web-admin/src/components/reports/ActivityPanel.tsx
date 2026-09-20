@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ActivityResponse } from "../../api/types";
 import { Card, EmptyState } from "../ds";
@@ -14,6 +15,7 @@ const hourLabel = (timestamp: number) =>
 
 export function ActivityPanel({ data }: { data: ActivityResponse }) {
   const { t } = useTranslation("reports");
+  const [hoveredSegment, setHoveredSegment] = useState<number | null>(null);
   const breakdown = [...data.breakdown].sort((a, b) => b.duration_s - a.duration_s);
 
   if (breakdown.length === 0) {
@@ -106,28 +108,56 @@ export function ActivityPanel({ data }: { data: ActivityResponse }) {
 
         {blocks.length > 0 ? (
           <>
-            <div className="report-timeline">
-              {segments.map((segment, index) => {
-                const title =
-                  segment.kind === "app"
-                    ? `${segment.app} · ${fmtHM(segment.duration)}`
-                    : `${t("activity.idle")} · ${fmtHM(segment.duration)}`;
-                return (
-                  <span
-                    key={index}
-                    title={title}
-                    className={
-                      segment.kind === "app"
-                        ? `report-timeline__segment report-timeline__segment--app report-series--${appOrder.get(segment.app) ?? 0}`
-                        : "report-timeline__segment report-timeline__segment--idle"
-                    }
-                    style={{
-                      left: `${segment.left}%`,
-                      width: `${Math.max(0.2, segment.width)}%`,
-                    }}
-                  />
+            <div className="report-timeline-wrap">
+              <div
+                className={`report-timeline ${hoveredSegment !== null ? "has-hover" : ""}`}
+                onMouseLeave={() => setHoveredSegment(null)}
+              >
+                {segments.map((segment, index) => {
+                  const title =
+                    segment.kind === "app"
+                      ? `${segment.app} · ${fmtHM(segment.duration)}`
+                      : `${t("activity.idle")} · ${fmtHM(segment.duration)}`;
+                  return (
+                    <span
+                      key={index}
+                      tabIndex={0}
+                      aria-label={title}
+                      onMouseEnter={() => setHoveredSegment(index)}
+                      onFocus={() => setHoveredSegment(index)}
+                      onBlur={() => setHoveredSegment(null)}
+                      className={
+                        segment.kind === "app"
+                          ? `report-timeline__segment report-timeline__segment--app report-series--${appOrder.get(segment.app) ?? 0} ${hoveredSegment === index ? "is-hovered" : ""}`
+                          : `report-timeline__segment report-timeline__segment--idle ${hoveredSegment === index ? "is-hovered" : ""}`
+                      }
+                      style={{
+                        left: `${segment.left}%`,
+                        width: `${Math.max(0.2, segment.width)}%`,
+                      }}
+                    />
+                  );
+                })}
+              </div>
+              {hoveredSegment !== null && segments[hoveredSegment] && (() => {
+                const segment = segments[hoveredSegment];
+                const label =
+                  segment.kind === "app" ? segment.app : t("activity.idle");
+                const anchor = Math.min(
+                  96,
+                  Math.max(4, segment.left + Math.max(0.2, segment.width) / 2),
                 );
-              })}
+                return (
+                  <div
+                    className="report-timeline-tooltip"
+                    role="tooltip"
+                    style={{ left: `${anchor}%` }}
+                  >
+                    <strong>{label}</strong>
+                    <span>{fmtHM(segment.duration)}</span>
+                  </div>
+                );
+              })()}
             </div>
             <div className="report-timeline-axis">
               {ticks.map((tick) => (
