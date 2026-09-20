@@ -289,6 +289,20 @@ function App() {
 
   const pastAuthGate = session != null || settings?.local_only === true;
 
+  // A session scoped to an organization is managed even before the first policy
+  // refresh finishes. This prevents the personal capture-config flow from flashing
+  // during managed startup/offline restore.
+  const effectiveManaged: CaptureManaged | null =
+    captureManaged ??
+    (session?.business_id
+      ? {
+          managed: true,
+          allow_employee_override: false,
+          family: false,
+          monitoring_enabled: settings?.org_monitoring_enabled ?? false,
+        }
+      : null);
+
   useEffect(() => {
     if (session === undefined || settings === null) return;
     if (!pastAuthGate && settings.onboarding_completed) {
@@ -396,7 +410,7 @@ function App() {
     return (
       <Onboarding
         settings={settings}
-        captureManaged={captureManaged}
+        captureManaged={effectiveManaged}
         onChange={(patch) => void updateSettings(patch)}
         onFinish={() =>
           void updateSettings({ onboarding_completed: true, consented: true })
