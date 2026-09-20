@@ -943,7 +943,10 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
                 value={search}
                 placeholder={t("audit.searchPlaceholder")}
                 aria-label={t("audit.search")}
-                onChange={(event) => setSearch(event.currentTarget.value)}
+                onChange={(event) => {
+                  setSelectedEventId(null);
+                  setSearch(event.currentTarget.value);
+                }}
               />
               <SelectMenu
                 id="audit-user-filter"
@@ -952,6 +955,7 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
                 options={userOptions}
                 menuWidth={280}
                 onChange={(value) => {
+                  setSelectedEventId(null);
                   setPage(0);
                   setUserFilter(value);
                 }}
@@ -963,6 +967,7 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
                 options={actionOptions}
                 menuWidth={320}
                 onChange={(value) => {
+                  setSelectedEventId(null);
                   setPage(0);
                   setActionFilter(value);
                 }}
@@ -1030,7 +1035,10 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
                   variant="secondary"
                   size="sm"
                   disabled={safePage === 0}
-                  onClick={() => setPage((current) => Math.max(0, current - 1))}
+                  onClick={() => {
+                    setSelectedEventId(null);
+                    setPage((current) => Math.max(0, current - 1));
+                  }}
                 >
                   {t("audit.previous")}
                 </Button>
@@ -1044,9 +1052,10 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
                   variant="secondary"
                   size="sm"
                   disabled={safePage >= pageCount - 1}
-                  onClick={() =>
-                    setPage((current) => Math.min(pageCount - 1, current + 1))
-                  }
+                  onClick={() => {
+                    setSelectedEventId(null);
+                    setPage((current) => Math.min(pageCount - 1, current + 1));
+                  }}
                 >
                   {t("audit.next")}
                 </Button>
