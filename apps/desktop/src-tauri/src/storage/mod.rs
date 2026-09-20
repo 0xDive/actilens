@@ -337,6 +337,21 @@ impl Db {
         Ok(rows)
     }
 
+    /// Compact collector-health summary for the desktop runtime UI.
+    /// Returns (active seconds written since from_ts, latest activity end timestamp).
+    pub fn activity_summary_since(&self, from_ts: i64) -> Result<(i64, i64)> {
+        let conn = self.conn.lock().unwrap();
+        conn.query_row(
+            "SELECT
+                 COALESCE(SUM(duration_s), 0),
+                 COALESCE(MAX(ts + duration_s), 0)
+             FROM activity_sample
+             WHERE ts >= ?1",
+            params![from_ts],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+    }
+
     /// Keystroke buckets in `[from_ts, to_ts)` as `(ts_bucket, count)`.
     pub fn keystrokes_between(&self, from_ts: i64, to_ts: i64) -> Result<Vec<(i64, i64)>> {
         let conn = self.conn.lock().unwrap();
