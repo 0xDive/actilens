@@ -670,8 +670,9 @@ pub async fn complete_mfa_login(
     .await
 }
 
-/// Clear the stored session and release any organization-controlled
-/// collection gate. A future organization login will fetch its own policy again.
+/// Clear the stored session. Managed collection remains fail-closed until a
+/// subsequent authenticated organization login installs a fresh server-confirmed
+/// state. Local-only mode never uses this command.
 #[tauri::command]
 pub fn logout(
     auth: State<Arc<AuthState>>,
@@ -682,14 +683,19 @@ pub fn logout(
     control.in_setup.store(true, Ordering::Relaxed);
     control
         .org_monitoring_enabled
-        .store(true, Ordering::Relaxed);
+        .store(false, Ordering::Relaxed);
+    control.managed.store(false, Ordering::Relaxed);
     {
         let mut current = settings.current.lock().unwrap();
-        current.org_monitoring_enabled = true;
+        current.local_only = false;
+        current.org_monitoring_enabled = false;
+        current.collection_scope_dirty = true;
         crate::settings::save(&settings.path, &current).map_err(err)?;
     }
-    *settings.managed.lock().unwrap() = crate::settings::CaptureManaged::default();
-    control.managed.store(false, Ordering::Relaxed);
+    *settings.managed.lock().unwrap() = crate::settings::CaptureManaged {
+        monitoring_enabled: false,
+        ..crate::settings::CaptureManaged::default()
+    };
     Ok(())
 }
 
