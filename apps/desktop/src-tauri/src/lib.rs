@@ -204,9 +204,9 @@ pub fn run() {
                 });
             }
 
-            // Permissions are NOT requested at startup — the UI detects missing ones
-            // and routes the user to the Permissions screen, where every request is
-            // user-initiated (see App.tsx startup check).
+            // Permissions are never requested automatically. Home can surface
+            // attention, while every OS prompt remains explicitly user-initiated
+            // from the Permissions screen.
 
             // Start the trackers, keyboard counter, screenshots, retention cleanup.
             let shots_dir = data_dir.join("screenshots");

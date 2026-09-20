@@ -979,10 +979,11 @@ pub fn runtime_state(
         "signed_out"
     } else if reason == "network_error" {
         "offline"
-    } else if syncing || last_sync_ts > 0 || last_error.is_empty() {
-        "online"
-    } else {
+    } else if last_attempt_ts == 0 && last_sync_ts == 0 {
         "checking"
+    } else {
+        // Non-network server/policy errors still prove that the server was reached.
+        "online"
     };
 
     let sync_state = if local.local_only {

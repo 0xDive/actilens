@@ -63,7 +63,8 @@
         "title": "Collection is unavailable",
         "body": "The organization or membership currently prevents collection on this computer."
       }
-    }
+    },
+    "localStored": "Data stays on this computer in local mode."
   },
   "attention": {
     "deviceRevoked": "This device has been revoked",
@@ -109,7 +110,8 @@
     "pendingCount": "{{count}} waiting",
     "browserBridge": "Browser bridge",
     "ready": "Ready",
-    "notReady": "Not available"
+    "notReady": "Not available",
+    "localStorage": "Stored locally"
   },
   "diagnostics": {
     "title": "Diagnostics",

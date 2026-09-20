@@ -93,9 +93,11 @@ export function Home({
             </div>
           </div>
           <p>
-            {state.pending > 0
-              ? t("home.pending", { count: state.pending })
-              : t("home.noPending")}
+            {state.local_only
+              ? t("home.localStored")
+              : state.pending > 0
+                ? t("home.pending", { count: state.pending })
+                : t("home.noPending")}
           </p>
         </section>
       </div>

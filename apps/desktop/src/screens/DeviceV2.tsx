@@ -100,7 +100,16 @@ export function Device() {
           <div className="desktop-v2-data-list">
             <div><span>{t("device.connection")}</span><strong>{t(`connection.${runtime.connection}`)}</strong></div>
             <div><span>{t("device.lastSync")}</span><strong>{formatTime(runtime.last_sync_ts, t("time.never"))}</strong></div>
-            <div><span>{t("device.queue")}</span><strong>{runtime.pending ? t("device.pendingCount", { count: runtime.pending }) : t("device.allSynced")}</strong></div>
+            <div>
+              <span>{t("device.queue")}</span>
+              <strong>
+                {runtime.local_only
+                  ? t("device.localStorage")
+                  : runtime.pending
+                    ? t("device.pendingCount", { count: runtime.pending })
+                    : t("device.allSynced")}
+              </strong>
+            </div>
             <div><span>{t("device.browserBridge")}</span><strong>{runtime.browser_bridge_ready ? t("device.ready") : t("device.notReady")}</strong></div>
           </div>
         </section>
