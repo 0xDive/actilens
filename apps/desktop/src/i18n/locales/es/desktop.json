@@ -66,7 +66,11 @@
       }
     },
     "localStored": "En modo local, los datos permanecen en este equipo.",
-    "localConnection": "El modo local no utiliza conexión con el servidor."
+    "localConnection": "El modo local no utiliza conexión con el servidor.",
+    "collection": "Captura",
+    "recentActivity": "Registrado localmente en los últimos 15 min: {{minutes}} min",
+    "lastLocalActivity": "Último registro de actividad local: {{value}}",
+    "systemIdle": "Inactividad de Windows: {{seconds}} s"
   },
   "attention": {
     "deviceRevoked": "Este dispositivo ha sido revocado",
