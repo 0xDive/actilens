@@ -66,7 +66,11 @@
       }
     },
     "localStored": "ローカルモードではデータはこのコンピューターに保存されます。",
-    "localConnection": "ローカルモードではサーバー接続を使用しません。"
+    "localConnection": "ローカルモードではサーバー接続を使用しません。",
+    "collection": "収集",
+    "recentActivity": "直近15分のローカル記録: {{minutes}}分",
+    "lastLocalActivity": "最後のローカル活動記録: {{value}}",
+    "systemIdle": "Windows のアイドル時間: {{seconds}}秒"
   },
   "attention": {
     "deviceRevoked": "このデバイスは無効化されています",
