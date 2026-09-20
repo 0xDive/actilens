@@ -66,7 +66,11 @@
       }
     },
     "localStored": "Dalam mode lokal, data tetap tersimpan di komputer ini.",
-    "localConnection": "Mode lokal tidak menggunakan koneksi server."
+    "localConnection": "Mode lokal tidak menggunakan koneksi server.",
+    "collection": "Pengumpulan",
+    "recentActivity": "Terekam lokal dalam 15 menit terakhir: {{minutes}} mnt",
+    "lastLocalActivity": "Rekaman aktivitas lokal terakhir: {{value}}",
+    "systemIdle": "Waktu idle Windows: {{seconds}} dtk"
   },
   "attention": {
     "deviceRevoked": "Perangkat ini telah dicabut",
