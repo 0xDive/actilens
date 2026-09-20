@@ -326,13 +326,6 @@
   border-color: color-mix(in srgb, var(--warn) 28%, var(--border-subtle));
 }
 
-.desktop-v2-tech-note {
-  max-width: 760px;
-  overflow-wrap: anywhere;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px;
-}
-
 .desktop-v2-data-list {
   margin-top: 12px;
   display: grid;

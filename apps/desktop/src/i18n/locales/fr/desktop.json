@@ -64,7 +64,8 @@
         "body": "L’état actuel de l’organisation ou du membre empêche la collecte sur cet ordinateur."
       }
     },
-    "localStored": "En mode local, les données restent sur cet ordinateur."
+    "localStored": "En mode local, les données restent sur cet ordinateur.",
+    "localConnection": "Le mode local n’utilise pas de connexion au serveur."
   },
   "attention": {
     "deviceRevoked": "Cet appareil a été révoqué",

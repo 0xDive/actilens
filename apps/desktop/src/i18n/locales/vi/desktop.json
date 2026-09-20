@@ -64,7 +64,8 @@
         "body": "Trạng thái hiện tại của tổ chức hoặc thành viên không cho phép thu thập trên máy này."
       }
     },
-    "localStored": "Ở chế độ cục bộ, dữ liệu chỉ được lưu trên máy này."
+    "localStored": "Ở chế độ cục bộ, dữ liệu chỉ được lưu trên máy này.",
+    "localConnection": "Chế độ cục bộ không sử dụng kết nối máy chủ."
   },
   "attention": {
     "deviceRevoked": "Thiết bị này đã bị thu hồi",

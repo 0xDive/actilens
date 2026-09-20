@@ -137,7 +137,12 @@ export function Device() {
           <span className="desktop-v2-kicker">{t("device.connectionSync")}</span>
           <div className="desktop-v2-data-list">
             <div><span>{t("device.connection")}</span><strong>{t(`connection.${runtime.connection}`)}</strong></div>
-            <div><span>{t("device.lastSync")}</span><strong>{formatTime(runtime.last_sync_ts, t("time.never"))}</strong></div>
+            {!runtime.local_only && (
+              <div>
+                <span>{t("device.lastSync")}</span>
+                <strong>{formatTime(runtime.last_sync_ts, t("time.never"))}</strong>
+              </div>
+            )}
             <div>
               <span>{t("device.queue")}</span>
               <strong>

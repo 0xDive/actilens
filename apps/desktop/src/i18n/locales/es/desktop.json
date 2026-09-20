@@ -64,7 +64,8 @@
         "body": "El estado actual de la organización o del miembro impide la recopilación en este equipo."
       }
     },
-    "localStored": "En modo local, los datos permanecen en este equipo."
+    "localStored": "En modo local, los datos permanecen en este equipo.",
+    "localConnection": "El modo local no utiliza conexión con el servidor."
   },
   "attention": {
     "deviceRevoked": "Este dispositivo ha sido revocado",

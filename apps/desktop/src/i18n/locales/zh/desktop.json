@@ -64,7 +64,8 @@
         "body": "当前组织或成员状态不允许此电脑进行采集。"
       }
     },
-    "localStored": "本地模式下，数据仅保存在此电脑。"
+    "localStored": "本地模式下，数据仅保存在此电脑。",
+    "localConnection": "本地模式不使用服务器连接。"
   },
   "attention": {
     "deviceRevoked": "此设备已被撤销",

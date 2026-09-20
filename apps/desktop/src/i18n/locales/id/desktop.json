@@ -64,7 +64,8 @@
         "body": "Status organisasi atau anggota saat ini tidak mengizinkan pengumpulan di komputer ini."
       }
     },
-    "localStored": "Dalam mode lokal, data tetap tersimpan di komputer ini."
+    "localStored": "Dalam mode lokal, data tetap tersimpan di komputer ini.",
+    "localConnection": "Mode lokal tidak menggunakan koneksi server."
   },
   "attention": {
     "deviceRevoked": "Perangkat ini telah dicabut",

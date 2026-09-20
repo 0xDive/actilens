@@ -82,7 +82,11 @@ export function Home({
             </div>
             <span className={`desktop-v2-dot is-${state.connection}`} />
           </div>
-          <p>{t("home.lastSync", { value: relativeTime(state.last_sync_ts, t) })}</p>
+          <p>
+            {state.local_only
+              ? t("home.localConnection")
+              : t("home.lastSync", { value: relativeTime(state.last_sync_ts, t) })}
+          </p>
         </section>
 
         <section className="desktop-v2-card">

@@ -64,7 +64,8 @@
         "body": "The organization or membership currently prevents collection on this computer."
       }
     },
-    "localStored": "Data stays on this computer in local mode."
+    "localStored": "Data stays on this computer in local mode.",
+    "localConnection": "No server connection is used in local mode."
   },
   "attention": {
     "deviceRevoked": "This device has been revoked",

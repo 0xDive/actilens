@@ -154,7 +154,9 @@ function DesktopShell({
           ? "attention"
           : state?.connection === "offline"
             ? "offline"
-            : state?.agent || "loading";
+            : state?.sync === "error"
+              ? "attention"
+              : state?.agent || "loading";
 
   return (
     <div className="app desktop-v2-shell">
