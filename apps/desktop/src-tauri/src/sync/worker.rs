@@ -159,6 +159,23 @@ pub async fn run_once(ctx: &SyncContext) -> PassOutcome {
 
     let client = BackendClient::new(base_url, ctx.auth.clone());
 
+    if let Some(business_id) = business_id.as_deref() {
+        let needs_name = ctx
+            .auth
+            .session()
+            .is_some_and(|session| session.business_name.trim().is_empty());
+        if needs_name {
+            if let Ok(memberships) = client.memberships().await {
+                if let Some(membership) = memberships
+                    .into_iter()
+                    .find(|membership| membership.business_id == business_id)
+                {
+                    let _ = ctx.auth.update_business_name(membership.business_name);
+                }
+            }
+        }
+    }
+
     match client.fetch_policy(business_id.as_deref()).await {
         Ok(policy) => {
             ctx.status

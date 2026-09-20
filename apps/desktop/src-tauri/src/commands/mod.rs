@@ -762,49 +762,10 @@ pub async fn current_session(
                     settings.current.lock().unwrap().org_monitoring_enabled;
             }
 
-            let client = BackendClient::new(backend_url(), auth.inner().clone());
-            if session.business_name.trim().is_empty() {
-                if let Ok(memberships) = client.memberships().await {
-                    if let Some(membership) = memberships
-                        .into_iter()
-                        .find(|membership| membership.business_id == business_id)
-                    {
-                        if !membership.business_name.trim().is_empty() {
-                            session.business_name = membership.business_name;
-                            let _ = auth.store(session.clone());
-                        }
-                    }
-                }
-            }
-            match client.fetch_policy(session.business_id.as_deref()).await {
-                Ok(policy) => {
-                    let previous = settings.managed.lock().unwrap().monitoring_enabled;
-                    let enabled = client
-                        .monitoring_enabled(session.business_id.as_deref())
-                        .await
-                        .unwrap_or(previous);
-                    crate::settings::apply_managed_policy(
-                        settings.inner(),
-                        control.inner(),
-                        &policy,
-                        enabled,
-                    );
-                }
-                Err(e) if managed_policy_rejects(&e) => {
-                    control
-                        .org_monitoring_enabled
-                        .store(false, Ordering::Relaxed);
-                    {
-                        let mut current = settings.current.lock().unwrap();
-                        current.org_monitoring_enabled = false;
-                        let _ = crate::settings::save(&settings.path, &current);
-                    }
-                    settings.managed.lock().unwrap().monitoring_enabled = false;
-                }
-                Err(e) => {
-                    crate::log_warn!("policy", "startup policy refresh failed: {e}");
-                }
-            }
+            // Do not touch the network here. A restored desktop session must be
+            // usable immediately while offline. The background sync worker refreshes
+            // membership identity + policy after startup and retains the last valid
+            // server-confirmed policy until then.
         } else {
             control.managed.store(false, Ordering::Relaxed);
             let mut current = settings.current.lock().unwrap();

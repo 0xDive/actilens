@@ -78,6 +78,21 @@ impl AuthState {
         Ok(())
     }
 
+    /// Cache the organization display name once the background worker resolves it.
+    pub fn update_business_name(&self, business_name: String) -> Result<(), String> {
+        if business_name.trim().is_empty() {
+            return Ok(());
+        }
+        let mut guard = self.current.lock().unwrap();
+        if let Some(s) = guard.as_mut() {
+            if s.business_name != business_name {
+                s.business_name = business_name;
+                write_file(&self.path, s)?;
+            }
+        }
+        Ok(())
+    }
+
     /// Forget the session everywhere (logout).
     pub fn clear(&self) -> Result<(), String> {
         match std::fs::remove_file(&self.path) {
