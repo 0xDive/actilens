@@ -59,9 +59,8 @@ export function EnrollmentTokenControl({
   const powershell = useMemo(() => {
     if (!grant) return "";
     const backendUrl = serverUrl.trim().replace(/\/+$/, "");
-    const path = "$env:TEMP\\install-actilens.ps1";
     return [
-      `$p=${path}`,
+      "$p=Join-Path $env:TEMP 'install-actilens.ps1'",
       `Invoke-WebRequest -UseBasicParsing -Uri '${psQuote(INSTALLER_SCRIPT_URL)}' -OutFile $p`,
       `& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $p -ServerUrl '${psQuote(backendUrl)}' -EnrollmentToken '${psQuote(grant.token)}'`,
       "Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue",
