@@ -258,6 +258,7 @@ async fn activate_authenticated_session(
     settings: &Arc<crate::settings::SettingsState>,
     control: &Arc<TrackerControl>,
     db: &Arc<Db>,
+    sync_status: &Arc<crate::sync::worker::SyncStatus>,
 ) -> Result<DesktopLoginResult, String> {
     let managed_business_id = session.business_id.clone();
 
@@ -360,6 +361,7 @@ pub async fn login(
     settings: State<'_, Arc<crate::settings::SettingsState>>,
     control: State<'_, Arc<TrackerControl>>,
     db: State<'_, Arc<Db>>,
+    sync_status: State<'_, Arc<crate::sync::worker::SyncStatus>>,
 ) -> Result<DesktopLoginResult, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
     match client
@@ -373,6 +375,7 @@ pub async fn login(
                 settings.inner(),
                 control.inner(),
                 db.inner(),
+                sync_status.inner(),
             )
             .await
         }
@@ -466,6 +469,7 @@ pub fn prepare_device_reconnect(
     settings: State<Arc<crate::settings::SettingsState>>,
     control: State<Arc<TrackerControl>>,
     db: State<Arc<Db>>,
+    sync_status: State<Arc<crate::sync::worker::SyncStatus>>,
 ) -> Result<String, String> {
     suppress_pre_managed_backlog(db.inner())?;
     auth.clear()?;
@@ -489,6 +493,9 @@ pub fn prepare_device_reconnect(
     control
         .org_monitoring_enabled
         .store(false, Ordering::Relaxed);
+
+    let pending = db.pending_count().unwrap_or(0);
+    sync_status.reset_identity_state(pending);
 
     Ok(new_device_id)
 }
