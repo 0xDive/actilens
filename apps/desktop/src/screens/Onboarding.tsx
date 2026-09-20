@@ -317,12 +317,11 @@ export function Onboarding({
   onFinish: () => void;
 }) {
   const { t } = useTranslation(["onboarding", "welcome", "media", "auth", "settings"]);
+  const [step, setStep] = useState(1);
 
   if (captureManaged?.managed) {
     return <ManagedOnboarding onFinish={onFinish} />;
   }
-
-  const [step, setStep] = useState(1);
 
   const persona: Persona = settings.local_only
     ? "personal"

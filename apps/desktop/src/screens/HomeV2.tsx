@@ -1,7 +1,8 @@
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { useRuntime } from "../runtime";
 
-function relativeTime(ts: number, t: ReturnType<typeof useTranslation<"desktop">>["t"]) {
+function relativeTime(ts: number, t: TFunction<"desktop">) {
   if (!ts) return t("time.never");
   const seconds = Math.max(0, Math.floor(Date.now() / 1000) - ts);
   if (seconds < 45) return t("time.justNow");
