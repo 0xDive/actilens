@@ -1,9 +1,9 @@
 //! Windows platform backend (see docs/12-windows-support-plan.md §3).
 //!
 //! Selected by `#[cfg(target_os = "windows")]` in `platform/mod.rs`, which
-//! re-exports everything below. Windows has no per-feature OS permission prompts,
-//! so the permission API reports `Granted` and the request/open-settings calls are
-//! no-ops; first-run consent + Settings opt-outs are handled in the UI (M3).
+//! re-exports everything below. Windows has no per-feature OS permission prompts.
+//! The desktop Permissions screen therefore reports no additional OS permissions
+//! instead of exposing collection policy as if it were a system capability.
 //!
 //! Implemented now (M1): idle detection via `GetLastInputInfo`. Active window and
 //! screenshots are cross-platform (`active-win-pos-rs` / `xcap`) and live elsewhere.
@@ -12,39 +12,11 @@
 use super::{CapabilityRow, Permission, PermissionState};
 use crate::settings::Settings;
 
-/// Windows capture/consent rows for the data-driven setup screen. There are no
-/// per-feature OS prompts, so state is derived from the user's opt-out toggles and
-/// whether they've consented; nothing is requestable or has a Settings deep link.
-pub fn capability_rows(s: &Settings) -> Vec<CapabilityRow> {
-    let state = |enabled: bool| {
-        if s.consented && enabled {
-            PermissionState::Granted
-        } else {
-            PermissionState::Denied
-        }
-    };
-    vec![
-        CapabilityRow {
-            key: "keystrokes".to_string(),
-            label: "Activity & keystroke counts".to_string(),
-            description: "Tracks the active app/window and counts keystrokes (counts only — \
-                          never which keys are pressed)."
-                .to_string(),
-            state: state(s.count_keystrokes),
-            required: false,
-            can_request: false,
-            can_open_settings: false,
-        },
-        CapabilityRow {
-            key: "screenshots".to_string(),
-            label: "Screenshots".to_string(),
-            description: "Captures periodic screenshots of your screen(s).".to_string(),
-            state: state(s.capture_screenshots),
-            required: false,
-            can_request: false,
-            can_open_settings: false,
-        },
-    ]
+/// Windows does not expose macOS-style per-feature OS permissions for the
+/// capabilities ActiLens uses. Collection choices are policy/runtime concerns and
+/// must not be surfaced in the Permissions UI.
+pub fn capability_rows(_s: &Settings) -> Vec<CapabilityRow> {
+    Vec::new()
 }
 
 /// No-op on Windows: there is no System Settings pane to grant a per-feature

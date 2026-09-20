@@ -518,3 +518,24 @@
     padding: 18px;
   }
 }
+
+/* Windows has no macOS-style TCC rows; keep the empty permissions state intentional. */
+.perm-row--ready .perm-label {
+  display: grid;
+  gap: 2px;
+}
+
+.perm-row--ready .perm-label strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.perm-row--ready .perm-label small {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.bb-perm--ready {
+  min-height: 76px;
+}

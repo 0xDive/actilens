@@ -4,8 +4,9 @@ import { useTranslation } from "react-i18next";
 
 type Status = "granted" | "denied" | "needs_restart";
 
-// One row from the per-OS, data-driven `permissions_status` command (see docs/12 §2).
-// macOS yields the 3 TCC rows; Windows yields capture/consent rows.
+// One row from the per-OS, data-driven `permissions_status` command.
+// macOS yields the TCC rows; Windows has no additional per-feature OS permissions
+// and therefore returns an empty list.
 type Cap = {
   key: string;
   label: string;
@@ -217,6 +218,23 @@ export function Permissions({ compact = false }: { compact?: boolean } = {}) {
   // intro/summary chrome (those live on the full Settings → Permissions screen).
   if (compact) {
     const orderedRows = [...rows].sort((a, b) => rank(a.key) - rank(b.key));
+    if (caps && orderedRows.length === 0) {
+      return (
+        <div className="perm-list perm-list--empty">
+          <div className="perm-row perm-row--ready">
+            <span className="perm-ic"><ShieldIcon /></span>
+            <span className="perm-label">
+              <strong>{t("noneRequiredTitle")}</strong>
+              <small>{t("noneRequiredBody")}</small>
+            </span>
+            <span className="perm-granted">
+              <CheckIcon />
+              {t("ready")}
+            </span>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="perm-list">
         {orderedRows.map((r) => {
@@ -253,6 +271,27 @@ export function Permissions({ compact = false }: { compact?: boolean } = {}) {
           </button>
         </span>
       </div>
+
+      {caps && orderedRows.length === 0 && (
+        <div className="bb-perm bb-perm--ready">
+          <div className="bb-perm__ic">
+            <ShieldIcon />
+          </div>
+          <div className="bb-perm__main">
+            <div className="bb-perm__title">
+              <span className="bb-perm__status ok" />
+              {t("noneRequiredTitle")}
+            </div>
+            <div className="bb-perm__desc">{t("noneRequiredBody")}</div>
+          </div>
+          <div className="bb-perm__act">
+            <span className="actilens-badge actilens-badge--positive">
+              <CheckIcon />
+              {t("ready")}
+            </span>
+          </div>
+        </div>
+      )}
 
       {orderedRows.map((r) => {
         const Ic = CAP_ICON[r.key] ?? ShieldIcon;

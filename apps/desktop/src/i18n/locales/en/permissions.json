@@ -36,5 +36,8 @@
       "label": "Screenshots",
       "description": "Captures periodic screenshots of your screen(s)."
     }
-  }
+  },
+  "noneRequiredTitle": "No additional system permissions required",
+  "noneRequiredBody": "This operating system does not require separate ActiLens permissions.",
+  "ready": "Ready"
 }
