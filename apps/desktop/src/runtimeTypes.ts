@@ -60,6 +60,9 @@ export type RuntimeState = {
   pending: number;
   syncing: boolean;
   last_error: string;
+  idle_seconds: number;
+  recent_activity_s: number;
+  last_activity_ts: number;
   permission_attention: number;
   device_id: string;
   app_version: string;
