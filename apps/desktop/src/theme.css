@@ -494,6 +494,18 @@ body {
   top: 64px;
   right: 18px;
 }
+
+:root.desktop-platform-windows .welcome .welcome-lang {
+  top: 18px;
+}
+
+:root.desktop-platform-windows .onboarding-screen {
+  padding-top: 92px;
+}
+
+:root.desktop-platform-windows .capture-steps {
+  top: 64px;
+}
 /* custom (Overlay) title bar: full-width draggable strip; native traffic lights
    overlay the left, the tray button sits at the right. */
 .welcome-titlebar {
