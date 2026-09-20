@@ -158,9 +158,13 @@ function DesktopShell({
               ? "attention"
               : state?.agent || "loading";
 
+  const customTitlebar = state?.os === "macos";
+
   return (
-    <div className="app desktop-v2-shell">
-      <div className="app-titlebar desktop-v2-titlebar" onMouseDown={dragWindow} />
+    <div className={`app desktop-v2-shell desktop-v2-shell--${state?.os || "unknown"}`}>
+      {customTitlebar && (
+        <div className="app-titlebar desktop-v2-titlebar" onMouseDown={dragWindow} />
+      )}
 
       <div className="app-body">
         <aside className="sidebar desktop-v2-sidebar">
