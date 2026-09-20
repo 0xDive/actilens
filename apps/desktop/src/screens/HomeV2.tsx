@@ -13,6 +13,7 @@ function relativeTime(ts: number, t: TFunction<"desktop">) {
 
 function heroKey(state: NonNullable<ReturnType<typeof useRuntime>["state"]>) {
   if (state.device === "revoked") return "revoked";
+  if (state.connection === "offline" && state.reason === "network_error") return "offline";
   if (state.device === "blocked") return "blocked";
   if (state.permission_attention > 0) return "permissions";
   if (state.connection === "offline") return "offline";
@@ -117,13 +118,15 @@ export function Home({
             <h3>
               {state.device === "revoked"
                 ? t("attention.deviceRevoked")
-                : state.device === "blocked"
-                  ? t("attention.deviceBlocked")
-                  : state.permission_attention > 0
-                    ? t("attention.permissions", { count: state.permission_attention })
-                    : state.connection === "offline"
-                      ? t("attention.offline")
-                      : t("attention.sync")}
+                : state.connection === "offline" && state.reason === "network_error"
+                  ? t("attention.offline")
+                  : state.device === "blocked"
+                    ? t("attention.deviceBlocked")
+                    : state.permission_attention > 0
+                      ? t("attention.permissions", { count: state.permission_attention })
+                      : state.connection === "offline"
+                        ? t("attention.offline")
+                        : t("attention.sync")}
             </h3>
           </div>
           <button

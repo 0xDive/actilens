@@ -69,7 +69,7 @@ impl SyncStatus {
         *self.last_error.lock().unwrap() = String::new();
     }
 
-    fn record_error(&self, msg: String, pending: i64) {
+    pub(crate) fn record_error(&self, msg: String, pending: i64) {
         self.pending.store(pending.max(0) as u64, Ordering::Relaxed);
         *self.last_error.lock().unwrap() = msg;
     }

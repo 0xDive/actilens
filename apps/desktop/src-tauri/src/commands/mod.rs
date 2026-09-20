@@ -276,6 +276,8 @@ async fn activate_authenticated_session(
     }
 
     auth.store(session.clone())?;
+    let pending = db.pending_count().unwrap_or(0);
+    sync_status.reset_identity_state(pending);
 
     if let Some(business_id) = managed_business_id.as_deref() {
         let identity_client = BackendClient::new(backend_url(), auth.clone());
@@ -321,6 +323,7 @@ async fn activate_authenticated_session(
             }
             Err(e) => {
                 crate::log_warn!("policy", "initial managed policy fetch failed: {e}");
+                sync_status.record_error(e, pending);
             }
         }
     } else {
@@ -337,9 +340,6 @@ async fn activate_authenticated_session(
         crate::settings::apply(&current, control);
         let _ = crate::settings::save(&settings.path, &current);
     }
-
-    let pending = db.pending_count().unwrap_or(0);
-    sync_status.reset_identity_state(pending);
 
     Ok(DesktopLoginResult {
         status: "authenticated".into(),
