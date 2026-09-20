@@ -139,4 +139,51 @@ for forbidden_command in (
             f"{forbidden_command}"
         )
 
+# Closing the window must hide it while the native agent keeps running.
+for required_close_fragment in (
+    "WindowEvent::CloseRequested",
+    "api.prevent_close()",
+    "w.hide()",
+):
+    if required_close_fragment not in lib_rs:
+        raise SystemExit(
+            "Desktop v2 contract failed: close-to-tray behavior missing "
+            f"{required_close_fragment!r}"
+        )
+
+# Windows startup behavior must be a real native preference, not a decorative UI switch.
+settings_rs = (
+    ROOT / "apps" / "desktop" / "src-tauri" / "src" / "settings" / "mod.rs"
+).read_text(encoding="utf-8")
+for required_autostart in ("pub start_at_login: bool", "last_policy_sync_ts"):
+    if required_autostart not in settings_rs:
+        raise SystemExit(
+            "Desktop v2 contract failed: persisted runtime setting missing "
+            f"{required_autostart!r}"
+        )
+for required_autostart_native in (
+    "fn apply_windows_autostart",
+    "apply_windows_autostart(loaded.start_at_login)",
+):
+    if required_autostart_native not in lib_rs:
+        raise SystemExit(
+            "Desktop v2 contract failed: native Windows autostart missing "
+            f"{required_autostart_native!r}"
+        )
+
+# The webview receives agent operations only. Local analytics/report/export UI
+# commands must stay out of the registered Tauri command surface.
+for required_agent_command in (
+    "commands::runtime_state",
+    "commands::runtime_diagnostics",
+    "commands::local_storage_summary",
+    "commands::prepare_device_reconnect",
+    "commands::web_dashboard_url",
+):
+    if required_agent_command not in lib_rs:
+        raise SystemExit(
+            "Desktop v2 contract failed: agent command is not registered: "
+            f"{required_agent_command}"
+        )
+
 print("ActiLens Desktop v2 agent contract: OK")
