@@ -1,8 +1,6 @@
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Segmented } from "../ui";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
-import { checkForUpdates, type UpdateProgress } from "../updater";
 import { useRuntime } from "../runtime";
 import type { AppSettings } from "../runtimeTypes";
 
@@ -15,12 +13,6 @@ export function DesktopSettings({
 }) {
   const { t } = useTranslation("desktop");
   const { state } = useRuntime();
-  const [update, setUpdate] = useState<UpdateProgress | null>(null);
-
-  async function checkUpdates() {
-    setUpdate({ state: "checking" });
-    await checkForUpdates(setUpdate);
-  }
 
   return (
     <div className="desktop-v2-page">
@@ -83,20 +75,12 @@ export function DesktopSettings({
           <div>
             <strong>{t("settings.currentVersion", { version: state?.app_version || "—" })}</strong>
             <span>
-              {update?.state === "checking"
-                ? t("settings.checking")
-                : update?.state === "available"
-                  ? t("settings.available", { version: update.version })
-                  : update?.state === "ready"
-                    ? t("settings.ready", { version: update.version })
-                    : update?.state === "error"
-                      ? t("settings.updateError")
-                      : t("settings.updateBody")}
+              {state?.managed ? t("settings.managedUpdates") : t("settings.manualUpdates")}
             </span>
           </div>
-          <button className="actilens-btn actilens-btn--secondary" onClick={() => void checkUpdates()}>
-            {t("settings.checkUpdates")}
-          </button>
+          <span className="actilens-badge actilens-badge--neutral">
+            {state?.managed ? t("settings.managed") : t("settings.manual")}
+          </span>
         </div>
       </section>
 

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 import { useTranslation } from "react-i18next";
+import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { call as invoke } from "./api";
 import { Sentry } from "./sentry";
-import { autoCheckAndPrompt } from "./updater";
 import { track } from "./analytics";
 import { dragWindow } from "./components/dragWindow";
 import { Permissions } from "./screens/Permissions";
@@ -121,14 +121,21 @@ function DesktopShell({
     return () => document.removeEventListener("click", onClick, true);
   }, []);
 
-  async function openWebDashboard() {
+  const openWebDashboard = useCallback(async () => {
     try {
       const url = await invoke<string>("web_dashboard_url");
       await openUrl(url);
     } catch {
       // The agent remains usable even if the system browser cannot be opened.
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    const unlisten = listen("open-web-dashboard", () => void openWebDashboard());
+    return () => {
+      unlisten.then((dispose) => dispose());
+    };
+  }, [openWebDashboard]);
 
   const statusKey =
     state?.device === "revoked"
@@ -263,15 +270,6 @@ function App() {
     const locale = i18n.resolvedLanguage ?? "en";
     invoke("set_locale", { locale }).catch(() => {});
   }, [i18n.resolvedLanguage]);
-
-  useEffect(() => {
-    const start = window.setTimeout(() => void autoCheckAndPrompt(), 30_000);
-    const repeat = window.setInterval(() => void autoCheckAndPrompt(), 6 * 60 * 60 * 1000);
-    return () => {
-      window.clearTimeout(start);
-      window.clearInterval(repeat);
-    };
-  }, []);
 
   useEffect(() => {
     if (session) {

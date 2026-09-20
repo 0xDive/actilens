@@ -149,7 +149,11 @@
     "ready": "Version {{version}} is ready to install.",
     "updateError": "Update check failed.",
     "about": "About",
-    "aboutBody": "Desktop agent for this computer."
+    "aboutBody": "Desktop agent for this computer.",
+    "managedUpdates": "Updates for this managed installation are distributed by your administrator.",
+    "manualUpdates": "Install newer ActiLens releases using the installer provided with your deployment.",
+    "managed": "Managed",
+    "manual": "Installer"
   },
   "theme": {
     "light": "Light",
