@@ -66,7 +66,11 @@
       }
     },
     "localStored": "本地模式下，数据仅保存在此电脑。",
-    "localConnection": "本地模式不使用服务器连接。"
+    "localConnection": "本地模式不使用服务器连接。",
+    "collection": "采集",
+    "recentActivity": "最近 15 分钟本地记录：{{minutes}} 分钟",
+    "lastLocalActivity": "最近一次本地活动记录：{{value}}",
+    "systemIdle": "Windows 空闲计时：{{seconds}} 秒"
   },
   "attention": {
     "deviceRevoked": "此设备已被撤销",
