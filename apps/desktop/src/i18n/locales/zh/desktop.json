@@ -121,7 +121,8 @@
     "revokedTitle": "已撤销的安装",
     "confirmReconnectTitle": "重新连接此安装？",
     "confirmReconnect": "重新连接",
-    "reconnecting": "正在重新连接…"
+    "reconnecting": "正在重新连接…",
+    "reconnectFailed": "无法重新连接此设备。请运行诊断后重试。"
   },
   "diagnostics": {
     "title": "诊断",

@@ -121,7 +121,8 @@
     "revokedTitle": "無効化されたインストール",
     "confirmReconnectTitle": "このインストールを再接続しますか？",
     "confirmReconnect": "再接続",
-    "reconnecting": "再接続中…"
+    "reconnecting": "再接続中…",
+    "reconnectFailed": "このデバイスを再接続できませんでした。診断を実行して再試行してください。"
   },
   "diagnostics": {
     "title": "診断",

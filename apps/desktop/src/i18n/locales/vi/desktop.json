@@ -121,7 +121,8 @@
     "revokedTitle": "Bản cài đặt đã bị thu hồi",
     "confirmReconnectTitle": "Kết nối lại bản cài đặt này?",
     "confirmReconnect": "Kết nối lại",
-    "reconnecting": "Đang kết nối lại…"
+    "reconnecting": "Đang kết nối lại…",
+    "reconnectFailed": "Không thể kết nối lại thiết bị này. Hãy chạy chẩn đoán rồi thử lại."
   },
   "diagnostics": {
     "title": "Chẩn đoán",

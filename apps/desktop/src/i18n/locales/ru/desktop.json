@@ -121,7 +121,8 @@
     "revokedTitle": "Отозванная установка",
     "confirmReconnectTitle": "Переподключить эту установку?",
     "confirmReconnect": "Переподключить",
-    "reconnecting": "Переподключаем…"
+    "reconnecting": "Переподключаем…",
+    "reconnectFailed": "Не удалось переподключить устройство. Запустите диагностику и повторите попытку."
   },
   "diagnostics": {
     "title": "Диагностика",

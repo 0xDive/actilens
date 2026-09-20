@@ -121,7 +121,8 @@
     "revokedTitle": "Revoked installation",
     "confirmReconnectTitle": "Reconnect this installation?",
     "confirmReconnect": "Reconnect",
-    "reconnecting": "Reconnecting…"
+    "reconnecting": "Reconnecting…",
+    "reconnectFailed": "Could not reconnect this device. Run diagnostics and try again."
   },
   "diagnostics": {
     "title": "Diagnostics",

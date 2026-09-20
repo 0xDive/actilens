@@ -121,7 +121,8 @@
     "revokedTitle": "Instalasi yang dicabut",
     "confirmReconnectTitle": "Sambungkan ulang instalasi ini?",
     "confirmReconnect": "Sambungkan ulang",
-    "reconnecting": "Menyambungkan ulang…"
+    "reconnecting": "Menyambungkan ulang…",
+    "reconnectFailed": "Perangkat ini tidak dapat disambungkan ulang. Jalankan diagnostik lalu coba lagi."
   },
   "diagnostics": {
     "title": "Diagnostik",

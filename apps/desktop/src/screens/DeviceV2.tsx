@@ -32,11 +32,15 @@ export function Device() {
 
   async function reconnectDevice() {
     setBusy(true);
+    setDiagnosticError(null);
     try {
       await invoke<string>("prepare_device_reconnect");
       setReport(null);
       setConfirmReconnect(false);
       await refresh();
+    } catch {
+      setDiagnosticError(t("device.reconnectFailed"));
+      setConfirmReconnect(false);
     } finally {
       setBusy(false);
     }
@@ -207,6 +211,11 @@ export function Device() {
         <div
           className="desktop-v2-dialog-layer"
           role="presentation"
+          onKeyDown={(event) => {
+            if (event.key === "Escape" && !busy) {
+              setConfirmReconnect(false);
+            }
+          }}
           onMouseDown={(event) => {
             if (event.currentTarget === event.target && !busy) {
               setConfirmReconnect(false);
@@ -228,6 +237,7 @@ export function Device() {
             <div className="desktop-v2-dialog__actions">
               <button
                 className="actilens-btn actilens-btn--ghost"
+                autoFocus
                 disabled={busy}
                 onClick={() => setConfirmReconnect(false)}
               >

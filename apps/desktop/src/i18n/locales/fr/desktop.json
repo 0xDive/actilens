@@ -121,7 +121,8 @@
     "revokedTitle": "Installation révoquée",
     "confirmReconnectTitle": "Reconnecter cette installation ?",
     "confirmReconnect": "Reconnecter",
-    "reconnecting": "Reconnexion…"
+    "reconnecting": "Reconnexion…",
+    "reconnectFailed": "Impossible de reconnecter cet appareil. Lancez le diagnostic puis réessayez."
   },
   "diagnostics": {
     "title": "Diagnostic",
