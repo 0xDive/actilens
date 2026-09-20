@@ -18,7 +18,8 @@
     "copied": "Copiado",
     "signOut": "Cerrar sesión",
     "setupAgain": "Iniciar sesión",
-    "manageWeb": "Gestionar en la web"
+    "manageWeb": "Gestionar en la web",
+    "cancel": "Cancelar"
   },
   "home": {
     "status": "Este equipo",
@@ -117,7 +118,10 @@
     "reconnectBody": "La reconexión crea una nueva identidad del dispositivo. Los datos sin enviar de la identidad revocada permanecen en local y no se reasignan.",
     "organization": "Organización",
     "organizationId": "ID de organización",
-    "revokedTitle": "Instalación revocada"
+    "revokedTitle": "Instalación revocada",
+    "confirmReconnectTitle": "¿Reconectar esta instalación?",
+    "confirmReconnect": "Reconectar",
+    "reconnecting": "Reconectando…"
   },
   "diagnostics": {
     "title": "Diagnóstico",
@@ -135,7 +139,8 @@
       "browser_bridge": "Puente del navegador",
       "backend": "Servidor",
       "policy_cache": "Caché de configuración"
-    }
+    },
+    "failed": "No se pudo completar el diagnóstico."
   },
   "settings": {
     "appearance": "Apariencia",

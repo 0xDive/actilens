@@ -18,7 +18,8 @@
     "copied": "Copié",
     "signOut": "Se déconnecter",
     "setupAgain": "Se connecter",
-    "manageWeb": "Gérer sur le web"
+    "manageWeb": "Gérer sur le web",
+    "cancel": "Annuler"
   },
   "home": {
     "status": "Cet ordinateur",
@@ -117,7 +118,10 @@
     "reconnectBody": "La reconnexion crée une nouvelle identité d’appareil. Les données non envoyées de l’identité révoquée restent locales et ne sont pas réattribuées.",
     "organization": "Organisation",
     "organizationId": "ID de l’organisation",
-    "revokedTitle": "Installation révoquée"
+    "revokedTitle": "Installation révoquée",
+    "confirmReconnectTitle": "Reconnecter cette installation ?",
+    "confirmReconnect": "Reconnecter",
+    "reconnecting": "Reconnexion…"
   },
   "diagnostics": {
     "title": "Diagnostic",
@@ -135,7 +139,8 @@
       "browser_bridge": "Pont navigateur",
       "backend": "Serveur",
       "policy_cache": "Cache de configuration"
-    }
+    },
+    "failed": "Le diagnostic n’a pas pu être terminé."
   },
   "settings": {
     "appearance": "Apparence",

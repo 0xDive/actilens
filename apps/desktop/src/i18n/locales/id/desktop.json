@@ -18,7 +18,8 @@
     "copied": "Disalin",
     "signOut": "Keluar",
     "setupAgain": "Masuk",
-    "manageWeb": "Kelola di web"
+    "manageWeb": "Kelola di web",
+    "cancel": "Batal"
   },
   "home": {
     "status": "Komputer ini",
@@ -117,7 +118,10 @@
     "reconnectBody": "Penyambungan ulang membuat identitas perangkat baru. Data belum terkirim dari identitas yang dicabut tetap lokal dan tidak dialihkan.",
     "organization": "Organisasi",
     "organizationId": "ID organisasi",
-    "revokedTitle": "Instalasi yang dicabut"
+    "revokedTitle": "Instalasi yang dicabut",
+    "confirmReconnectTitle": "Sambungkan ulang instalasi ini?",
+    "confirmReconnect": "Sambungkan ulang",
+    "reconnecting": "Menyambungkan ulang…"
   },
   "diagnostics": {
     "title": "Diagnostik",
@@ -135,7 +139,8 @@
       "browser_bridge": "Jembatan browser",
       "backend": "Server",
       "policy_cache": "Cache konfigurasi"
-    }
+    },
+    "failed": "Diagnostik tidak dapat diselesaikan."
   },
   "settings": {
     "appearance": "Tampilan",

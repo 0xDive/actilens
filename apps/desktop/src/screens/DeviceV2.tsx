@@ -15,6 +15,8 @@ export function Device() {
   const [report, setReport] = useState<DiagnosticsReport | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [confirmReconnect, setConfirmReconnect] = useState(false);
+  const [diagnosticError, setDiagnosticError] = useState<string | null>(null);
 
   if (!state) return <div className="desktop-v2-loading">{t("common.loading")}</div>;
   const runtime = state;
@@ -33,6 +35,7 @@ export function Device() {
     try {
       await invoke<string>("prepare_device_reconnect");
       setReport(null);
+      setConfirmReconnect(false);
       await refresh();
     } finally {
       setBusy(false);
@@ -41,9 +44,12 @@ export function Device() {
 
   async function runDiagnostics() {
     setBusy(true);
+    setDiagnosticError(null);
     try {
       setReport(await invoke<DiagnosticsReport>("runtime_diagnostics"));
       await refresh();
+    } catch {
+      setDiagnosticError(t("diagnostics.failed"));
     } finally {
       setBusy(false);
     }
@@ -87,7 +93,7 @@ export function Device() {
             <button
               className="actilens-btn actilens-btn--primary"
               disabled={busy}
-              onClick={() => void reconnectDevice()}
+              onClick={() => setConfirmReconnect(true)}
             >
               {t("device.reconnect")}
             </button>
@@ -169,6 +175,12 @@ export function Device() {
           </button>
         </div>
 
+        {diagnosticError && (
+          <div className="desktop-v2-inline-error" role="alert">
+            {diagnosticError}
+          </div>
+        )}
+
         {report && (
           <>
             <div className="desktop-diagnostics">
@@ -190,6 +202,48 @@ export function Device() {
           </>
         )}
       </section>
+
+      {confirmReconnect && (
+        <div
+          className="desktop-v2-dialog-layer"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.currentTarget === event.target && !busy) {
+              setConfirmReconnect(false);
+            }
+          }}
+        >
+          <section
+            className="desktop-v2-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reconnect-device-title"
+          >
+            <div className="desktop-v2-dialog__icon" aria-hidden>!</div>
+            <div>
+              <span className="desktop-v2-kicker">{t("device.revokedTitle")}</span>
+              <h3 id="reconnect-device-title">{t("device.confirmReconnectTitle")}</h3>
+              <p>{t("device.reconnectBody")}</p>
+            </div>
+            <div className="desktop-v2-dialog__actions">
+              <button
+                className="actilens-btn actilens-btn--ghost"
+                disabled={busy}
+                onClick={() => setConfirmReconnect(false)}
+              >
+                {t("actions.cancel")}
+              </button>
+              <button
+                className="actilens-btn actilens-btn--primary"
+                disabled={busy}
+                onClick={() => void reconnectDevice()}
+              >
+                {busy ? t("device.reconnecting") : t("device.confirmReconnect")}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

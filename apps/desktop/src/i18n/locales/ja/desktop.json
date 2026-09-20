@@ -18,7 +18,8 @@
     "copied": "コピーしました",
     "signOut": "サインアウト",
     "setupAgain": "サインイン",
-    "manageWeb": "Web で管理"
+    "manageWeb": "Web で管理",
+    "cancel": "キャンセル"
   },
   "home": {
     "status": "このコンピューター",
@@ -117,7 +118,10 @@
     "reconnectBody": "再接続すると新しいデバイス ID が作成されます。無効化された ID の未送信データはローカルに残り、再割り当てされません。",
     "organization": "組織",
     "organizationId": "組織 ID",
-    "revokedTitle": "無効化されたインストール"
+    "revokedTitle": "無効化されたインストール",
+    "confirmReconnectTitle": "このインストールを再接続しますか？",
+    "confirmReconnect": "再接続",
+    "reconnecting": "再接続中…"
   },
   "diagnostics": {
     "title": "診断",
@@ -135,7 +139,8 @@
       "browser_bridge": "ブラウザーブリッジ",
       "backend": "サーバー",
       "policy_cache": "設定キャッシュ"
-    }
+    },
+    "failed": "診断を完了できませんでした。"
   },
   "settings": {
     "appearance": "外観",

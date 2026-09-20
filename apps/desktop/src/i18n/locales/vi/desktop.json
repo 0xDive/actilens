@@ -18,7 +18,8 @@
     "copied": "Đã sao chép",
     "signOut": "Đăng xuất",
     "setupAgain": "Đăng nhập",
-    "manageWeb": "Quản lý trên web"
+    "manageWeb": "Quản lý trên web",
+    "cancel": "Hủy"
   },
   "home": {
     "status": "Máy tính này",
@@ -117,7 +118,10 @@
     "reconnectBody": "Kết nối lại tạo một ID thiết bị mới. Dữ liệu chưa gửi của ID bị thu hồi vẫn ở máy và không được gán lại.",
     "organization": "Tổ chức",
     "organizationId": "ID tổ chức",
-    "revokedTitle": "Bản cài đặt đã bị thu hồi"
+    "revokedTitle": "Bản cài đặt đã bị thu hồi",
+    "confirmReconnectTitle": "Kết nối lại bản cài đặt này?",
+    "confirmReconnect": "Kết nối lại",
+    "reconnecting": "Đang kết nối lại…"
   },
   "diagnostics": {
     "title": "Chẩn đoán",
@@ -135,7 +139,8 @@
       "browser_bridge": "Cầu nối trình duyệt",
       "backend": "Máy chủ",
       "policy_cache": "Bộ nhớ đệm cấu hình"
-    }
+    },
+    "failed": "Không thể hoàn tất chẩn đoán."
   },
   "settings": {
     "appearance": "Giao diện",

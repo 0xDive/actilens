@@ -18,7 +18,8 @@
     "copied": "Copied",
     "signOut": "Sign out",
     "setupAgain": "Sign in",
-    "manageWeb": "Manage on web"
+    "manageWeb": "Manage on web",
+    "cancel": "Cancel"
   },
   "home": {
     "status": "This computer",
@@ -117,7 +118,10 @@
     "reconnectBody": "Reconnect creates a new device identity. Unsent rows from the revoked identity remain local and are not reassigned.",
     "organization": "Organization",
     "organizationId": "Organization ID",
-    "revokedTitle": "Revoked installation"
+    "revokedTitle": "Revoked installation",
+    "confirmReconnectTitle": "Reconnect this installation?",
+    "confirmReconnect": "Reconnect",
+    "reconnecting": "Reconnecting…"
   },
   "diagnostics": {
     "title": "Diagnostics",
@@ -135,7 +139,8 @@
       "browser_bridge": "Browser bridge",
       "backend": "Server",
       "policy_cache": "Policy cache"
-    }
+    },
+    "failed": "Diagnostics could not be completed."
   },
   "settings": {
     "appearance": "Appearance",
