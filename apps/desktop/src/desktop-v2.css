@@ -630,3 +630,9 @@
   gap: 8px;
   padding-top: 6px;
 }
+
+.desktop-v2-storage-note {
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 11px;
+}

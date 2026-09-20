@@ -1095,6 +1095,61 @@ pub fn runtime_state(
 }
 
 #[derive(Serialize)]
+pub struct LocalStorageSummary {
+    pub database_bytes: u64,
+    pub screenshot_bytes: u64,
+    pub total_bytes: u64,
+    pub pending: u64,
+}
+
+fn directory_size(path: &std::path::Path) -> u64 {
+    let Ok(entries) = std::fs::read_dir(path) else {
+        return 0;
+    };
+    entries
+        .filter_map(Result::ok)
+        .map(|entry| {
+            let path = entry.path();
+            match entry.metadata() {
+                Ok(meta) if meta.is_dir() => directory_size(&path),
+                Ok(meta) if meta.is_file() => meta.len(),
+                _ => 0,
+            }
+        })
+        .sum()
+}
+
+#[tauri::command]
+pub fn local_storage_summary(
+    app: tauri::AppHandle,
+    db: State<Arc<Db>>,
+) -> Result<LocalStorageSummary, String> {
+    use tauri::Manager;
+
+    let data_dir = app.path().app_data_dir().map_err(err)?;
+    let db_path = data_dir.join("data.db");
+    let database_bytes = std::fs::metadata(&db_path).map(|m| m.len()).unwrap_or(0)
+        + std::fs::metadata(data_dir.join("data.db-wal"))
+            .map(|m| m.len())
+            .unwrap_or(0)
+        + std::fs::metadata(data_dir.join("data.db-shm"))
+            .map(|m| m.len())
+            .unwrap_or(0);
+    let screenshot_bytes = directory_size(&data_dir.join("screenshots"));
+    let pending = db
+        .pending_count()
+        .map(|value| value.max(0) as u64)
+        .map_err(|e| e.to_string())?;
+
+    Ok(LocalStorageSummary {
+        database_bytes,
+        screenshot_bytes,
+        total_bytes: database_bytes.saturating_add(screenshot_bytes),
+        pending,
+    })
+}
+
+#[derive(Serialize)]
 pub struct DiagnosticCheck {
     pub key: String,
     pub state: String,

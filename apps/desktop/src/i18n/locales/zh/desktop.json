@@ -186,5 +186,13 @@
     "attention": "需要处理",
     "revoked": "已撤销",
     "loading": "正在加载…"
+  },
+  "storage": {
+    "title": "本地存储",
+    "total": "此电脑已使用",
+    "database": "本地数据库",
+    "screenshots": "截图缓存",
+    "unsynced": "等待同步",
+    "note": "ActiLens 会自动管理本地存储。未同步的数据不能从应用中清除。"
   }
 }

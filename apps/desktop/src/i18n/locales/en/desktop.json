@@ -192,5 +192,13 @@
     "attention": "Needs attention",
     "revoked": "Revoked",
     "loading": "Loading…"
+  },
+  "storage": {
+    "title": "Local storage",
+    "total": "Used on this computer",
+    "database": "Local database",
+    "screenshots": "Screenshot cache",
+    "unsynced": "Waiting to sync",
+    "note": "ActiLens manages local storage automatically. Unsynced data cannot be cleared from the app."
   }
 }

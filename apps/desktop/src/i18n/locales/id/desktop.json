@@ -186,5 +186,13 @@
     "attention": "Perlu perhatian",
     "revoked": "Dicabut",
     "loading": "Memuat…"
+  },
+  "storage": {
+    "title": "Penyimpanan lokal",
+    "total": "Digunakan di komputer ini",
+    "database": "Basis data lokal",
+    "screenshots": "Cache tangkapan layar",
+    "unsynced": "Menunggu sinkronisasi",
+    "note": "ActiLens mengelola penyimpanan lokal secara otomatis. Data yang belum sinkron tidak dapat dihapus dari aplikasi."
   }
 }

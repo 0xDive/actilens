@@ -186,5 +186,13 @@
     "attention": "Attention requise",
     "revoked": "Révoqué",
     "loading": "Chargement…"
+  },
+  "storage": {
+    "title": "Stockage local",
+    "total": "Utilisé sur cet ordinateur",
+    "database": "Base de données locale",
+    "screenshots": "Cache des captures",
+    "unsynced": "En attente de synchronisation",
+    "note": "ActiLens gère automatiquement le stockage local. Les données non synchronisées ne peuvent pas être supprimées depuis l’application."
   }
 }

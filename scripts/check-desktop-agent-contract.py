@@ -108,7 +108,12 @@ for forbidden in ("Screenshots", "keystroke", "count_keystrokes", "capture_scree
 commands = (
     ROOT / "apps" / "desktop" / "src-tauri" / "src" / "commands" / "mod.rs"
 ).read_text(encoding="utf-8")
-for required in ("pub fn runtime_state", "pub async fn runtime_diagnostics", "pub fn web_dashboard_url"):
+for required in (
+    "pub fn runtime_state",
+    "pub async fn runtime_diagnostics",
+    "pub fn local_storage_summary",
+    "pub fn web_dashboard_url",
+):
     if required not in commands:
         raise SystemExit(f"Desktop v2 contract failed: native runtime missing {required!r}")
 

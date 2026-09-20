@@ -114,6 +114,7 @@ pub fn run() {
             commands::current_session,
             commands::runtime_state,
             commands::runtime_diagnostics,
+            commands::local_storage_summary,
             commands::web_dashboard_url,
             commands::apply_org_policy,
         ])

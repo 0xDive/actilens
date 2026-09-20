@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { call as invoke } from "../api";
 import { useRuntime } from "../runtime";
-import type { DiagnosticsReport } from "../runtimeTypes";
+import type { DiagnosticsReport, LocalStorageSummary } from "../runtimeTypes";
 
 function formatTime(ts: number, fallback: string) {
   return ts ? new Date(ts * 1000).toLocaleString() : fallback;
@@ -17,9 +17,22 @@ export function Device() {
   const [copied, setCopied] = useState<string | null>(null);
   const [confirmReconnect, setConfirmReconnect] = useState(false);
   const [diagnosticError, setDiagnosticError] = useState<string | null>(null);
+  const [storage, setStorage] = useState<LocalStorageSummary | null>(null);
 
   if (!state) return <div className="desktop-v2-loading">{t("common.loading")}</div>;
   const runtime = state;
+
+  useEffect(() => {
+    let active = true;
+    invoke<LocalStorageSummary>("local_storage_summary")
+      .then((summary) => {
+        if (active) setStorage(summary);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [runtime.pending]);
 
   async function openWeb() {
     try {
@@ -67,6 +80,18 @@ export function Device() {
     } catch {
       // Clipboard failure is non-fatal.
     }
+  }
+
+  function formatBytes(value: number) {
+    if (!Number.isFinite(value) || value <= 0) return "0 B";
+    const units = ["B", "KB", "MB", "GB", "TB"];
+    let current = value;
+    let index = 0;
+    while (current >= 1024 && index < units.length - 1) {
+      current /= 1024;
+      index += 1;
+    }
+    return (index === 0 || current >= 10 ? current.toFixed(0) : current.toFixed(1)) + " " + units[index];
   }
 
   async function copyReport() {
@@ -167,6 +192,33 @@ export function Device() {
           </div>
         </section>
       </div>
+
+      {storage && (
+        <section className="desktop-v2-card">
+          <span className="desktop-v2-kicker">{t("storage.title")}</span>
+          <div className="desktop-v2-data-list">
+            <div>
+              <span>{t("storage.total")}</span>
+              <strong>{formatBytes(storage.total_bytes)}</strong>
+            </div>
+            <div>
+              <span>{t("storage.database")}</span>
+              <strong>{formatBytes(storage.database_bytes)}</strong>
+            </div>
+            <div>
+              <span>{t("storage.screenshots")}</span>
+              <strong>{formatBytes(storage.screenshot_bytes)}</strong>
+            </div>
+            {!runtime.local_only && (
+              <div>
+                <span>{t("storage.unsynced")}</span>
+                <strong>{storage.pending}</strong>
+              </div>
+            )}
+          </div>
+          <p className="desktop-v2-storage-note">{t("storage.note")}</p>
+        </section>
+      )}
 
       <section className="desktop-v2-card">
         <div className="desktop-v2-card__head">

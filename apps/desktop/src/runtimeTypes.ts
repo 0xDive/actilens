@@ -87,3 +87,10 @@ export type DiagnosticsReport = {
   generated_at: number;
   checks: DiagnosticCheck[];
 };
+
+export type LocalStorageSummary = {
+  database_bytes: number;
+  screenshot_bytes: number;
+  total_bytes: number;
+  pending: number;
+};

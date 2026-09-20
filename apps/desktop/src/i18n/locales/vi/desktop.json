@@ -186,5 +186,13 @@
     "attention": "Cần chú ý",
     "revoked": "Đã thu hồi",
     "loading": "Đang tải…"
+  },
+  "storage": {
+    "title": "Lưu trữ cục bộ",
+    "total": "Đang dùng trên máy này",
+    "database": "Cơ sở dữ liệu cục bộ",
+    "screenshots": "Bộ nhớ đệm ảnh chụp",
+    "unsynced": "Đang chờ đồng bộ",
+    "note": "ActiLens tự động quản lý lưu trữ cục bộ. Không thể xóa dữ liệu chưa đồng bộ trong ứng dụng."
   }
 }
