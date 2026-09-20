@@ -112,4 +112,26 @@ for required in ("pub fn runtime_state", "pub async fn runtime_diagnostics", "pu
     if required not in commands:
         raise SystemExit(f"Desktop v2 contract failed: native runtime missing {required!r}")
 
+lib_rs = (
+    ROOT / "apps" / "desktop" / "src-tauri" / "src" / "lib.rs"
+).read_text(encoding="utf-8")
+for forbidden_command in (
+    "commands::dashboard_data",
+    "commands::keystroke_buckets",
+    "commands::screenshot_list",
+    "commands::browser_visits",
+    "commands::export_csv",
+    "commands::export_json",
+    "commands::capture_now",
+    "commands::browser_link",
+    "commands::sync_status",
+    "commands::capture_policy",
+    "commands::privacy_apps",
+):
+    if forbidden_command in lib_rs:
+        raise SystemExit(
+            "Desktop v2 contract failed: legacy webview command is registered: "
+            f"{forbidden_command}"
+        )
+
 print("ActiLens Desktop v2 agent contract: OK")
