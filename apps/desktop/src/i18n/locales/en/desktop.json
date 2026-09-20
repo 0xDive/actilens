@@ -111,7 +111,9 @@
     "browserBridge": "Browser bridge",
     "ready": "Ready",
     "notReady": "Not available",
-    "localStorage": "Stored locally"
+    "localStorage": "Stored locally",
+    "reconnect": "Reconnect device",
+    "reconnectBody": "Reconnect creates a new device identity. Unsent rows from the revoked identity remain local and are not reassigned."
   },
   "diagnostics": {
     "title": "Diagnostics",

@@ -117,6 +117,7 @@ pub fn run() {
             commands::login,
             commands::complete_mfa_login,
             commands::logout,
+            commands::prepare_device_reconnect,
             commands::current_session,
             commands::sync_status,
             commands::runtime_state,

@@ -539,3 +539,11 @@
 .bb-perm--ready {
   min-height: 76px;
 }
+
+.desktop-v2-page-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}

@@ -198,8 +198,10 @@ pub async fn run_once(ctx: &SyncContext) -> PassOutcome {
         }
         Err(e) => {
             // Network/server outage: retain the last server-confirmed policy instead
-            // of widening collection with local defaults.
+            // of widening collection with local defaults, but surface the failure to
+            // RuntimeState so Home can distinguish Offline from policy blocking.
             crate::log_warn!("policy", "background policy refresh failed: {e}");
+            ctx.status.record_error(e, pending_total(ctx));
         }
     }
 

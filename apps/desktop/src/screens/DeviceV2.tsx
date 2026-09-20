@@ -28,6 +28,17 @@ export function Device() {
     }
   }
 
+  async function reconnectDevice() {
+    setBusy(true);
+    try {
+      await invoke<string>("prepare_device_reconnect");
+      setReport(null);
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function runDiagnostics() {
     setBusy(true);
     try {
@@ -71,11 +82,22 @@ export function Device() {
           <h2>{runtime.hostname}</h2>
           <p>{runtime.os} · {runtime.arch}</p>
         </div>
-        {!runtime.local_only && (
-          <button className="actilens-btn actilens-btn--secondary" onClick={() => void openWeb()}>
-            {t("actions.openWeb")} ↗
-          </button>
-        )}
+        <div className="desktop-v2-page-actions">
+          {runtime.device === "revoked" && (
+            <button
+              className="actilens-btn actilens-btn--primary"
+              disabled={busy}
+              onClick={() => void reconnectDevice()}
+            >
+              {t("device.reconnect")}
+            </button>
+          )}
+          {!runtime.local_only && (
+            <button className="actilens-btn actilens-btn--secondary" onClick={() => void openWeb()}>
+              {t("actions.openWeb")} ↗
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="desktop-v2-grid desktop-v2-grid--two">

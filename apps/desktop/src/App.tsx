@@ -96,12 +96,14 @@ function DesktopShell({
   session,
   onChangeSettings,
   onSignOut,
+  onSessionExpired,
   onReturnToLogin,
 }: {
   settings: AppSettings;
   session: Session | null;
   onChangeSettings: (patch: Partial<AppSettings>) => void;
   onSignOut: () => void;
+  onSessionExpired: () => void;
   onReturnToLogin: () => void;
 }) {
   const { t } = useTranslation("desktop");
@@ -136,6 +138,12 @@ function DesktopShell({
       unlisten.then((dispose) => dispose());
     };
   }, [openWebDashboard]);
+
+  useEffect(() => {
+    if (session && state?.connection === "signed_out") {
+      onSessionExpired();
+    }
+  }, [onSessionExpired, session, state?.connection]);
 
   const statusKey =
     state?.device === "revoked"
@@ -359,6 +367,12 @@ function App() {
     setShowLogin(false);
   }
 
+  function sessionExpired() {
+    setSession(null);
+    setCaptureManaged(null);
+    setShowLogin(true);
+  }
+
   if (session === undefined || settings === null) {
     return (
       <div className="login">
@@ -398,6 +412,7 @@ function App() {
         session={session}
         onChangeSettings={(patch) => void updateSettings(patch)}
         onSignOut={() => void signOut()}
+        onSessionExpired={sessionExpired}
         onReturnToLogin={() => {
           setShowLogin(true);
           void updateSettings({ local_only: false, onboarding_completed: false });

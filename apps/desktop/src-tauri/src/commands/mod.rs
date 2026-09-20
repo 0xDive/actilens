@@ -678,6 +678,41 @@ pub fn logout(
     Ok(())
 }
 
+/// Explicitly detach this installation from its current server-side device
+/// identity before re-enrollment. Pending rows from the revoked/old identity are
+/// suppressed rather than reassigned to the new device UUID.
+#[tauri::command]
+pub fn prepare_device_reconnect(
+    auth: State<Arc<AuthState>>,
+    settings: State<Arc<crate::settings::SettingsState>>,
+    control: State<Arc<TrackerControl>>,
+    db: State<Arc<Db>>,
+) -> Result<String, String> {
+    suppress_pre_managed_backlog(db.inner())?;
+    auth.clear()?;
+
+    let new_device_id = uuid::Uuid::new_v4().to_string();
+    {
+        let mut current = settings.current.lock().unwrap();
+        current.device_id = new_device_id.clone();
+        current.local_only = false;
+        current.last_managed_business_id = None;
+        current.collection_scope_dirty = true;
+        current.org_monitoring_enabled = false;
+        current.onboarding_completed = false;
+        crate::settings::save(&settings.path, &current).map_err(err)?;
+    }
+
+    *settings.managed.lock().unwrap() = crate::settings::CaptureManaged::default();
+    control.in_setup.store(true, Ordering::Relaxed);
+    control.managed.store(false, Ordering::Relaxed);
+    control
+        .org_monitoring_enabled
+        .store(false, Ordering::Relaxed);
+
+    Ok(new_device_id)
+}
+
 /// Return the current session. On a first managed launch, a one-time
 /// ACTILENS_ENROLL_TOKEN (or --enroll-token) is redeemed before the UI leaves
 /// its startup gate, so deployment does not need an employee password.
