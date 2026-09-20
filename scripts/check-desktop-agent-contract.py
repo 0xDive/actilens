@@ -56,6 +56,7 @@ for forbidden in (
     "./screens/Settings",
     "AppTrayMenu",
     "autoCheckAndPrompt",
+    "CaptureManaged",
 ):
     if forbidden in app:
         raise SystemExit(f"Desktop v2 contract failed: App.tsx contains {forbidden!r}")

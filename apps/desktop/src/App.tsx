@@ -14,7 +14,7 @@ import { Login, type Session } from "./screens/Login";
 import { Welcome } from "./screens/Welcome";
 import { Onboarding } from "./screens/Onboarding";
 import { RuntimeProvider, useRuntime } from "./runtime";
-import type { AppSettings, CaptureManaged } from "./runtimeTypes";
+import type { AppSettings } from "./runtimeTypes";
 import brandMark from "./assets/brand-mark.svg";
 import "./desktop-v2.css";
 
@@ -266,7 +266,6 @@ function DesktopShell({
 function App() {
   const { t, i18n } = useTranslation();
   const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [captureManaged, setCaptureManaged] = useState<CaptureManaged | null>(null);
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [showLogin, setShowLogin] = useState(false);
 
@@ -294,20 +293,6 @@ function App() {
 
   const pastAuthGate = session != null || settings?.local_only === true;
 
-  // A session scoped to an organization is managed even before the first policy
-  // refresh finishes. This prevents the personal capture-config flow from flashing
-  // during managed startup/offline restore.
-  const effectiveManaged: CaptureManaged | null =
-    captureManaged ??
-    (session?.business_id
-      ? {
-          managed: true,
-          allow_employee_override: false,
-          family: false,
-          monitoring_enabled: settings?.org_monitoring_enabled ?? false,
-        }
-      : null);
-
   useEffect(() => {
     if (session === undefined || settings === null) return;
     if (!pastAuthGate && settings.onboarding_completed) {
@@ -321,29 +306,23 @@ function App() {
     invoke("set_in_setup", { inSetup }).catch(() => {});
   }, [session === undefined, settings === null, inSetup]);
 
-  const refreshManagedState = useCallback(() => {
-    if (!session) return;
-    invoke<CaptureManaged>("apply_org_policy")
-      .then(setCaptureManaged)
-      .catch(() => {})
-      .finally(() => {
-        invoke<AppSettings>("get_settings").then(setSettings).catch(() => {});
-      });
-  }, [session]);
+  // Native runtime owns organization policy. The UI may request a refresh when a
+  // managed window is opened/refocused, but it never receives or interprets the
+  // capture policy itself.
+  const refreshNativePolicy = useCallback(() => {
+    if (!session?.business_id) return;
+    invoke("apply_org_policy").catch(() => {});
+  }, [session?.business_id]);
 
   useEffect(() => {
-    if (!session) {
-      setCaptureManaged(null);
-      return;
-    }
-    refreshManagedState();
-  }, [session, refreshManagedState]);
+    refreshNativePolicy();
+  }, [refreshNativePolicy]);
 
   useEffect(() => {
-    if (!session) return;
-    const onFocus = () => refreshManagedState();
+    if (!session?.business_id) return;
+    const onFocus = () => refreshNativePolicy();
     const onVisible = () => {
-      if (!document.hidden) refreshManagedState();
+      if (!document.hidden) refreshNativePolicy();
     };
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisible);
@@ -351,7 +330,7 @@ function App() {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [session, refreshManagedState]);
+  }, [refreshNativePolicy, session?.business_id]);
 
   const theme = settings?.theme ?? "System";
   useEffect(() => {
@@ -382,13 +361,11 @@ function App() {
       // Clear the local UI session regardless; native state reconciles next launch.
     }
     setSession(null);
-    setCaptureManaged(null);
     setShowLogin(false);
   }
 
   function sessionExpired() {
     setSession(null);
-    setCaptureManaged(null);
     setShowLogin(true);
   }
 
@@ -415,7 +392,7 @@ function App() {
     return (
       <Onboarding
         settings={settings}
-        captureManaged={effectiveManaged}
+        managed={Boolean(session?.business_id)}
         onChange={(patch) => void updateSettings(patch)}
         onFinish={() =>
           void updateSettings({ onboarding_completed: true, consented: true })

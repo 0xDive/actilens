@@ -4,7 +4,7 @@ import i18n from "../i18n";
 import { AuthTitleBar } from "../components/AuthTitleBar";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { Permissions } from "./Permissions";
-import type { AppSettings, CaptureManaged } from "../runtimeTypes";
+import type { AppSettings } from "../runtimeTypes";
 
 import enSettings from "../i18n/locales/en/settings.json";
 import zhSettings from "../i18n/locales/zh/settings.json";
@@ -307,33 +307,24 @@ function ManagedOnboarding({
  */
 export function Onboarding({
   settings,
-  captureManaged,
+  managed,
   onChange,
   onFinish,
 }: {
   settings: AppSettings;
-  captureManaged: CaptureManaged | null;
+  managed: boolean;
   onChange: (patch: Partial<AppSettings>) => void;
   onFinish: () => void;
 }) {
   const { t } = useTranslation(["onboarding", "welcome", "media", "auth", "settings"]);
   const [step, setStep] = useState(1);
 
-  if (captureManaged?.managed) {
+  if (managed) {
     return <ManagedOnboarding onFinish={onFinish} />;
   }
 
-  const persona: Persona = settings.local_only
-    ? "personal"
-    : captureManaged?.family
-      ? "kid"
-      : "employee";
-  const captureLocked =
-    !!captureManaged && captureManaged.managed && !captureManaged.allow_employee_override;
-
-  // The configure step is dropped entirely when the org locks capture settings —
-  // there is nothing the user could change there.
-  const stepSeq = captureLocked ? [1, 3] : [1, 2, 3];
+  const persona: Persona = settings.local_only ? "personal" : "employee";
+  const stepSeq = [1, 2, 3];
   const stepIdx = Math.max(0, stepSeq.indexOf(step));
   const next = () =>
     stepIdx < stepSeq.length - 1 ? setStep(stepSeq[stepIdx + 1]) : onFinish();
@@ -359,7 +350,7 @@ export function Onboarding({
 
       <div className="login-card">
         {step === 1 && <StepCaptures t={t} persona={persona} />}
-        {step === 2 && !captureLocked && (
+        {step === 2 && (
           <StepConfigure t={t} settings={settings} onChange={onChange} />
         )}
         {step === 3 && <StepPermissions t={t} />}

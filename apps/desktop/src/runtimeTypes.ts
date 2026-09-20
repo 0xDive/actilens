@@ -32,13 +32,6 @@ export type AppSettings = {
   last_policy_sync_ts: number;
 };
 
-export type CaptureManaged = {
-  managed: boolean;
-  allow_employee_override: boolean;
-  family: boolean;
-  monitoring_enabled: boolean;
-};
-
 export type AgentState = "running" | "idle" | "paused" | "blocked";
 export type ConnectionState =
   | "online"
