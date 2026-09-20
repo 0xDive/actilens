@@ -8,6 +8,10 @@ import { dragWindow } from "./dragWindow";
  * is the brand and stays verbatim in every locale.
  */
 export function AuthTitleBar() {
+  // Windows keeps its native caption controls; the old custom strip only created
+  // a blank 40px band above auth/onboarding content.
+  if (navigator.userAgent.includes("Windows")) return null;
+
   return (
     <div className="welcome-titlebar" onMouseDown={dragWindow}>
       <span className="welcome-titlebar-title">ActiLens</span>
