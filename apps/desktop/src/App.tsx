@@ -270,14 +270,21 @@ function App() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [showLogin, setShowLogin] = useState(false);
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
 
   useEffect(() => {
     invoke<Session | null>("current_session")
       .then((value) => setSession(value ?? null))
-      .catch(() => setSession(null));
+      .catch((error) => {
+        console.error("current_session failed", error);
+        setSession(null);
+      });
     invoke<AppSettings>("get_settings")
       .then(setSettings)
-      .catch(() => setSettings(null));
+      .catch((error) => {
+        console.error("get_settings failed", error);
+        setBootstrapError(String(error));
+      });
   }, []);
 
   useEffect(() => {
@@ -369,6 +376,22 @@ function App() {
   function sessionExpired() {
     setSession(null);
     setShowLogin(true);
+  }
+
+  if (bootstrapError) {
+    return (
+      <div className="login">
+        <div style={{ maxWidth: 560, padding: 32 }}>
+          <h1 style={{ margin: "0 0 8px", fontSize: 20 }}>ActiLens could not initialize</h1>
+          <p className="muted" style={{ margin: "0 0 12px" }}>
+            The desktop runtime did not return its settings.
+          </p>
+          <code style={{ display: "block", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+            {bootstrapError}
+          </code>
+        </div>
+      </div>
+    );
   }
 
   if (session === undefined || settings === null) {
