@@ -990,14 +990,29 @@ pub async fn runtime_diagnostics(
         state: if missing == 0 { "ok" } else { "warning" }.into(),
         detail: format!("{missing} required permission(s) need attention"),
     });
+    let collector_paused = control.effective_paused();
+    let collector_detail = if control.in_setup.load(Ordering::Relaxed) {
+        "Collector paused by setup gate".to_string()
+    } else if !control.org_monitoring_enabled.load(Ordering::Relaxed) {
+        "Collector stopped by organization monitoring policy".to_string()
+    } else if !control.managed.load(Ordering::Relaxed)
+        && control.paused.load(Ordering::Relaxed)
+    {
+        "Collector paused locally".to_string()
+    } else {
+        let idle = platform::idle_seconds().round() as u64;
+        let (recent, last) = db
+            .activity_summary_since(crate::now_unix() - 15 * 60)
+            .unwrap_or((0, 0));
+        format!(
+            "Collector running; Windows idle={}s; local activity last 15m={}s; last record={}",
+            idle, recent, last
+        )
+    };
     checks.push(DiagnosticCheck {
         key: "collector".into(),
-        state: if control.effective_paused() { "warning" } else { "ok" }.into(),
-        detail: if control.effective_paused() {
-            "Collector is paused".into()
-        } else {
-            "Collector is running".into()
-        },
+        state: if collector_paused { "warning" } else { "ok" }.into(),
+        detail: collector_detail,
     });
 
     if !current.local_only {
