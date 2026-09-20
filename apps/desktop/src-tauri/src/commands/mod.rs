@@ -186,6 +186,7 @@ pub fn set_settings(
     }
     crate::settings::apply(&value, &control);
     crate::apply_dock_policy(&app, value.hide_dock);
+    crate::apply_windows_autostart(value.start_at_login);
     crate::settings::save(&state.path, &value).map_err(err)?;
     *state.current.lock().unwrap() = value;
     Ok(())
@@ -917,6 +918,8 @@ pub struct RuntimeStateView {
     pub managed: bool,
     pub pause_allowed: bool,
     pub browser_bridge_ready: bool,
+    pub autostart_supported: bool,
+    pub autostart_enabled: bool,
 }
 
 fn runtime_reason(last_error: &str) -> &'static str {
@@ -1080,6 +1083,8 @@ pub fn runtime_state(
         managed: managed.managed,
         pause_allowed: !managed.managed,
         browser_bridge_ready: browser.port.is_some() && !browser.token.is_empty(),
+        autostart_supported: cfg!(target_os = "windows"),
+        autostart_enabled: local.start_at_login,
     }
 }
 

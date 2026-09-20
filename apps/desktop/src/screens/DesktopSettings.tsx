@@ -45,6 +45,23 @@ export function DesktopSettings({
 
       <section className="desktop-v2-card desktop-settings-card">
         <span className="desktop-v2-kicker">{t("settings.behavior")}</span>
+        {state?.autostart_supported && (
+          <div className="desktop-setting-row">
+            <div>
+              <strong>{t("settings.startAtLogin")}</strong>
+              <span>{t("settings.startAtLoginBody")}</span>
+            </div>
+            <button
+              type="button"
+              className={`desktop-v2-switch ${settings.start_at_login ? "is-on" : ""}`}
+              role="switch"
+              aria-checked={settings.start_at_login}
+              onClick={() => onChange({ start_at_login: !settings.start_at_login })}
+            >
+              <span />
+            </button>
+          </div>
+        )}
         <div className="desktop-setting-row">
           <div>
             <strong>{t("settings.background")}</strong>

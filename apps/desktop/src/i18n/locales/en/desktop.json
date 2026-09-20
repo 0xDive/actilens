@@ -161,7 +161,9 @@
     "managedUpdates": "Updates for this managed installation are distributed by your administrator.",
     "manualUpdates": "Install newer ActiLens releases using the installer provided with your deployment.",
     "managed": "Managed",
-    "manual": "Installer"
+    "manual": "Installer",
+    "startAtLogin": "Start ActiLens with Windows",
+    "startAtLoginBody": "Launch the agent automatically when you sign in. The window stays hidden on autostart."
   },
   "theme": {
     "light": "Light",

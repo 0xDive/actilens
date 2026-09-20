@@ -155,7 +155,9 @@
     "managedUpdates": "Bản cài đặt được quản lý này do quản trị viên phân phối cập nhật.",
     "manualUpdates": "Cài ActiLens mới hơn bằng bộ cài của môi trường triển khai.",
     "managed": "Được quản lý",
-    "manual": "Bộ cài"
+    "manual": "Bộ cài",
+    "startAtLogin": "Khởi động ActiLens cùng Windows",
+    "startAtLoginBody": "Tự động chạy agent khi bạn đăng nhập. Khi tự khởi động, cửa sổ vẫn ẩn."
   },
   "theme": {
     "light": "Sáng",

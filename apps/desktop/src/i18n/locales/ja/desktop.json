@@ -155,7 +155,9 @@
     "managedUpdates": "この管理対象インストールの更新は管理者が配布します。",
     "manualUpdates": "新しい ActiLens は配布されたインストーラーで導入してください。",
     "managed": "管理対象",
-    "manual": "インストーラー"
+    "manual": "インストーラー",
+    "startAtLogin": "Windows と同時に ActiLens を起動",
+    "startAtLoginBody": "Windows サインイン時にエージェントを自動起動します。自動起動時はウィンドウを表示しません。"
   },
   "theme": {
     "light": "ライト",

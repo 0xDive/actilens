@@ -155,7 +155,9 @@
     "managedUpdates": "Las actualizaciones de esta instalación gestionada las distribuye el administrador.",
     "manualUpdates": "Instale versiones nuevas de ActiLens con el instalador de su despliegue.",
     "managed": "Gestionado",
-    "manual": "Instalador"
+    "manual": "Instalador",
+    "startAtLogin": "Iniciar ActiLens con Windows",
+    "startAtLoginBody": "Iniciar automáticamente el agente al abrir sesión. La ventana permanece oculta en el inicio automático."
   },
   "theme": {
     "light": "Claro",

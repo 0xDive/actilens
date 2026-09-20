@@ -155,7 +155,9 @@
     "managedUpdates": "此受管安装的更新由管理员分发。",
     "manualUpdates": "请使用部署提供的安装程序安装新版 ActiLens。",
     "managed": "受管理",
-    "manual": "安装程序"
+    "manual": "安装程序",
+    "startAtLogin": "随 Windows 启动 ActiLens",
+    "startAtLoginBody": "登录 Windows 时自动启动代理。自动启动时窗口保持隐藏。"
   },
   "theme": {
     "light": "浅色",

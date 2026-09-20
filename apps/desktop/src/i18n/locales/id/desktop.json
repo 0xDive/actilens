@@ -155,7 +155,9 @@
     "managedUpdates": "Pembaruan instalasi terkelola ini didistribusikan oleh administrator.",
     "manualUpdates": "Pasang ActiLens versi baru dengan installer dari deployment Anda.",
     "managed": "Dikelola",
-    "manual": "Installer"
+    "manual": "Installer",
+    "startAtLogin": "Mulai ActiLens bersama Windows",
+    "startAtLoginBody": "Jalankan agent otomatis saat Anda masuk. Saat autostart, jendela tetap tersembunyi."
   },
   "theme": {
     "light": "Terang",

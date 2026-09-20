@@ -29,6 +29,9 @@ pub struct Settings {
     pub collect_window_titles: bool,
     #[serde(default = "default_true")]
     pub collect_browser_activity: bool,
+    /// Start the native agent with the user session where supported.
+    #[serde(default = "default_true")]
+    pub start_at_login: bool,
     /// Run as a menu-bar-only app (no Dock icon).
     #[serde(default)]
     pub hide_dock: bool,
@@ -181,6 +184,7 @@ impl Default for Settings {
             collect_app_activity: true,
             collect_window_titles: true,
             collect_browser_activity: true,
+            start_at_login: true,
             hide_dock: false,
             capture_screenshots: true,
             screenshot_mode: default_screenshot_mode(),

@@ -44,22 +44,28 @@ fn apply_dock_policy(app: &tauri::AppHandle, hide: bool) {
 fn apply_dock_policy(_app: &tauri::AppHandle, _hide: bool) {}
 
 #[cfg(target_os = "windows")]
-fn ensure_windows_autostart() {
+fn apply_windows_autostart(enabled: bool) {
     use winreg::enums::HKEY_CURRENT_USER;
     use winreg::RegKey;
-    let Ok(exe) = std::env::current_exe() else {
-        return;
-    };
+
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let Ok((run, _)) = hkcu.create_subkey(r"Software\Microsoft\Windows\CurrentVersion\Run") else {
         return;
     };
-    let command = format!("\"{}\" --autostart", exe.display());
-    let _ = run.set_value("ActiLens", &command);
+
+    if enabled {
+        let Ok(exe) = std::env::current_exe() else {
+            return;
+        };
+        let command = format!("\"{}\" --autostart", exe.display());
+        let _ = run.set_value("ActiLens", &command);
+    } else {
+        let _ = run.delete_value("ActiLens");
+    }
 }
 
 #[cfg(not(target_os = "windows"))]
-fn ensure_windows_autostart() {}
+fn apply_windows_autostart(_enabled: bool) {}
 
 /// Fetch the curated sensitive-app list from the backend (skip-list suggestions
 /// + prefill), falling back to the baked-in copy when the backend is
@@ -129,7 +135,6 @@ pub fn run() {
         ])
         .setup(|app| {
             let launched_from_autostart = std::env::args().any(|a| a == "--autostart");
-            ensure_windows_autostart();
             // Open the local SQLite DB under the app data dir.
             let data_dir = app.path().app_data_dir().expect("resolve app data dir");
             std::fs::create_dir_all(&data_dir).expect("create app data dir");
@@ -143,6 +148,7 @@ pub fn run() {
             let settings_path = data_dir.join("settings.json");
             let loaded = settings::load_with_device_id(&settings_path);
             settings::apply(&loaded, &control);
+            apply_windows_autostart(loaded.start_at_login);
             let hide_dock = loaded.hide_dock;
             let loaded_locale = loaded.locale.clone();
             // One fresh Aptabase session id per launch, shared by the native launch/focus

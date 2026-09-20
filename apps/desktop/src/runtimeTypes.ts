@@ -7,6 +7,7 @@ export type AppSettings = {
   collect_app_activity: boolean;
   collect_window_titles: boolean;
   collect_browser_activity: boolean;
+  start_at_login: boolean;
   hide_dock: boolean;
   capture_screenshots: boolean;
   screenshot_mode: string;
@@ -79,6 +80,8 @@ export type RuntimeState = {
   managed: boolean;
   pause_allowed: boolean;
   browser_bridge_ready: boolean;
+  autostart_supported: boolean;
+  autostart_enabled: boolean;
 };
 
 export type DiagnosticCheck = {
