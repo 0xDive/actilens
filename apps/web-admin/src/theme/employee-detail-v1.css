@@ -310,6 +310,11 @@
   line-height: 16px;
 }
 
+.report-timeline-wrap {
+  position: relative;
+  padding-top: 34px;
+}
+
 .report-timeline {
   position: relative;
   height: 42px;
@@ -324,6 +329,64 @@
   bottom: 0;
   min-width: 1px;
   border-right: 1px solid color-mix(in srgb, var(--ds-bg-surface) 55%, transparent);
+  cursor: default;
+  transition:
+    opacity 120ms ease,
+    filter 120ms ease,
+    transform 120ms ease;
+  transform-origin: center;
+}
+
+.report-timeline.has-hover .report-timeline__segment {
+  opacity: 0.34;
+}
+
+.report-timeline.has-hover .report-timeline__segment.is-hovered {
+  z-index: 2;
+  opacity: 1;
+  filter: saturate(1.12) brightness(1.03);
+  transform: scaleY(1.12);
+}
+
+.report-timeline__segment:focus-visible {
+  z-index: 3;
+  outline: 2px solid var(--ds-focus);
+  outline-offset: -2px;
+}
+
+.report-timeline-tooltip {
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  max-width: min(260px, 80%);
+  min-width: 108px;
+  padding: 6px 9px;
+  border: 1px solid var(--ds-border-default);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transform: translateX(-50%);
+  background: var(--ds-bg-surface);
+  box-shadow: var(--ds-shadow-md);
+  color: var(--ds-text-primary);
+  font-size: 11px;
+  line-height: 16px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.report-timeline-tooltip strong {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+}
+
+.report-timeline-tooltip span {
+  flex: none;
+  color: var(--ds-text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 
 .report-timeline__segment--idle {
