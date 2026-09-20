@@ -679,6 +679,9 @@ pub struct RuntimeStateView {
     pub pending: u64,
     pub syncing: bool,
     pub last_error: String,
+    pub idle_seconds: u64,
+    pub recent_activity_s: i64,
+    pub last_activity_ts: i64,
     pub permission_attention: usize,
     pub device_id: String,
     pub app_version: String,
@@ -826,6 +829,11 @@ pub fn runtime_state(
         .filter(|cap| cap.required && cap.state != platform::PermissionState::Granted)
         .count();
 
+    let idle_seconds = platform::idle_seconds().max(0.0).round() as u64;
+    let (recent_activity_s, last_activity_ts) = db
+        .activity_summary_since(crate::now_unix() - 15 * 60)
+        .unwrap_or((0, 0));
+
     RuntimeStateView {
         agent: agent.into(),
         connection: connection.into(),
@@ -838,6 +846,9 @@ pub fn runtime_state(
         pending,
         syncing,
         last_error,
+        idle_seconds,
+        recent_activity_s,
+        last_activity_ts,
         permission_attention,
         device_id: local.device_id,
         app_version: app.package_info().version.to_string(),
