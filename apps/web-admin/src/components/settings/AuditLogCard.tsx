@@ -21,6 +21,7 @@ import {
   cx,
   Dialog,
   EmptyState,
+  IconButton,
   SelectMenu,
   Skeleton,
 } from "../ds";
@@ -631,12 +632,15 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
   const pageRows = rows;
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setSelectedEventId(null);
+      return;
+    }
     setSelectedEventId((current) => {
       if (current != null && rows.some((row) => row.event.id === current)) {
         return current;
       }
-      return rows[0]?.event.id ?? null;
+      return null;
     });
   }, [open, rows]);
 
@@ -678,13 +682,22 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
         role={selectable ? "button" : undefined}
         tabIndex={selectable ? 0 : undefined}
         aria-pressed={selectable ? selected : undefined}
-        onClick={selectable ? () => setSelectedEventId(row.event.id) : undefined}
+        onClick={
+          selectable
+            ? () =>
+                setSelectedEventId((current) =>
+                  current === row.event.id ? null : row.event.id,
+                )
+            : undefined
+        }
         onKeyDown={
           selectable
             ? (event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
-                  setSelectedEventId(row.event.id);
+                  setSelectedEventId((current) =>
+                    current === row.event.id ? null : row.event.id,
+                  );
                 }
               }
             : undefined
@@ -712,14 +725,7 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
   }
 
   function renderDetail() {
-    if (!selectedRow) {
-      return (
-        <div className="settings-audit-detail__empty">
-          <strong>{t("audit.detail.selectTitle")}</strong>
-          <span>{t("audit.detail.selectDescription")}</span>
-        </div>
-      );
-    }
+    if (!selectedRow) return null;
 
     const event = selectedRow.event;
     const actorSecondary = snapshotSecondary(
@@ -735,13 +741,32 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
     return (
       <>
         <div className="settings-audit-detail__header">
-          <div>
+          <div className="settings-audit-detail__heading">
             <div className="settings-audit-detail__eyebrow">
               {t("audit.detail.event", { id: event.id })}
             </div>
             <h3>{selectedRow.title}</h3>
+            <code>{event.action}</code>
           </div>
-          <code>{event.action}</code>
+          <IconButton
+            label={t("audit.detail.close")}
+            bordered
+            className="settings-audit-detail__close"
+            onClick={() => setSelectedEventId(null)}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              aria-hidden
+            >
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </IconButton>
         </div>
 
         <div className="settings-audit-detail__section">
@@ -817,6 +842,26 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
     );
   }
 
+  function closeAuditDialog() {
+    auditRequestSequence.current += 1;
+    setSelectedEventId(null);
+    setOpen(false);
+  }
+
+  function dismissAuditLayer() {
+    if (selectedEventId != null) {
+      setSelectedEventId(null);
+      return;
+    }
+    closeAuditDialog();
+  }
+
+  function openAuditDialog() {
+    setPage(0);
+    setSelectedEventId(null);
+    setOpen(true);
+  }
+
   return (
     <>
       <Card>
@@ -829,7 +874,7 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
             variant="secondary"
             size="sm"
             disabled={loading}
-            onClick={() => { setPage(0); setOpen(true); }}
+            onClick={openAuditDialog}
           >
             {t("audit.open")}
           </Button>
@@ -867,7 +912,7 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
             </div>
             {previewTotal > PREVIEW_COUNT && (
               <div className="settings-audit-preview-footer">
-                <Button variant="ghost" size="sm" onClick={() => { setPage(0); setOpen(true); }}>
+                <Button variant="ghost" size="sm" onClick={openAuditDialog}>
                   {t("audit.showAll", { count: previewTotal })}
                 </Button>
               </div>
@@ -880,17 +925,11 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
         <Dialog
           title={t("audit.dialogTitle")}
           size="workspace"
-          onClose={() => {
-            auditRequestSequence.current += 1;
-            setOpen(false);
-          }}
+          onClose={dismissAuditLayer}
           footer={
             <Button
               variant="primary"
-              onClick={() => {
-                auditRequestSequence.current += 1;
-                setOpen(false);
-              }}
+              onClick={closeAuditDialog}
             >
               {t("audit.close")}
             </Button>
@@ -944,7 +983,12 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
               {modalError ? modalError : t("audit.results", { count: total })}
             </div>
 
-            <div className="settings-audit-workspace">
+            <div
+              className={cx(
+                "settings-audit-workspace",
+                selectedRow && "is-inspector-open",
+              )}
+            >
               <div
                 ref={listViewportRef}
                 className="settings-audit-list-viewport"
@@ -961,9 +1005,23 @@ export function AuditLogCard({ businessId }: { businessId: string }) {
                 )}
               </div>
 
-              <aside className="settings-audit-detail" aria-live="polite">
-                {renderDetail()}
-              </aside>
+              {selectedRow && (
+                <>
+                  <button
+                    type="button"
+                    className="settings-audit-inspector-scrim"
+                    aria-label={t("audit.detail.close")}
+                    onClick={() => setSelectedEventId(null)}
+                  />
+                  <aside
+                    className="settings-audit-detail"
+                    aria-live="polite"
+                    aria-label={t("audit.detail.panelLabel")}
+                  >
+                    {renderDetail()}
+                  </aside>
+                </>
+              )}
             </div>
 
             {total > 0 && pageCount > 1 && (

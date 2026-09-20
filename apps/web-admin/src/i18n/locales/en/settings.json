@@ -368,7 +368,9 @@
       "noChanges": "This event has no before/after values. See the metadata below.",
       "metadata": "Additional data",
       "timestamp": "Timestamp",
-      "businessId": "Organization ID"
+      "businessId": "Organization ID",
+      "close": "Close event details",
+      "panelLabel": "Audit event details"
     },
     "metadata": {
       "role": "Role",
