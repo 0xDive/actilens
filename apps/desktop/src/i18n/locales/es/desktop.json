@@ -115,7 +115,8 @@
     "reconnect": "Reconectar dispositivo",
     "reconnectBody": "La reconexión crea una nueva identidad del dispositivo. Los datos sin enviar de la identidad revocada permanecen en local y no se reasignan.",
     "organization": "Organización",
-    "organizationId": "ID de organización"
+    "organizationId": "ID de organización",
+    "revokedTitle": "Instalación revocada"
   },
   "diagnostics": {
     "title": "Diagnóstico",

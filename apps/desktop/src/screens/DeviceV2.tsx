@@ -100,6 +100,16 @@ export function Device() {
         </div>
       </div>
 
+      {runtime.device === "revoked" && (
+        <section className="desktop-v2-card desktop-v2-device-warning">
+          <div>
+            <span className="desktop-v2-kicker">{t("device.revokedTitle")}</span>
+            <h3>{t("device.reconnect")}</h3>
+            <p>{t("device.reconnectBody")}</p>
+          </div>
+        </section>
+      )}
+
       <div className="desktop-v2-grid desktop-v2-grid--two">
         <section className="desktop-v2-card">
           <span className="desktop-v2-kicker">{t("device.installation")}</span>

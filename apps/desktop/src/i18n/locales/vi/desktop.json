@@ -115,7 +115,8 @@
     "reconnect": "Kết nối lại thiết bị",
     "reconnectBody": "Kết nối lại tạo một ID thiết bị mới. Dữ liệu chưa gửi của ID bị thu hồi vẫn ở máy và không được gán lại.",
     "organization": "Tổ chức",
-    "organizationId": "ID tổ chức"
+    "organizationId": "ID tổ chức",
+    "revokedTitle": "Bản cài đặt đã bị thu hồi"
   },
   "diagnostics": {
     "title": "Chẩn đoán",

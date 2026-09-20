@@ -115,7 +115,8 @@
     "reconnect": "デバイスを再接続",
     "reconnectBody": "再接続すると新しいデバイス ID が作成されます。無効化された ID の未送信データはローカルに残り、再割り当てされません。",
     "organization": "組織",
-    "organizationId": "組織 ID"
+    "organizationId": "組織 ID",
+    "revokedTitle": "無効化されたインストール"
   },
   "diagnostics": {
     "title": "診断",

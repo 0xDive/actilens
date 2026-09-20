@@ -115,7 +115,8 @@
     "reconnect": "Sambungkan ulang perangkat",
     "reconnectBody": "Penyambungan ulang membuat identitas perangkat baru. Data belum terkirim dari identitas yang dicabut tetap lokal dan tidak dialihkan.",
     "organization": "Organisasi",
-    "organizationId": "ID organisasi"
+    "organizationId": "ID organisasi",
+    "revokedTitle": "Instalasi yang dicabut"
   },
   "diagnostics": {
     "title": "Diagnostik",

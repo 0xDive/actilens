@@ -96,6 +96,8 @@ struct APIErrorBody {
     #[serde(default)]
     code: Option<String>,
     #[serde(default)]
+    error: Option<String>,
+    #[serde(default)]
     details: Option<APIErrorDetails>,
 }
 
@@ -657,6 +659,18 @@ fn net_err(e: reqwest::Error) -> String {
 }
 
 fn format_status_body(status: reqwest::StatusCode, body: &str) -> String {
+    if let Ok(parsed) = serde_json::from_str::<APIErrorBody>(body) {
+        if let Some(code) = parsed.code.filter(|value| !value.trim().is_empty()) {
+            let message = parsed
+                .error
+                .filter(|value| !value.trim().is_empty())
+                .unwrap_or_else(|| status.to_string());
+            return format!("code:{code}: {message}");
+        }
+        if let Some(message) = parsed.error.filter(|value| !value.trim().is_empty()) {
+            return format!("backend returned {status}: {message}");
+        }
+    }
     if body.is_empty() {
         format!("backend returned {status}")
     } else {
@@ -664,13 +678,10 @@ fn format_status_body(status: reqwest::StatusCode, body: &str) -> String {
     }
 }
 
-/// Turn a non-2xx response into a readable error, including the body if short.
+/// Turn a non-2xx response into a stable machine-readable prefix plus a diagnostic
+/// message when the backend exposes an API error code.
 async fn status_err(resp: reqwest::Response) -> String {
     let status = resp.status();
     let body = resp.text().await.unwrap_or_default();
-    if body.is_empty() {
-        format!("backend returned {status}")
-    } else {
-        format!("backend returned {status}: {body}")
-    }
+    format_status_body(status, &body)
 }

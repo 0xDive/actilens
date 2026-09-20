@@ -115,7 +115,8 @@
     "reconnect": "Reconnect device",
     "reconnectBody": "Reconnect creates a new device identity. Unsent rows from the revoked identity remain local and are not reassigned.",
     "organization": "Organization",
-    "organizationId": "Organization ID"
+    "organizationId": "Organization ID",
+    "revokedTitle": "Revoked installation"
   },
   "diagnostics": {
     "title": "Diagnostics",

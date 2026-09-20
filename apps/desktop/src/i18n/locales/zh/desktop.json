@@ -115,7 +115,8 @@
     "reconnect": "重新连接设备",
     "reconnectBody": "重新连接会创建新的设备身份。被撤销身份的未发送数据保留在本机且不会重新分配。",
     "organization": "组织",
-    "organizationId": "组织 ID"
+    "organizationId": "组织 ID",
+    "revokedTitle": "已撤销的安装"
   },
   "diagnostics": {
     "title": "诊断",

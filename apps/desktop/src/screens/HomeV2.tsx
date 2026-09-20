@@ -121,7 +121,6 @@ export function Home({
                       ? t("attention.offline")
                       : t("attention.sync")}
             </h3>
-            {state.last_error && <p className="desktop-v2-tech-note">{state.last_error}</p>}
           </div>
           <button
             className="actilens-btn actilens-btn--secondary"

@@ -920,17 +920,17 @@ pub struct RuntimeStateView {
 
 fn runtime_reason(last_error: &str) -> &'static str {
     let lower = last_error.to_ascii_lowercase();
-    if lower.contains("device was revoked") || lower.contains("device_revoked") {
+    if lower.contains("code:device_revoked") || lower.contains("device was revoked") {
         "device_revoked"
-    } else if lower.contains("member_blocked") {
+    } else if lower.contains("code:member_blocked") || lower.contains("member_blocked") {
         "member_blocked"
-    } else if lower.contains("member_removed") {
+    } else if lower.contains("code:member_removed") || lower.contains("member_removed") {
         "member_removed"
-    } else if lower.contains("organization_archived") {
+    } else if lower.contains("code:organization_archived") || lower.contains("organization_archived") {
         "organization_archived"
-    } else if lower.contains("organization_deletion_pending") {
+    } else if lower.contains("code:organization_deletion_pending") || lower.contains("organization_deletion_pending") {
         "organization_deletion_pending"
-    } else if lower.contains("session revoked") || lower.contains("session_revoked") {
+    } else if lower.contains("code:session_revoked") || lower.contains("session revoked") {
         "session_revoked"
     } else if lower.contains("network error")
         || lower.contains("connection")
