@@ -337,6 +337,9 @@ async fn activate_authenticated_session(
         let _ = crate::settings::save(&settings.path, &current);
     }
 
+    let pending = db.pending_count().unwrap_or(0);
+    sync_status.reset_identity_state(pending);
+
     Ok(DesktopLoginResult {
         status: "authenticated".into(),
         session: Some(session),
@@ -403,6 +406,7 @@ pub async fn complete_mfa_login(
     settings: State<'_, Arc<crate::settings::SettingsState>>,
     control: State<'_, Arc<TrackerControl>>,
     db: State<'_, Arc<Db>>,
+    sync_status: State<'_, Arc<crate::sync::worker::SyncStatus>>,
 ) -> Result<DesktopLoginResult, String> {
     let client = BackendClient::new(backend_url(), auth.inner().clone());
     let session = client
@@ -419,6 +423,7 @@ pub async fn complete_mfa_login(
         settings.inner(),
         control.inner(),
         db.inner(),
+        sync_status.inner(),
     )
     .await
 }
@@ -473,6 +478,7 @@ pub fn prepare_device_reconnect(
         current.last_managed_business_id = None;
         current.collection_scope_dirty = true;
         current.org_monitoring_enabled = false;
+        current.last_policy_sync_ts = 0;
         current.onboarding_completed = false;
         crate::settings::save(&settings.path, &current).map_err(err)?;
     }
