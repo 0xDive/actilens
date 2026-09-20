@@ -66,7 +66,11 @@
       }
     },
     "localStored": "Data stays on this computer in local mode.",
-    "localConnection": "No server connection is used in local mode."
+    "localConnection": "No server connection is used in local mode.",
+    "collection": "Collection",
+    "recentActivity": "Recorded locally in the last 15 min: {{minutes}} min",
+    "lastLocalActivity": "Last local activity record: {{value}}",
+    "systemIdle": "Windows idle counter: {{seconds}} s"
   },
   "attention": {
     "deviceRevoked": "This device has been revoked",
