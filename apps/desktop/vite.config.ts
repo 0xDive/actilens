@@ -1,18 +1,25 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// @ts-expect-error process is a nodejs global
-const host = process.env.TAURI_DEV_HOST;
+const env = (
+  globalThis as unknown as {
+    process: { env: Record<string, string | undefined> };
+  }
+).process.env;
+const host = env.TAURI_DEV_HOST;
+const platform = env.TAURI_ENV_PLATFORM;
+const debug = Boolean(env.TAURI_ENV_DEBUG);
 
-// https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [react()],
 
-  // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
-  //
-  // 1. prevent Vite from obscuring rust errors
+  // Tauri serves the bundled frontend from its own app protocol. Relative asset
+  // URLs work consistently across Windows WebView2, macOS WebKit and Linux.
+  base: "./",
+
   clearScreen: false,
-  // 2. tauri expects a fixed port, fail if that port is not available
+  envPrefix: ["VITE_", "TAURI_ENV_*"],
+
   server: {
     port: 1420,
     strictPort: true,
@@ -25,8 +32,15 @@ export default defineConfig(async () => ({
         }
       : undefined,
     watch: {
-      // 3. tell Vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
     },
+  },
+
+  build: {
+    // Match Tauri's documented browser targets instead of relying on Vite's
+    // moving default target, which can emit syntax unsupported by older WebView2.
+    target: platform === "windows" ? "chrome105" : "safari13",
+    minify: !debug,
+    sourcemap: debug,
   },
 }));
