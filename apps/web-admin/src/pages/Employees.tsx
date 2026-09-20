@@ -156,8 +156,19 @@ function useAnchoredMenu(
     }
 
     function onPointerDown(event: MouseEvent) {
-      const target = event.target as Node;
+      const target = event.target;
+      if (!(target instanceof Node)) return;
       if (anchorRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      // Keep the action menu mounted while a dialog or nested portaled select
+      // opened from it is handling the interaction. Unmounting the menu here
+      // would also unmount controls such as EnrollmentTokenControl and close
+      // their dialog on the first click inside it.
+      if (
+        target instanceof Element &&
+        target.closest(".ds-modal-backdrop, [data-ds-popover-root]")
+      ) {
+        return;
+      }
       setOpen(false);
     }
 
