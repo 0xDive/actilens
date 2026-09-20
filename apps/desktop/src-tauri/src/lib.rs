@@ -153,6 +153,28 @@ pub fn run() {
             // Manage control early so the tray can read pause state.
             app.manage(control.clone());
 
+            // Restore native ownership of tracking before the webview renders. A
+            // managed agent must keep collecting even if the React UI fails to boot,
+            // is hidden to tray, or never calls the setup command after an update.
+            let auth = Arc::new(sync::AuthState::load(data_dir.join("session.json")));
+            if auth
+                .session()
+                .and_then(|session| session.business_id)
+                .is_some()
+            {
+                control
+                    .managed
+                    .store(true, std::sync::atomic::Ordering::Relaxed);
+                control
+                    .in_setup
+                    .store(false, std::sync::atomic::Ordering::Relaxed);
+                let mut managed = settings_state.managed.lock().unwrap();
+                managed.managed = true;
+                managed.allow_employee_override = false;
+                managed.monitoring_enabled = loaded.org_monitoring_enabled;
+            }
+            app.manage(auth.clone());
+
             // Menu bar item (Start/Stop/Open) + Dock visibility per settings.
             tray::build(&app.handle(), control.clone())?;
             apply_dock_policy(&app.handle(), hide_dock);
@@ -210,10 +232,6 @@ pub fn run() {
             // Start the local ingest server for the browser extension.
             let link = server::start(db.clone(), control.clone());
             app.manage(link);
-
-            // Auth/session (task 51): load any persisted session from disk.
-            let auth = Arc::new(sync::AuthState::load(data_dir.join("session.json")));
-            app.manage(auth.clone());
 
             // Sync worker (task 53): pushes pending rows to the backend in the
             // background. No-op while logged out / offline.
