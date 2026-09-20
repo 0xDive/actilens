@@ -1,9 +1,9 @@
 //! Tauri commands — the bridge the web UI calls into.
 //!
-//! Queries over stored data (activity, screenshots, browser visits), permission
-//! status, settings, pause/resume, and export. Filled in across later tasks.
+//! The webview bridge intentionally exposes only desktop-agent operations:
+//! authentication, runtime/device health, local app settings, OS permissions and
+//! managed-policy refresh. Activity/reporting data is not exposed to React.
 
-use std::collections::HashMap;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
@@ -11,22 +11,8 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::platform::{self, CapabilityRow, Permission};
-use crate::storage::{Db, SyncTable};
+use crate::storage::Db;
 use crate::trackers::TrackerControl;
-
-/// Temporary smoke-test command kept from the scaffold; remove once real
-/// commands exist (task 9+).
-#[tauri::command]
-pub fn ping() -> String {
-    "actilens: ok".to_string()
-}
-
-/// Pause or resume all tracking. Routed through the tray helper so the menu bar
-/// indicator and the dashboard pill stay in sync.
-#[tauri::command]
-pub fn set_paused(paused: bool, app: tauri::AppHandle) {
-    crate::tray::set_paused(&app, paused);
-}
 
 /// UI reports whether the user is still on the setup surfaces (welcome/login/
 /// onboarding). Pauses tracking there and gates the tray Start item.
@@ -60,30 +46,11 @@ pub fn track_event(
     );
 }
 
-#[tauri::command]
-pub fn is_paused(control: State<Arc<TrackerControl>>) -> bool {
-    control.effective_paused()
-}
-
-/// Current tracking state for the UI: "tracking" | "idle" | "paused".
-#[tauri::command]
-pub fn tracking_state(control: State<Arc<TrackerControl>>) -> String {
-    if control.effective_paused() {
-        "paused"
-    } else if platform::idle_seconds() >= control.idle_threshold_s.load(Ordering::Relaxed) as f64 {
-        "idle"
-    } else {
-        "tracking"
-    }
-    .to_string()
-}
-
 // ---------- permissions ----------
 
-/// The setup/consent rows for the current OS (see docs/12 §2). macOS returns the 3
-/// TCC rows with live grant/deny state; Windows returns capture/consent rows derived
-/// from the user's opt-out settings. The React screen renders whatever it's given.
-/// Cheap; the UI polls it.
+/// Real OS permission rows for the current platform. macOS returns live TCC
+/// capabilities; Windows returns an empty set because collection policy is not an
+/// operating-system permission.
 #[tauri::command]
 pub fn permissions_status(
     settings: State<Arc<crate::settings::SettingsState>>,
@@ -223,211 +190,6 @@ pub async fn apply_org_policy(
     ))
 }
 
-/// Current org capture-policy status for the UI (to lock/unlock the controls).
-#[tauri::command]
-pub fn capture_policy(
-    settings: State<Arc<crate::settings::SettingsState>>,
-) -> crate::settings::CaptureManaged {
-    *settings.managed.lock().unwrap()
-}
-
-/// The curated sensitive-app list for the Settings UI (grouped by category):
-/// skip-list suggestions and the privacy-mode prefill. Fetched from the backend
-/// so the rules stay server-controlled; falls back to the baked-in copy offline.
-#[tauri::command]
-pub async fn privacy_apps() -> Result<Vec<crate::sync::client::PrivacyAppCategory>, String> {
-    Ok(crate::fetch_privacy_apps_or_baked().await)
-}
-
-/// Browser ingest link info for Settings (active port + whether a token exists).
-#[derive(Serialize)]
-pub struct BrowserLinkInfo {
-    pub port: Option<u16>,
-    pub token_active: bool,
-}
-
-#[tauri::command]
-pub fn browser_link(link: State<crate::server::BrowserLink>) -> BrowserLinkInfo {
-    BrowserLinkInfo {
-        port: link.port,
-        token_active: !link.token.is_empty(),
-    }
-}
-
-/// Capture a screenshot of every display right now. Returns how many were saved.
-#[tauri::command]
-pub fn capture_now(
-    app: tauri::AppHandle,
-    db: State<Arc<Db>>,
-    control: State<Arc<TrackerControl>>,
-) -> Result<usize, String> {
-    use tauri::Manager;
-    let dir = app.path().app_data_dir().map_err(err)?.join("screenshots");
-    Ok(crate::trackers::capture_once(&db, &dir, &control))
-}
-
-// ---------- dashboard ----------
-
-#[derive(Serialize)]
-pub struct AppTotal {
-    pub app_name: String,
-    pub total_s: i64,
-}
-
-#[derive(Serialize)]
-pub struct Seg {
-    pub ts: i64,
-    pub app_name: String,
-    pub duration_s: i64,
-}
-
-#[derive(Serialize)]
-pub struct DashboardData {
-    pub total_active_s: i64,
-    pub top_app: Option<String>,
-    pub by_app: Vec<AppTotal>,
-    pub timeline: Vec<Seg>,
-    pub keypresses: i64,
-    pub screenshots: i64,
-}
-
-/// Aggregated activity for the half-open window `[from_ts, to_ts)`.
-#[tauri::command]
-pub fn dashboard_data(
-    from_ts: i64,
-    to_ts: i64,
-    db: State<Arc<Db>>,
-) -> Result<DashboardData, String> {
-    let samples = db.activity_between(from_ts, to_ts).map_err(err)?;
-
-    let mut by_app_map: HashMap<String, i64> = HashMap::new();
-    let mut total_active_s = 0i64;
-    let mut timeline = Vec::with_capacity(samples.len());
-    for s in &samples {
-        *by_app_map.entry(s.app_name.clone()).or_insert(0) += s.duration_s;
-        total_active_s += s.duration_s;
-        timeline.push(Seg {
-            ts: s.ts,
-            app_name: s.app_name.clone(),
-            duration_s: s.duration_s,
-        });
-    }
-
-    let mut by_app: Vec<AppTotal> = by_app_map
-        .into_iter()
-        .map(|(app_name, total_s)| AppTotal { app_name, total_s })
-        .collect();
-    by_app.sort_by(|a, b| b.total_s.cmp(&a.total_s));
-    let top_app = by_app.first().map(|a| a.app_name.clone());
-
-    let keypresses = db
-        .keystrokes_between(from_ts, to_ts)
-        .map_err(err)?
-        .iter()
-        .map(|(_, c)| *c)
-        .sum();
-    let screenshots = db.screenshots_between(from_ts, to_ts).map_err(err)?.len() as i64;
-
-    Ok(DashboardData {
-        total_active_s,
-        top_app,
-        by_app,
-        timeline,
-        keypresses,
-        screenshots,
-    })
-}
-
-/// Screenshots captured in `[from_ts, to_ts)` (newest first), for the gallery.
-#[tauri::command]
-pub fn screenshot_list(
-    from_ts: i64,
-    to_ts: i64,
-    db: State<Arc<Db>>,
-) -> Result<Vec<crate::storage::Screenshot>, String> {
-    let mut rows = db.screenshots_between(from_ts, to_ts).map_err(err)?;
-    rows.reverse(); // newest first
-    Ok(rows)
-}
-
-/// Browser visits in `[from_ts, to_ts)` (newest first).
-#[tauri::command]
-pub fn browser_visits(
-    from_ts: i64,
-    to_ts: i64,
-    db: State<Arc<Db>>,
-) -> Result<Vec<crate::storage::BrowserVisit>, String> {
-    let mut rows = db.browser_visits_between(from_ts, to_ts).map_err(err)?;
-    rows.reverse();
-    Ok(rows)
-}
-
-/// Per-minute keystroke buckets `[ts_bucket, count]` in `[from_ts, to_ts)`.
-#[tauri::command]
-pub fn keystroke_buckets(
-    from_ts: i64,
-    to_ts: i64,
-    db: State<Arc<Db>>,
-) -> Result<Vec<(i64, i64)>, String> {
-    db.keystrokes_between(from_ts, to_ts).map_err(err)
-}
-
-#[derive(Serialize)]
-struct KeystrokeRow {
-    ts_bucket: i64,
-    count: i64,
-}
-
-/// Export all tables to a single JSON document under `dir`, limited to
-/// `[from_ts, to_ts)`. User-triggered only.
-#[tauri::command]
-pub fn export_json(
-    dir: String,
-    from_ts: i64,
-    to_ts: i64,
-    db: State<Arc<Db>>,
-) -> Result<ExportSummary, String> {
-    export_json_to_dir(&db, &dir, from_ts, to_ts)
-}
-
-/// Testable core of [`export_json`].
-pub fn export_json_to_dir(
-    db: &Db,
-    dir: &str,
-    from_ts: i64,
-    to_ts: i64,
-) -> Result<ExportSummary, String> {
-    use std::path::Path;
-    let activity = db.activity_between(from_ts, to_ts).map_err(err)?;
-    let keystrokes: Vec<KeystrokeRow> = db
-        .keystrokes_between(from_ts, to_ts)
-        .map_err(err)?
-        .into_iter()
-        .map(|(ts_bucket, count)| KeystrokeRow { ts_bucket, count })
-        .collect();
-    let screenshots = db.screenshots_between(from_ts, to_ts).map_err(err)?;
-    let visits = db.browser_visits_between(from_ts, to_ts).map_err(err)?;
-
-    let rows = activity.len() + keystrokes.len() + screenshots.len() + visits.len();
-    let doc = serde_json::json!({
-        "activity_sample": serde_json::to_value(&activity).map_err(err)?,
-        "keystroke_bucket": serde_json::to_value(&keystrokes).map_err(err)?,
-        "screenshot": serde_json::to_value(&screenshots).map_err(err)?,
-        "browser_visit": serde_json::to_value(&visits).map_err(err)?,
-    });
-
-    let path = Path::new(dir).join("actilens_export.json");
-    std::fs::write(&path, serde_json::to_string_pretty(&doc).map_err(err)?).map_err(err)?;
-
-    Ok(ExportSummary {
-        dir: dir.to_string(),
-        files: vec![FileResult {
-            name: "actilens_export.json".into(),
-            rows,
-        }],
-    })
-}
-
 fn err<E: std::fmt::Display>(e: E) -> String {
     e.to_string()
 }
@@ -435,7 +197,7 @@ fn err<E: std::fmt::Display>(e: E) -> String {
 // ---------- auth / session (task 51) ----------
 
 use crate::sync::auth::{AuthState, Session};
-use crate::sync::client::{BackendClient, LoginAttempt, MembershipState, PublicBusiness};
+use crate::sync::client::{BackendClient, LoginAttempt, MembershipState};
 
 /// The backend base URL (compile-time default; env override for dev).
 fn backend_url() -> String {
@@ -452,15 +214,6 @@ pub fn signup_url() -> String {
 #[tauri::command]
 pub fn web_dashboard_url() -> String {
     format!("{}/admin/", backend_url().trim_end_matches('/'))
-}
-
-/// `GET /v1/public/businesses` — the login picker's list of companies/owners.
-#[tauri::command]
-pub async fn list_businesses(
-    auth: State<'_, Arc<AuthState>>,
-) -> Result<Vec<PublicBusiness>, String> {
-    let client = BackendClient::new(backend_url(), auth.inner().clone());
-    client.list_businesses().await
 }
 
 #[derive(Serialize)]
