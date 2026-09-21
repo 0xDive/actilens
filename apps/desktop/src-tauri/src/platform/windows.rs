@@ -130,7 +130,7 @@ fn gamepad_activity_now() -> bool {
     for index in 0..4u32 {
         let mut state = XINPUT_STATE::default();
         let result = unsafe { XInputGetState(index, &mut state) };
-        if result.0 != 0 {
+        if result != 0 {
             packets[index as usize] = 0;
             continue;
         }
@@ -150,7 +150,7 @@ fn gamepad_activity_now() -> bool {
                 || i32::from(pad.sThumbLY).abs() > 7849
                 || i32::from(pad.sThumbRX).abs() > 8689
                 || i32::from(pad.sThumbRY).abs() > 8689;
-        if pad.wButtons != 0
+        if pad.wButtons.0 != 0
             || pad.bLeftTrigger > 30
             || pad.bRightTrigger > 30
             || stick_active
