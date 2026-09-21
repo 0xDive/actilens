@@ -61,15 +61,21 @@ func (s *Store) PurgeMemberFromBusiness(
 	if actorRole != RoleOwner {
 		return MemberPurgeResult{}, ErrForbidden
 	}
+	if err := lockMutableOrganizationTx(ctx, tx, businessID); err != nil {
+		return MemberPurgeResult{}, err
+	}
 
 	var targetRole BusinessRole
+	var targetStatus, targetDisplayName, targetEmail, targetUsername string
 	err = tx.QueryRow(ctx,
-		`SELECT role
-		   FROM memberships
-		  WHERE user_id = $1 AND business_id = $2
-		  FOR UPDATE`,
+		`SELECT m.role, m.status, u.display_name,
+		        COALESCE(u.email, ''), COALESCE(u.username, '')
+		   FROM memberships m
+		   JOIN users u ON u.id = m.user_id
+		  WHERE m.user_id = $1 AND m.business_id = $2
+		  FOR UPDATE OF m`,
 		targetUserID, businessID,
-	).Scan(&targetRole)
+	).Scan(&targetRole, &targetStatus, &targetDisplayName, &targetEmail, &targetUsername)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return MemberPurgeResult{}, ErrNotFound
 	}
@@ -118,6 +124,15 @@ func (s *Store) PurgeMemberFromBusiness(
 	}
 	if result.BrowserDeleted, err = execDeleteCount(ctx, tx,
 		`DELETE FROM browser_visits WHERE business_id = $1 AND user_id = $2`,
+		businessID, targetUserID); err != nil {
+		return MemberPurgeResult{}, err
+	}
+
+	// Managed devices are organization-bound. Purging one organization removes
+	// only that organization's device bindings and preserves installations that
+	// belong to the same account in other organizations.
+	if _, err := tx.Exec(ctx,
+		`DELETE FROM devices WHERE business_id = $1 AND user_id = $2`,
 		businessID, targetUserID); err != nil {
 		return MemberPurgeResult{}, err
 	}
@@ -173,6 +188,15 @@ func (s *Store) PurgeMemberFromBusiness(
 
 	if err := insertAuditTx(ctx, tx, businessID, actorID, "member.purged", "member", targetUserID, map[string]any{
 		"role":                string(targetRole),
+		"target": map[string]any{
+			"id": targetUserID, "type": "member",
+			"display_name": targetDisplayName,
+			"email": targetEmail,
+			"username": targetUsername,
+			"role": string(targetRole),
+			"membership_status": targetStatus,
+		},
+		"changes": auditChanges(auditChange("membership_status", targetStatus, "purged")),
 		"activity_deleted":    result.ActivityDeleted,
 		"keystrokes_deleted":  result.KeystrokesDeleted,
 		"browser_deleted":     result.BrowserDeleted,

@@ -21,6 +21,9 @@ pub struct Session {
     /// Resolved business id, if the login picked one.
     #[serde(default)]
     pub business_id: Option<String>,
+    /// Human-readable organization name cached for offline desktop display.
+    #[serde(default)]
+    pub business_name: String,
 }
 
 /// Managed Tauri state: the current session, mirrored to a file on disk.
@@ -71,6 +74,21 @@ impl AuthState {
             s.access_token = access_token;
             s.refresh_token = refresh_token;
             write_file(&self.path, s)?;
+        }
+        Ok(())
+    }
+
+    /// Cache the organization display name once the background worker resolves it.
+    pub fn update_business_name(&self, business_name: String) -> Result<(), String> {
+        if business_name.trim().is_empty() {
+            return Ok(());
+        }
+        let mut guard = self.current.lock().unwrap();
+        if let Some(s) = guard.as_mut() {
+            if s.business_name != business_name {
+                s.business_name = business_name;
+                write_file(&self.path, s)?;
+            }
         }
         Ok(())
     }

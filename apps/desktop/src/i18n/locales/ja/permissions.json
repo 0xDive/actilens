@@ -36,5 +36,8 @@
       "label": "スクリーンショット",
       "description": "画面のスクリーンショットを定期的に取得します。"
     }
-  }
+  },
+  "noneRequiredTitle": "追加のシステムアクセス許可は不要です",
+  "noneRequiredBody": "この OS では ActiLens 用の個別アクセス許可は必要ありません。",
+  "ready": "準備完了"
 }

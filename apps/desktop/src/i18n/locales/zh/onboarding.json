@@ -54,5 +54,12 @@
     "back": "← 返回",
     "finish": "完成",
     "skip": "暂时跳过"
+  },
+  "managed": {
+    "step": "设备设置",
+    "title": "完成此电脑的设置",
+    "subtitle": "授予 ActiLens 在后台可靠运行所需的系统权限。",
+    "managedNote": "组织设置在网页控制台中管理。",
+    "finish": "完成设置"
   }
 }

@@ -54,5 +54,12 @@
     "back": "← Kembali",
     "finish": "Selesai",
     "skip": "Lewati untuk sekarang"
+  },
+  "managed": {
+    "step": "Penyiapan perangkat",
+    "title": "Selesaikan penyiapan komputer ini",
+    "subtitle": "Berikan izin sistem yang diperlukan agar ActiLens berjalan andal di latar belakang.",
+    "managedNote": "Pengaturan organisasi dikelola di dasbor web.",
+    "finish": "Selesaikan penyiapan"
   }
 }

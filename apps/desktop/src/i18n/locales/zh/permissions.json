@@ -36,5 +36,8 @@
       "label": "截图",
       "description": "定期捕获您屏幕的截图。"
     }
-  }
+  },
+  "noneRequiredTitle": "无需其他系统权限",
+  "noneRequiredBody": "此操作系统无需为 ActiLens 单独授予权限。",
+  "ready": "就绪"
 }

@@ -1,0 +1,202 @@
+{
+  "nav": {
+    "home": "Inicio",
+    "device": "Dispositivo",
+    "permissions": "Permisos",
+    "settings": "Ajustes"
+  },
+  "common": {
+    "loading": "Cargando…"
+  },
+  "actions": {
+    "retry": "Reintentar",
+    "refresh": "Actualizar",
+    "openPermissions": "Abrir permisos",
+    "openDevice": "Abrir dispositivo",
+    "openWeb": "Abrir panel web",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "signOut": "Cerrar sesión",
+    "setupAgain": "Iniciar sesión",
+    "manageWeb": "Gestionar en la web",
+    "cancel": "Cancelar"
+  },
+  "home": {
+    "status": "Este equipo",
+    "unavailable": "Estado de ejecución no disponible",
+    "unavailableBody": "ActiLens no pudo leer el estado del runtime nativo.",
+    "connection": "Conexión",
+    "sync": "Sincronización",
+    "lastSync": "Última sincronización correcta: {{value}}",
+    "pending": "{{count}} elemento(s) esperando subir",
+    "noPending": "No hay datos esperando subir.",
+    "attention": "Requiere atención",
+    "hero": {
+      "healthy": {
+        "title": "ActiLens está funcionando",
+        "body": "La recopilación y la sincronización funcionan con normalidad en este equipo."
+      },
+      "idle": {
+        "title": "ActiLens está funcionando",
+        "body": "El equipo está inactivo. ActiLens sigue funcionando en segundo plano."
+      },
+      "paused": {
+        "title": "ActiLens está en pausa",
+        "body": "La recopilación local está pausada."
+      },
+      "offline": {
+        "title": "Sin conexión",
+        "body": "ActiLens mantiene los datos de forma segura en este equipo y los sincronizará cuando el servidor vuelva a estar disponible."
+      },
+      "permissions": {
+        "title": "Se requiere un permiso del sistema",
+        "body": "{{count}} permiso(s) obligatorio(s) requieren atención."
+      },
+      "syncError": {
+        "title": "La sincronización requiere atención",
+        "body": "ActiLens no pudo completar el último intento de sincronización."
+      },
+      "revoked": {
+        "title": "Este dispositivo fue desconectado",
+        "body": "El servidor ya no acepta datos de esta instalación."
+      },
+      "blocked": {
+        "title": "La recopilación no está disponible",
+        "body": "El estado actual de la organización o del miembro impide la recopilación en este equipo."
+      }
+    },
+    "localStored": "En modo local, los datos permanecen en este equipo.",
+    "localConnection": "El modo local no utiliza conexión con el servidor.",
+    "collection": "Captura",
+    "recentActivity": "Registrado localmente en los últimos 15 min: {{minutes}} min",
+    "lastLocalActivity": "Último registro de actividad local: {{value}}",
+    "systemIdle": "Inactividad de Windows: {{seconds}} s"
+  },
+  "attention": {
+    "deviceRevoked": "Este dispositivo ha sido revocado",
+    "deviceBlocked": "El acceso a la organización no está disponible actualmente",
+    "permissions": "{{count}} permiso(s) del sistema requieren atención",
+    "offline": "El servidor no está disponible actualmente",
+    "sync": "La sincronización falló"
+  },
+  "connection": {
+    "online": "Conectado",
+    "offline": "Sin conexión",
+    "checking": "Comprobando conexión…",
+    "signed_out": "Debe iniciar sesión",
+    "local": "Modo local"
+  },
+  "sync": {
+    "synced": "Todo está sincronizado",
+    "syncing": "Sincronizando…",
+    "queued": "Esperando sincronización",
+    "error": "Error de sincronización",
+    "signed_out": "Debe iniciar sesión",
+    "local": "Solo local"
+  },
+  "deviceState": {
+    "active": "Activo",
+    "revoked": "Revocado",
+    "blocked": "Bloqueado",
+    "enrollment_required": "Se requiere reconexión",
+    "local": "Modo local"
+  },
+  "device": {
+    "thisDevice": "Este dispositivo",
+    "installation": "Instalación",
+    "version": "Versión",
+    "deviceState": "Estado",
+    "deviceId": "ID del dispositivo",
+    "account": "Cuenta",
+    "connectionSync": "Conexión y sincronización",
+    "connection": "Conexión",
+    "lastSync": "Última sincronización correcta",
+    "queue": "Cola de subida",
+    "allSynced": "Todo está sincronizado",
+    "pendingCount": "En espera: {{count}}",
+    "browserBridge": "Puente del navegador",
+    "ready": "Listo",
+    "notReady": "No disponible",
+    "localStorage": "Guardado localmente",
+    "reconnect": "Reconectar dispositivo",
+    "reconnectBody": "La reconexión crea una nueva identidad del dispositivo. Los datos sin enviar de la identidad revocada permanecen en local y no se reasignan.",
+    "organization": "Organización",
+    "organizationId": "ID de organización",
+    "revokedTitle": "Instalación revocada",
+    "confirmReconnectTitle": "¿Reconectar esta instalación?",
+    "confirmReconnect": "Reconectar",
+    "reconnecting": "Reconectando…",
+    "reconnectFailed": "No se pudo reconectar este dispositivo. Ejecute el diagnóstico y vuelva a intentarlo."
+  },
+  "diagnostics": {
+    "title": "Diagnóstico",
+    "subtitle": "Comprobar el runtime local y su conexión con ActiLens.",
+    "run": "Ejecutar diagnóstico",
+    "running": "Comprobando…",
+    "copy": "Copiar informe de diagnóstico",
+    "checks": {
+      "local_database": "Base de datos local",
+      "session": "Sesión",
+      "device": "Identidad del dispositivo",
+      "permissions": "Permisos del sistema",
+      "collector": "Recopilador",
+      "uploader": "Subida",
+      "browser_bridge": "Puente del navegador",
+      "backend": "Servidor",
+      "policy_cache": "Caché de configuración"
+    },
+    "failed": "No se pudo completar el diagnóstico."
+  },
+  "settings": {
+    "appearance": "Apariencia",
+    "theme": "Tema",
+    "themeBody": "Usar la apariencia del sistema o elegir un tema fijo.",
+    "language": "Idioma",
+    "languageBody": "La aplicación y la bandeja del sistema usan el mismo idioma.",
+    "behavior": "Comportamiento de la aplicación",
+    "background": "Seguir funcionando en segundo plano",
+    "backgroundBody": "Cerrar la ventana oculta ActiLens; el agente nativo sigue funcionando.",
+    "alwaysOn": "Siempre activo",
+    "hideDock": "Ocultar del Dock / barra de tareas",
+    "hideDockBody": "Mantener ActiLens disponible desde la bandeja del sistema sin un icono permanente.",
+    "updates": "Actualizaciones",
+    "currentVersion": "Versión actual: {{version}}",
+    "about": "Acerca de",
+    "aboutBody": "Agente de escritorio para este equipo.",
+    "managedUpdates": "Las actualizaciones de esta instalación gestionada las distribuye el administrador.",
+    "manualUpdates": "Instale versiones nuevas de ActiLens con el instalador de su despliegue.",
+    "managed": "Gestionado",
+    "manual": "Instalador",
+    "startAtLogin": "Iniciar ActiLens con Windows",
+    "startAtLoginBody": "Iniciar automáticamente el agente al abrir sesión. La ventana permanece oculta en el inicio automático."
+  },
+  "theme": {
+    "light": "Claro",
+    "dark": "Oscuro",
+    "system": "Sistema"
+  },
+  "time": {
+    "never": "Nunca",
+    "justNow": "ahora mismo",
+    "minutesAgo": "hace {{count}} min",
+    "hoursAgo": "hace {{count}} h"
+  },
+  "runtime": {
+    "running": "En ejecución",
+    "idle": "Inactivo",
+    "paused": "En pausa",
+    "blocked": "Bloqueado",
+    "offline": "Sin conexión",
+    "attention": "Requiere atención",
+    "revoked": "Revocado",
+    "loading": "Cargando…"
+  },
+  "storage": {
+    "title": "Almacenamiento local",
+    "total": "Usado en este equipo",
+    "database": "Base de datos local",
+    "screenshots": "Caché de capturas",
+    "unsynced": "Esperando sincronización",
+    "note": "ActiLens gestiona el almacenamiento local automáticamente. Los datos sin sincronizar no se pueden borrar desde la aplicación."
+  }
+}

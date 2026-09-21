@@ -7,7 +7,16 @@ import { dragWindow } from "./dragWindow";
  * paused until setup completes, so there's no state to show. "ActiLens"
  * is the brand and stays verbatim in every locale.
  */
+const isWindows = navigator.userAgent.includes("Windows");
+if (isWindows) {
+  document.documentElement.classList.add("desktop-platform-windows");
+}
+
 export function AuthTitleBar() {
+  // Windows keeps its native caption controls; the old custom strip only created
+  // a blank 40px band above auth/onboarding content.
+  if (isWindows) return null;
+
   return (
     <div className="welcome-titlebar" onMouseDown={dragWindow}>
       <span className="welcome-titlebar-title">ActiLens</span>

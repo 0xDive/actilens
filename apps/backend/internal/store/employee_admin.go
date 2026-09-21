@@ -94,10 +94,24 @@ func (s *Store) UpdateEmployee(ctx context.Context, actorID, employeeID string,
 	}
 	e.Role = access.TargetRole
 
+	changes := []AuditChange{}
+	if curEmail != e.Email {
+		changes = append(changes, auditChange("email", curEmail, e.Email))
+	}
+	if curUsername != e.Username {
+		changes = append(changes, auditChange("username", curUsername, e.Username))
+	}
+	if curName != e.DisplayName {
+		changes = append(changes, auditChange("display_name", curName, e.DisplayName))
+	}
+	if curActive != e.Active {
+		changes = append(changes, auditChange("account_active", curActive, e.Active))
+	}
 	if err := insertAuditTx(ctx, tx, access.BusinessID, actorID, "employee.updated", "member", employeeID, map[string]any{
 		"display_name": e.DisplayName,
 		"role":         string(e.Role),
 		"active":       e.Active,
+		"changes":      changes,
 	}); err != nil {
 		return Employee{}, err
 	}
@@ -131,7 +145,9 @@ func (s *Store) ResetEmployeePassword(ctx context.Context, actorID, employeeID, 
 		return ErrNotFound
 	}
 	if err := insertAuditTx(ctx, tx, access.BusinessID, actorID, "employee.password_reset", "member", employeeID, map[string]any{
-		"role": string(access.TargetRole),
+		"role":                 string(access.TargetRole),
+		"credentials_changed":  true,
+		"sessions_invalidated": true,
 	}); err != nil {
 		return err
 	}
@@ -150,6 +166,13 @@ func (s *Store) SetEmployeeActive(ctx context.Context, actorID, employeeID strin
 	if err != nil {
 		return err
 	}
+	var currentActive bool
+	if err := tx.QueryRow(ctx, `SELECT active FROM users WHERE id = $1`, employeeID).Scan(&currentActive); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	}
 	ct, err := tx.Exec(ctx, `
 		UPDATE users
 		   SET active = $1, auth_version = auth_version + 1,
@@ -166,7 +189,8 @@ func (s *Store) SetEmployeeActive(ctx context.Context, actorID, employeeID strin
 		action = "employee.archived"
 	}
 	if err := insertAuditTx(ctx, tx, access.BusinessID, actorID, action, "member", employeeID, map[string]any{
-		"role": string(access.TargetRole),
+		"role":    string(access.TargetRole),
+		"changes": auditChanges(auditChange("account_active", currentActive, active)),
 	}); err != nil {
 		return err
 	}

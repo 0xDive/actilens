@@ -54,5 +54,12 @@
     "back": "← Retour",
     "finish": "Terminer",
     "skip": "Ignorer pour l'instant"
+  },
+  "managed": {
+    "step": "Configuration de l’appareil",
+    "title": "Terminez la configuration de cet ordinateur",
+    "subtitle": "Accordez les autorisations système nécessaires au bon fonctionnement d’ActiLens en arrière-plan.",
+    "managedNote": "Les paramètres de l’organisation sont gérés dans le tableau de bord web.",
+    "finish": "Terminer la configuration"
   }
 }

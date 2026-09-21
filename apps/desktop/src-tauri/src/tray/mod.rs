@@ -25,9 +25,9 @@ const TRAY_ID: &str = "main";
 /// them (on a language change). Managed in Tauri state.
 struct MenuItems {
     open: MenuItem<tauri::Wry>,
-    start: MenuItem<tauri::Wry>,
-    stop: MenuItem<tauri::Wry>,
-    version: MenuItem<tauri::Wry>,
+    web: MenuItem<tauri::Wry>,
+    sync: MenuItem<tauri::Wry>,
+    tracking: MenuItem<tauri::Wry>,
     quit: MenuItem<tauri::Wry>,
 }
 
@@ -78,35 +78,95 @@ fn tr(locale: &str, key: &str) -> String {
             "Abrir la interfaz",
             "Открыть главное окно",
         ),
-        "start" => s(
-            "Start",
-            "开始",
-            "開始",
-            "Bắt đầu",
-            "Mulai",
-            "Démarrer",
-            "Iniciar",
-            "Начать",
+        "web" => s(
+            "Open web dashboard",
+            "打开网页控制台",
+            "Web ダッシュボードを開く",
+            "Mở bảng điều khiển web",
+            "Buka dasbor web",
+            "Ouvrir le tableau de bord web",
+            "Abrir panel web",
+            "Открыть веб-панель",
         ),
-        "stop" => s(
-            "Stop",
-            "停止",
-            "停止",
-            "Dừng",
-            "Hentikan",
-            "Arrêter",
-            "Detener",
-            "Остановить",
+        "sync" => s(
+            "Sync",
+            "同步",
+            "同期",
+            "Đồng bộ",
+            "Sinkronisasi",
+            "Synchronisation",
+            "Sincronización",
+            "Синхронизация",
         ),
-        "version" => s(
-            "Version",
-            "版本",
-            "バージョン",
-            "Phiên bản",
-            "Versi",
-            "Version",
-            "Versión",
-            "Версия",
+        "sync_synced" => s(
+            "synced",
+            "已同步",
+            "同期済み",
+            "đã đồng bộ",
+            "tersinkron",
+            "synchronisé",
+            "sincronizado",
+            "синхронизировано",
+        ),
+        "sync_syncing" => s(
+            "syncing…",
+            "同步中…",
+            "同期中…",
+            "đang đồng bộ…",
+            "menyinkronkan…",
+            "synchronisation…",
+            "sincronizando…",
+            "синхронизация…",
+        ),
+        "sync_waiting" => s(
+            "waiting",
+            "等待中",
+            "待機中",
+            "đang chờ",
+            "menunggu",
+            "en attente",
+            "en espera",
+            "ожидание",
+        ),
+        "sync_attention" => s(
+            "needs attention",
+            "需要注意",
+            "要確認",
+            "cần chú ý",
+            "perlu perhatian",
+            "attention requise",
+            "requiere atención",
+            "требуется внимание",
+        ),
+        "pause_tracking" => s(
+            "Pause tracking",
+            "暂停跟踪",
+            "トラッキングを一時停止",
+            "Tạm dừng theo dõi",
+            "Jeda pelacakan",
+            "Mettre le suivi en pause",
+            "Pausar seguimiento",
+            "Приостановить",
+        ),
+        "resume_tracking" => s(
+            "Resume tracking",
+            "继续跟踪",
+            "トラッキングを再開",
+            "Tiếp tục theo dõi",
+            "Lanjutkan pelacakan",
+            "Reprendre le suivi",
+            "Reanudar seguimiento",
+            "Продолжить",
+        ),
+        "managed_tracking" => s(
+            "Tracking managed by organization",
+            "跟踪由组织管理",
+            "トラッキングは組織によって管理されています",
+            "Theo dõi do tổ chức quản lý",
+            "Pelacakan dikelola organisasi",
+            "Suivi géré par l’organisation",
+            "Seguimiento gestionado por la organización",
+            "Отслеживание управляется организацией",
         ),
         "quit" => s(
             "Quit ActiLens",
@@ -197,15 +257,21 @@ fn icon_for(state: State) -> tauri::image::Image<'static> {
 pub fn build(app: &AppHandle, control: Arc<TrackerControl>) -> tauri::Result<()> {
     let loc = current_locale(app);
     let open = MenuItem::with_id(app, "open", tr(&loc, "open"), true, None::<&str>)?;
-    // Start resumes tracking, but only from the dashboard (disabled during
-    // welcome/login/onboarding — see IN_SETUP). BRI-22
-    let start = MenuItem::with_id(app, "start", tr(&loc, "start"), false, None::<&str>)?;
-    let stop = MenuItem::with_id(app, "stop", tr(&loc, "stop"), true, None::<&str>)?;
-    let version = MenuItem::with_id(
+    let web = MenuItem::with_id(app, "web", tr(&loc, "web"), false, None::<&str>)?;
+    let sync = MenuItem::with_id(
         app,
-        "version",
-        version_label(app, &loc),
+        "sync",
+        format!("{}: {}", tr(&loc, "sync"), tr(&loc, "sync_waiting")),
         false,
+        None::<&str>,
+    )?;
+    // Local/personal mode gets one contextual Pause/Resume action. Managed
+    // collection remains server-controlled and renders the item read-only.
+    let tracking = MenuItem::with_id(
+        app,
+        "tracking",
+        tr(&loc, "pause_tracking"),
+        true,
         None::<&str>,
     )?;
     let quit = MenuItem::with_id(app, "quit", tr(&loc, "quit"), true, None::<&str>)?;
@@ -213,11 +279,11 @@ pub fn build(app: &AppHandle, control: Arc<TrackerControl>) -> tauri::Result<()>
         app,
         &[
             &open,
+            &web,
+            &sync,
             &PredefinedMenuItem::separator(app)?,
-            &start,
-            &stop,
+            &tracking,
             &PredefinedMenuItem::separator(app)?,
-            &version,
             &quit,
         ],
     )?;
@@ -228,8 +294,21 @@ pub fn build(app: &AppHandle, control: Arc<TrackerControl>) -> tauri::Result<()>
         .menu(&menu)
         .on_menu_event(|app, event| match event.id().as_ref() {
             "open" => show_main(app),
-            "start" => set_paused(app, false),
-            "stop" => set_paused(app, true),
+            "web" => {
+                show_main(app);
+                let _ = app.emit("open-web-dashboard", ());
+            }
+            "tracking" => {
+                let managed = app
+                    .try_state::<Arc<TrackerControl>>()
+                    .is_some_and(|control| control.managed.load(Ordering::Relaxed));
+                if !managed {
+                    let paused = app
+                        .try_state::<Arc<TrackerControl>>()
+                        .is_some_and(|control| control.effective_paused());
+                    set_paused(app, !paused);
+                }
+            },
             "quit" => app.exit(0),
             _ => {}
         })
@@ -239,9 +318,9 @@ pub fn build(app: &AppHandle, control: Arc<TrackerControl>) -> tauri::Result<()>
     // re-translate all items when the language changes.
     app.manage(MenuItems {
         open,
-        start,
-        stop,
-        version,
+        web,
+        sync,
+        tracking,
         quit,
     });
 
@@ -250,16 +329,14 @@ pub fn build(app: &AppHandle, control: Arc<TrackerControl>) -> tauri::Result<()>
     Ok(())
 }
 
-/// "Version 1.4.1" — localized word + the app version from tauri.conf.json.
-fn version_label(app: &AppHandle, loc: &str) -> String {
-    format!("{} {}", tr(loc, "version"), app.package_info().version)
-}
-
 /// Record whether the user is still in setup (welcome/login/onboarding) and pause
 /// tracking accordingly; on the dashboard tracking resumes and Start becomes usable.
 pub fn set_in_setup(app: &AppHandle, in_setup: bool) {
     IN_SETUP.store(in_setup, Ordering::Relaxed);
-    set_paused(app, in_setup);
+    if let Some(control) = app.try_state::<Arc<TrackerControl>>() {
+        control.in_setup.store(in_setup, Ordering::Relaxed);
+    }
+    refresh(app);
 }
 
 /// Show + focus the main window (it may be hidden in menu-bar-only mode).
@@ -274,6 +351,13 @@ pub fn show_main(app: &AppHandle) {
 /// tray indicator, and notifies the UI via an event.
 pub fn set_paused(app: &AppHandle, paused: bool) {
     if let Some(c) = app.try_state::<Arc<TrackerControl>>() {
+        // Organization-managed users cannot locally pause or resume policy.
+        // The server/membership switch remains authoritative.
+        if c.managed.load(Ordering::Relaxed) {
+            c.paused.store(false, Ordering::Relaxed);
+            refresh(app);
+            return;
+        }
         if !paused && !c.org_monitoring_enabled.load(Ordering::Relaxed) {
             refresh(app);
             return;
@@ -288,11 +372,11 @@ pub fn set_paused(app: &AppHandle, paused: bool) {
 pub fn refresh(app: &AppHandle) {
     let (paused, org_enabled, threshold) = match app.try_state::<Arc<TrackerControl>>() {
         Some(c) => (
-            c.paused.load(Ordering::Relaxed),
+            c.effective_paused(),
             c.org_monitoring_enabled.load(Ordering::Relaxed),
             c.idle_threshold_s.load(Ordering::Relaxed) as f64,
         ),
-        None => (false, true, 60.0),
+        None => (true, true, 60.0),
     };
     let state = if paused || !org_enabled {
         State::Paused
@@ -305,6 +389,7 @@ pub fn refresh(app: &AppHandle) {
     // Broadcast to the UI only when the state actually changes.
     if LAST_STATE.swap(state.code(), Ordering::Relaxed) != state.code() {
         let _ = app.emit("tracking-state", state.label());
+        let _ = app.emit("runtime-state-changed", ());
     }
 
     let app2 = app.clone();
@@ -328,15 +413,59 @@ fn render(app: &AppHandle, state: State) {
     // Stop is available only while running (tracking/idle); Start only while
     // paused AND on the dashboard (never from the setup surfaces).
     let paused = state == State::Paused;
-    let org_enabled = app
+    let (org_enabled, managed) = app
         .try_state::<Arc<TrackerControl>>()
-        .map(|c| c.org_monitoring_enabled.load(Ordering::Relaxed))
-        .unwrap_or(true);
+        .map(|c| {
+            (
+                c.org_monitoring_enabled.load(Ordering::Relaxed),
+                c.managed.load(Ordering::Relaxed),
+            )
+        })
+        .unwrap_or((true, false));
     if let Some(items) = app.try_state::<MenuItems>() {
+        let signed_in = app
+            .try_state::<Arc<crate::sync::AuthState>>()
+            .is_some_and(|auth| auth.is_logged_in());
+        let _ = items.web.set_enabled(signed_in);
+
+        let sync_word = app
+            .try_state::<Arc<crate::sync::worker::SyncStatus>>()
+            .map(|status| {
+                let last_error = status.last_error.lock().unwrap().clone();
+                if status.syncing.load(Ordering::Relaxed) {
+                    tr(&current_locale(app), "sync_syncing")
+                } else if !last_error.is_empty() {
+                    tr(&current_locale(app), "sync_attention")
+                } else if status.pending.load(Ordering::Relaxed) > 0 {
+                    format!(
+                        "{} ({})",
+                        tr(&current_locale(app), "sync_waiting"),
+                        status.pending.load(Ordering::Relaxed)
+                    )
+                } else if status.last_sync_ts.load(Ordering::Relaxed) > 0 {
+                    tr(&current_locale(app), "sync_synced")
+                } else {
+                    tr(&current_locale(app), "sync_waiting")
+                }
+            })
+            .unwrap_or_else(|| tr(&current_locale(app), "sync_waiting"));
         let _ = items
-            .start
-            .set_enabled(paused && org_enabled && !IN_SETUP.load(Ordering::Relaxed));
-        let _ = items.stop.set_enabled(!paused && org_enabled);
+            .sync
+            .set_text(format!("{}: {}", tr(&current_locale(app), "sync"), sync_word));
+
+        if managed {
+            let _ = items.tracking.set_text(tr(&current_locale(app), "managed_tracking"));
+            let _ = items.tracking.set_enabled(false);
+        } else {
+            let _ = items.tracking.set_text(if paused {
+                tr(&current_locale(app), "resume_tracking")
+            } else {
+                tr(&current_locale(app), "pause_tracking")
+            });
+            let _ = items.tracking.set_enabled(
+                org_enabled && !IN_SETUP.load(Ordering::Relaxed),
+            );
+        }
     }
 }
 
@@ -346,9 +475,20 @@ pub fn relabel(app: &AppHandle) {
     let loc = current_locale(app);
     if let Some(items) = app.try_state::<MenuItems>() {
         let _ = items.open.set_text(tr(&loc, "open"));
-        let _ = items.start.set_text(tr(&loc, "start"));
-        let _ = items.stop.set_text(tr(&loc, "stop"));
-        let _ = items.version.set_text(version_label(app, &loc));
+        let _ = items.web.set_text(tr(&loc, "web"));
+        let managed = app
+            .try_state::<Arc<TrackerControl>>()
+            .is_some_and(|control| control.managed.load(Ordering::Relaxed));
+        let paused = app
+            .try_state::<Arc<TrackerControl>>()
+            .is_some_and(|control| control.effective_paused());
+        let _ = items.tracking.set_text(if managed {
+            tr(&loc, "managed_tracking")
+        } else if paused {
+            tr(&loc, "resume_tracking")
+        } else {
+            tr(&loc, "pause_tracking")
+        });
         let _ = items.quit.set_text(tr(&loc, "quit"));
     }
     refresh(app); // re-renders the localized tooltip

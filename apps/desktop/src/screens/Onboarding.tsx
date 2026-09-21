@@ -4,7 +4,7 @@ import i18n from "../i18n";
 import { AuthTitleBar } from "../components/AuthTitleBar";
 import { LanguageSwitcher } from "../components/LanguageSwitcher";
 import { Permissions } from "./Permissions";
-import type { AppSettings, CaptureManaged } from "./Settings";
+import type { AppSettings } from "../runtimeTypes";
 
 import enSettings from "../i18n/locales/en/settings.json";
 import zhSettings from "../i18n/locales/zh/settings.json";
@@ -255,6 +255,51 @@ function StepPermissions({ t }: { t: TF }) {
   );
 }
 
+function ManagedOnboarding({
+  onFinish,
+}: {
+  onFinish: () => void;
+}) {
+  const { t } = useTranslation(["onboarding", "auth"]);
+  return (
+    <div className="login welcome onboarding-screen">
+      <AuthTitleBar />
+      <div className="welcome-lang">
+        <LanguageSwitcher compact />
+      </div>
+
+      <div className="capture-steps">
+        <div className="capture-pips">
+          <span className="pip on" />
+        </div>
+        <span className="capture-step-label">{t("managed.step")}</span>
+      </div>
+
+      <div className="login-card">
+        <span className="perm-shield" aria-hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 3l8 3v5c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z" />
+            <path d="M9 12l2 2 4-4" />
+          </svg>
+        </span>
+        <h1 className="login-title">{t("managed.title")}</h1>
+        <p className="login-sub">{t("managed.subtitle")}</p>
+        <div className="onb-perms">
+          <Permissions compact />
+        </div>
+      </div>
+
+      <div className="capture-foot capture-foot--managed">
+        <span className="capture-skip">{t("managed.managedNote")}</span>
+        <button type="button" className="auth-btn capture-next" onClick={onFinish}>
+          <CheckIcon />
+          {t("managed.finish")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Onboarding — the post-auth 3-step flow (until `onboarding_completed`), matching
  * the offline-app mockup: centered surface, a step-pip header, and a Skip/Back +
@@ -262,29 +307,24 @@ function StepPermissions({ t }: { t: TF }) {
  */
 export function Onboarding({
   settings,
-  captureManaged,
+  managed,
   onChange,
   onFinish,
 }: {
   settings: AppSettings;
-  captureManaged: CaptureManaged | null;
+  managed: boolean;
   onChange: (patch: Partial<AppSettings>) => void;
   onFinish: () => void;
 }) {
   const { t } = useTranslation(["onboarding", "welcome", "media", "auth", "settings"]);
   const [step, setStep] = useState(1);
 
-  const persona: Persona = settings.local_only
-    ? "personal"
-    : captureManaged?.family
-      ? "kid"
-      : "employee";
-  const captureLocked =
-    !!captureManaged && captureManaged.managed && !captureManaged.allow_employee_override;
+  if (managed) {
+    return <ManagedOnboarding onFinish={onFinish} />;
+  }
 
-  // The configure step is dropped entirely when the org locks capture settings —
-  // there is nothing the user could change there.
-  const stepSeq = captureLocked ? [1, 3] : [1, 2, 3];
+  const persona: Persona = settings.local_only ? "personal" : "employee";
+  const stepSeq = [1, 2, 3];
   const stepIdx = Math.max(0, stepSeq.indexOf(step));
   const next = () =>
     stepIdx < stepSeq.length - 1 ? setStep(stepSeq[stepIdx + 1]) : onFinish();
@@ -310,7 +350,7 @@ export function Onboarding({
 
       <div className="login-card">
         {step === 1 && <StepCaptures t={t} persona={persona} />}
-        {step === 2 && !captureLocked && (
+        {step === 2 && (
           <StepConfigure t={t} settings={settings} onChange={onChange} />
         )}
         {step === 3 && <StepPermissions t={t} />}

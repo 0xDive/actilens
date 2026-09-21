@@ -1,80 +1,125 @@
 # ActiLens desktop agent
 
-The desktop app is a Tauri 2 + React client that records workstation activity
-locally and, in managed mode, synchronizes it to the ActiLens backend selected by
-the deploying organization.
+The desktop application is the operational agent for **one computer**. It is a
+Tauri 2 + React UI over a native Rust runtime that owns collection, local storage,
+synchronization, permissions, device identity and the system tray.
+
+The product boundary is intentional:
+
+> The web application manages ActiLens. The desktop application keeps ActiLens
+> healthy on this computer.
+
+Organization members, roles, reporting, screenshots, browser/activity history,
+audit, retention, exports and organization settings belong to the web application
+and are not duplicated in desktop.
+
+## Desktop navigation
+
+The signed-in shell contains only:
+
+- **Home** — operational state, connectivity, synchronization and actionable
+  problems for this computer;
+- **Device** — installation identity, connection/sync state, browser bridge and
+  non-secret diagnostics;
+- **Permissions** — real operating-system permissions only;
+- **Settings** — local application preferences and deployment information.
+
+Home and Device consume the native RuntimeState; individual screens do not
+reconstruct agent health from unrelated Tauri commands.
 
 ## Modes
 
-- **Managed mode** — signs in or redeems a one-time enrollment code, loads the
-  organization's capture policy and syncs activity to that organization's server.
-- **Local-only mode** — keeps activity on the workstation and does not require a
-  backend account.
+### Managed mode
 
-The application remains visible in the system tray. Windows collection is gated on
-the first-run consent flow; macOS capture also depends on the relevant system
-permissions.
+A user signs in or redeems a one-time enrollment token. The native runtime loads
+and caches the organization's effective policy, but desktop does not expose that
+policy as an organization settings editor.
 
-## What it records
+Managed tracking is server-controlled. Desktop does not provide a local
+Pause/Resume override. The system tray shows that tracking is organization-managed
+and links to the web dashboard for organization management.
 
-Depending on policy and local settings, the agent can record:
+### Local-only mode
 
-- active application and window title;
-- active/idle time;
-- periodic screenshots;
-- browser visits received from the local ActiLens browser extension;
-- keystroke counts only, never the typed key contents.
+Activity remains on the workstation and no backend account is required. Personal
+capture configuration remains part of the local-only onboarding flow and a local
+Pause/Resume action remains available in the system tray.
 
-The organization-controlled monitoring switch is independent of the user's local
-Pause control. A server-disabled membership remains fail-closed across offline
-restarts until the server confirms monitoring is enabled again.
+## Runtime and offline behavior
 
-## Backend selection
+The Rust runtime keeps running when the main window is hidden. Closing the window
+does not stop collectors or the uploader; full process exit is explicit through
+the native tray.
 
-The backend URL is resolved in this order:
+A restored managed session never waits for the network before opening the UI.
+ActiLens immediately restores the cached session/organization identity, last
+server-confirmed managed state, stable device identity and local queue. The
+background worker then refreshes membership/policy and uploads pending rows.
 
-1. process `ACTILENS_BACKEND_URL`;
-2. Windows user environment `ACTILENS_BACKEND_URL`;
-3. build-time `ACTILENS_BUILD_SERVER_URL`;
-4. the local development fallback.
+During an outage, the last valid server policy remains authoritative and pending
+data stays local until synchronization succeeds. Server lifecycle/security states
+remain fail-closed across offline restarts.
 
-Tagged public installers are intentionally server-agnostic and are configured at
-provisioning time.
+## Device identity and reconnect
+
+Each installation owns a stable UUID. A revoked device cannot silently bypass the
+revocation by logging in again. Explicit Reconnect device suppresses the old
+identity's unsent backlog, clears the old session, generates a fresh device UUID
+and returns the app to setup/sign-in. Old unsent rows remain local until ordinary
+retention cleanup removes them.
+
+## System tray
+
+The native tray contains Open ActiLens, Open web dashboard when signed in,
+read-only synchronization state, Pause/Resume in local-only mode (or a read-only
+organization-managed state in managed mode), and Quit ActiLens.
+
+There is no in-window imitation of the system tray.
+
+## Permissions
+
+macOS exposes real TCC capabilities and permission prompts are only triggered
+after an explicit user action. Windows has no equivalent per-feature OS permission
+flow for these runtime capabilities, so desktop shows a healthy no-additional-
+permissions state instead of presenting collection policy as fake OS permissions.
+
+## Diagnostics
+
+The Device screen checks local database access, session/device identity, required
+OS permissions, collector/uploader state, browser bridge and backend reachability.
+Diagnostic reports do not include tokens, passwords, MFA secrets, screenshot
+contents or browser history.
+
+## Deployment and updates
+
+Release installers are server-agnostic. Deployment selects the backend from the
+process ACTILENS_BACKEND_URL, Windows user ACTILENS_BACKEND_URL, build-time
+ACTILENS_BUILD_SERVER_URL, then the local development fallback.
+
+Managed updates are currently distributed through deployment installers. Desktop
+does not pretend that an in-app signed updater works until an updater endpoint,
+public key and signed artifact pipeline are configured.
 
 ## Development
 
 From the repository root:
 
-```bash
-corepack enable
-pnpm install
-pnpm --filter @actilens/desktop typecheck
-pnpm --filter @actilens/desktop tauri dev
-```
+    corepack enable
+    pnpm install
+    pnpm --filter @actilens/desktop typecheck
+    pnpm --filter @actilens/desktop tauri dev
 
-Rust unit tests live in `src-tauri`:
+Rust tests:
 
-```bash
-cd apps/desktop/src-tauri
-cargo test --locked --lib
-```
+    cd apps/desktop/src-tauri
+    cargo test --locked --lib
 
 ## Windows build
 
 For a local custom build:
 
-```powershell
-.\build-windows-client.ps1 -ServerUrl "http://192.168.0.249:8081"
-```
+    .\build-windows-client.ps1 -ServerUrl "http://192.168.0.249:8081"
 
-For normal managed deployment, use the stable release assets together with the
-one-time enrollment command generated by the web admin:
-
-```powershell
-.\install-windows-agent.ps1 `
-  -ServerUrl "https://tracker.example.com" `
-  -EnrollmentToken "atl_enroll_..."
-```
-
-The enrollment token is short-lived, one-time and removed from the Windows user
-environment after successful redemption.
+For managed deployment, use the release installer together with the one-time
+enrollment command generated by web admin. The enrollment token is short-lived,
+one-time and removed from the Windows user environment after successful redemption.

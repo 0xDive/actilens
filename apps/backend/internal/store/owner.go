@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
+	"sort"
 	"strings"
+	"time"
 
 	"actilens/backend/internal/privacyapps"
 
@@ -16,20 +19,39 @@ var ErrForbidden = errors.New("forbidden")
 
 // Business is a company/team owned by a user.
 type Business struct {
-	ID                      string   `json:"id"`
-	Name                    string   `json:"name"`
-	Kind                    string   `json:"kind"` // 'team' | 'family'
-	OwnerUserID             string   `json:"owner_user_id"`
-	ScreenshotRetentionDays *int     `json:"screenshot_retention_days"`
-	ScreenshotIntervalS     int      `json:"screenshot_interval_s"`
-	IdleThresholdS          int      `json:"idle_threshold_s"`
-	AllowEmployeeOverride   bool     `json:"allow_employee_override"`
-	ScreenshotMode          string   `json:"screenshot_mode"` // 'privacy' | 'normal'
-	ScreenshotSkipApps      []string `json:"screenshot_skip_apps"`
+	ID                             string     `json:"id"`
+	Name                           string     `json:"name"`
+	Kind                           string     `json:"kind"`
+	OwnerUserID                    string     `json:"owner_user_id"`
+	Timezone                       string     `json:"timezone"`
+	WeekStartsOn                   *int       `json:"week_starts_on"`
+	DefaultMemberMonitoringEnabled bool       `json:"default_member_monitoring_enabled"`
+	CollectAppActivity             bool       `json:"collect_app_activity"`
+	CollectWindowTitles            bool       `json:"collect_window_titles"`
+	CollectScreenshots             bool       `json:"collect_screenshots"`
+	CollectBrowserActivity         bool       `json:"collect_browser_activity"`
+	CollectKeystrokeCounts         bool       `json:"collect_keystroke_counts"`
+	ScreenshotRetentionDays        *int       `json:"screenshot_retention_days"`
+	ScreenshotIntervalS            int        `json:"screenshot_interval_s"`
+	ScreenshotCaptureScope         string     `json:"screenshot_capture_scope"`
+	IdleThresholdS                 int        `json:"idle_threshold_s"`
+	AllowEmployeeOverride          bool       `json:"allow_employee_override"` // compatibility for older agents
+	ScreenshotMode                 string     `json:"screenshot_mode"` // compatibility for older agents
+	ScreenshotSkipApps             []string   `json:"screenshot_skip_apps"` // compatibility mirror
+	ActivityRetentionDays          int        `json:"activity_retention_days"`
+	BrowserRetentionDays           int        `json:"browser_retention_days"`
+	KeystrokeRetentionDays         int        `json:"keystroke_retention_days"`
+	AuditRetentionDays             *int       `json:"audit_retention_days"`
+	DeviceLimit                    *int       `json:"device_limit"`
+	EnrollmentTokenTTLS            int        `json:"enrollment_token_ttl_s"`
+	ArchivedAt                     *time.Time `json:"archived_at"`
+	DeletionScheduledAt            *time.Time `json:"deletion_scheduled_at"`
+	CreatedAt                      time.Time  `json:"created_at"`
+	UpdatedAt                      time.Time  `json:"updated_at"`
 }
 
 // businessCols is the column list backing a Business scan (see scanBusiness).
-const businessCols = "id, name, kind, owner_user_id, screenshot_retention_days, screenshot_interval_s, idle_threshold_s, allow_employee_override, screenshot_mode, screenshot_skip_apps"
+const businessCols = "id, name, kind, owner_user_id, timezone, week_starts_on, default_member_monitoring_enabled, collect_app_activity, collect_window_titles, collect_screenshots, collect_browser_activity, collect_keystroke_counts, screenshot_retention_days, screenshot_interval_s, screenshot_capture_scope, idle_threshold_s, allow_employee_override, screenshot_mode, screenshot_skip_apps, activity_retention_days, browser_retention_days, keystroke_retention_days, audit_retention_days, device_limit, enrollment_token_ttl_s, archived_at, deletion_scheduled_at, created_at, updated_at"
 
 // Employee is a member with the employee role within a business.
 type Employee struct {
@@ -37,9 +59,12 @@ type Employee struct {
 	Email             string       `json:"email"`
 	Username          string       `json:"username"`
 	DisplayName       string       `json:"display_name"`
-	Active            bool         `json:"active"`
+	Active            bool         `json:"active"` // global account state
 	Role              BusinessRole `json:"role"`
+	Status            string       `json:"status"`
 	MonitoringEnabled bool         `json:"monitoring_enabled"`
+	BlockedAt         *time.Time   `json:"blocked_at"`
+	RemovedAt         *time.Time   `json:"removed_at"`
 	LastSeen          *int64       `json:"last_seen"`
 	CurrentApp        *string      `json:"current_app"`
 	CurrentWindow     *string      `json:"current_window"`
@@ -58,6 +83,9 @@ func (s *Store) CreateBusiness(ctx context.Context, ownerID, name, kind string) 
 	if err != nil {
 		return Business{}, err
 	}
+	if err := insertOrganizationCreatedAuditTx(ctx, tx, ownerID, biz); err != nil {
+		return Business{}, err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return Business{}, err
 	}
@@ -71,9 +99,16 @@ type scanner interface {
 
 func scanBusiness(s scanner) (Business, error) {
 	var b Business
-	err := s.Scan(&b.ID, &b.Name, &b.Kind, &b.OwnerUserID, &b.ScreenshotRetentionDays,
-		&b.ScreenshotIntervalS, &b.IdleThresholdS, &b.AllowEmployeeOverride,
-		&b.ScreenshotMode, &b.ScreenshotSkipApps)
+	err := s.Scan(
+		&b.ID, &b.Name, &b.Kind, &b.OwnerUserID, &b.Timezone, &b.WeekStartsOn,
+		&b.DefaultMemberMonitoringEnabled, &b.CollectAppActivity, &b.CollectWindowTitles,
+		&b.CollectScreenshots, &b.CollectBrowserActivity, &b.CollectKeystrokeCounts,
+		&b.ScreenshotRetentionDays, &b.ScreenshotIntervalS, &b.ScreenshotCaptureScope,
+		&b.IdleThresholdS, &b.AllowEmployeeOverride, &b.ScreenshotMode, &b.ScreenshotSkipApps,
+		&b.ActivityRetentionDays, &b.BrowserRetentionDays, &b.KeystrokeRetentionDays,
+		&b.AuditRetentionDays, &b.DeviceLimit, &b.EnrollmentTokenTTLS,
+		&b.ArchivedAt, &b.DeletionScheduledAt, &b.CreatedAt, &b.UpdatedAt,
+	)
 	return b, err
 }
 
@@ -114,6 +149,7 @@ func (s *Store) CreateEmployee(ctx context.Context, ownerID string, businessID *
 	defer tx.Rollback(ctx)
 
 	var biz Business
+	autoCreatedBusiness := false
 	if businessID != nil {
 		biz, err = getBusiness(ctx, tx, *businessID)
 		if err != nil {
@@ -137,8 +173,18 @@ func (s *Store) CreateEmployee(ctx context.Context, ownerID string, businessID *
 				kind, suffix = "family", "'s Family"
 			}
 			biz, err = createBusinessTx(ctx, tx, ownerID, ownerName+suffix, kind)
+			autoCreatedBusiness = err == nil
 		}
 		if err != nil {
+			return Employee{}, Business{}, err
+		}
+	}
+
+	if err := lockMutableOrganizationTx(ctx, tx, biz.ID); err != nil {
+		return Employee{}, Business{}, err
+	}
+	if autoCreatedBusiness {
+		if err := insertOrganizationCreatedAuditTx(ctx, tx, ownerID, biz); err != nil {
 			return Employee{}, Business{}, err
 		}
 	}
@@ -160,17 +206,25 @@ func (s *Store) CreateEmployee(ctx context.Context, ownerID string, businessID *
 		return Employee{}, Business{}, err
 	}
 	emp.Role = RoleEmployee
-	emp.MonitoringEnabled = true
+	emp.Status = MemberStatusActive
+	emp.MonitoringEnabled = biz.DefaultMemberMonitoringEnabled
 
 	if _, err := tx.Exec(ctx,
-		`INSERT INTO memberships (user_id, business_id, role) VALUES ($1, $2, 'employee')`,
-		emp.ID, biz.ID,
+		`INSERT INTO memberships
+		     (user_id, business_id, role, status, monitoring_enabled)
+		 VALUES ($1, $2, 'employee', 'active', $3)`,
+		emp.ID, biz.ID, biz.DefaultMemberMonitoringEnabled,
 	); err != nil {
 		return Employee{}, Business{}, err
 	}
 
 	if err := insertAuditTx(ctx, tx, biz.ID, ownerID, "employee.created", "employee", emp.ID, map[string]any{
 		"display_name": emp.DisplayName,
+		"changes": auditChanges(
+			auditChange("exists", false, true),
+			auditChange("role", nil, string(emp.Role)),
+			auditChange("monitoring_enabled", nil, emp.MonitoringEnabled),
+		),
 	}); err != nil {
 		return Employee{}, Business{}, err
 	}
@@ -184,14 +238,22 @@ func (s *Store) CreateEmployee(ctx context.Context, ownerID string, businessID *
 // ListEmployees returns employee members with real presence/current-app data.
 func (s *Store) ListEmployees(ctx context.Context, businessID string) ([]Employee, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT u.id, COALESCE(u.email, ''), COALESCE(u.username, ''), u.display_name, u.active, m.role, m.monitoring_enabled,
-		       (SELECT extract(epoch FROM max(d.last_seen_at))::bigint FROM devices d WHERE d.user_id = u.id),
-		       (SELECT a.app_name FROM activity_samples a WHERE a.user_id = u.id AND a.business_id = $1 ORDER BY a.ts DESC LIMIT 1),
-		       (SELECT a.window_title FROM activity_samples a WHERE a.user_id = u.id AND a.business_id = $1 ORDER BY a.ts DESC LIMIT 1)
+		SELECT u.id, COALESCE(u.email, ''), COALESCE(u.username, ''), u.display_name, u.active,
+		       m.role, m.status, m.monitoring_enabled, m.blocked_at, m.removed_at,
+		       (SELECT extract(epoch FROM max(d.last_seen_at))::bigint
+		          FROM devices d WHERE d.user_id = u.id AND (d.business_id = $1 OR d.business_id IS NULL)),
+		       (SELECT a.app_name FROM activity_samples a
+		         WHERE a.user_id = u.id AND a.business_id = $1 ORDER BY a.ts DESC LIMIT 1),
+		       (SELECT a.window_title FROM activity_samples a
+		         WHERE a.user_id = u.id AND a.business_id = $1 ORDER BY a.ts DESC LIMIT 1)
 		  FROM memberships m
 		  JOIN users u ON u.id = m.user_id
-		 WHERE m.business_id = $1 AND m.role IN ('admin','manager','employee')
-		 ORDER BY CASE m.role WHEN 'admin' THEN 0 WHEN 'manager' THEN 1 ELSE 2 END, u.active DESC, u.display_name`, businessID)
+		 WHERE m.business_id = $1
+		   AND m.status IN ('active','blocked')
+		   AND m.role IN ('owner','admin','manager','employee')
+		 ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 WHEN 'manager' THEN 2 ELSE 3 END,
+		          CASE m.status WHEN 'active' THEN 0 ELSE 1 END,
+		          u.display_name`, businessID)
 	if err != nil {
 		return nil, err
 	}
@@ -200,8 +262,11 @@ func (s *Store) ListEmployees(ctx context.Context, businessID string) ([]Employe
 	out := []Employee{}
 	for rows.Next() {
 		var e Employee
-		if err := rows.Scan(&e.ID, &e.Email, &e.Username, &e.DisplayName, &e.Active, &e.Role, &e.MonitoringEnabled,
-			&e.LastSeen, &e.CurrentApp, &e.CurrentWindow); err != nil {
+		if err := rows.Scan(
+			&e.ID, &e.Email, &e.Username, &e.DisplayName, &e.Active,
+			&e.Role, &e.Status, &e.MonitoringEnabled, &e.BlockedAt, &e.RemovedAt,
+			&e.LastSeen, &e.CurrentApp, &e.CurrentWindow,
+		); err != nil {
 			return nil, err
 		}
 		out = append(out, e)
@@ -212,12 +277,85 @@ func (s *Store) ListEmployees(ctx context.Context, businessID string) ([]Employe
 // settableColumns whitelists the business columns owners may PATCH, guarding the
 // dynamic UPDATE against arbitrary column names.
 var settableColumns = map[string]bool{
-	"screenshot_retention_days": true,
-	"screenshot_interval_s":     true,
-	"idle_threshold_s":          true,
-	"allow_employee_override":   true,
-	"screenshot_mode":           true,
-	"screenshot_skip_apps":      true,
+	"default_member_monitoring_enabled": true,
+	"collect_app_activity":              true,
+	"collect_window_titles":             true,
+	"collect_screenshots":               true,
+	"collect_browser_activity":          true,
+	"collect_keystroke_counts":          true,
+	"screenshot_retention_days":         true,
+	"screenshot_interval_s":             true,
+	"screenshot_capture_scope":          true,
+	"idle_threshold_s":                  true,
+	"activity_retention_days":           true,
+	"browser_retention_days":            true,
+	"keystroke_retention_days":          true,
+	"audit_retention_days":              true,
+	"device_limit":                      true,
+	"enrollment_token_ttl_s":            true,
+	// Compatibility fields while old desktop clients still exist.
+	"allow_employee_override": true,
+	"screenshot_mode":         true,
+	"screenshot_skip_apps":    true,
+}
+
+func businessSettingValue(b Business, field string) any {
+	switch field {
+	case "default_member_monitoring_enabled": return b.DefaultMemberMonitoringEnabled
+	case "collect_app_activity": return b.CollectAppActivity
+	case "collect_window_titles": return b.CollectWindowTitles
+	case "collect_screenshots": return b.CollectScreenshots
+	case "collect_browser_activity": return b.CollectBrowserActivity
+	case "collect_keystroke_counts": return b.CollectKeystrokeCounts
+	case "screenshot_retention_days":
+		if b.ScreenshotRetentionDays == nil { return nil }
+		return *b.ScreenshotRetentionDays
+	case "screenshot_interval_s": return b.ScreenshotIntervalS
+	case "screenshot_capture_scope": return b.ScreenshotCaptureScope
+	case "idle_threshold_s": return b.IdleThresholdS
+	case "activity_retention_days": return b.ActivityRetentionDays
+	case "browser_retention_days": return b.BrowserRetentionDays
+	case "keystroke_retention_days": return b.KeystrokeRetentionDays
+	case "audit_retention_days":
+		if b.AuditRetentionDays == nil { return nil }
+		return *b.AuditRetentionDays
+	case "device_limit":
+		if b.DeviceLimit == nil { return nil }
+		return *b.DeviceLimit
+	case "enrollment_token_ttl_s": return b.EnrollmentTokenTTLS
+	case "allow_employee_override": return b.AllowEmployeeOverride
+	case "screenshot_mode": return b.ScreenshotMode
+	case "screenshot_skip_apps": return b.ScreenshotSkipApps
+	default: return nil
+	}
+}
+
+func settingsAuditAction(fields []string) string {
+	categories := map[string]struct{}{}
+	for _, name := range fields {
+		category := "settings.changed"
+		switch name {
+		case "activity_retention_days", "screenshot_retention_days",
+			"browser_retention_days", "keystroke_retention_days", "audit_retention_days":
+			category = "settings.retention_changed"
+		case "device_limit":
+			category = "settings.device_limit_changed"
+		case "enrollment_token_ttl_s":
+			category = "settings.enrollment_changed"
+		case "collect_app_activity", "collect_window_titles", "collect_browser_activity",
+			"collect_keystroke_counts", "default_member_monitoring_enabled":
+			category = "settings.collection_changed"
+		case "collect_screenshots", "screenshot_interval_s", "screenshot_capture_scope",
+			"screenshot_mode", "screenshot_skip_apps":
+			category = "settings.screenshot_changed"
+		}
+		categories[category] = struct{}{}
+	}
+	if len(categories) != 1 {
+		return "settings.changed"
+	}
+	for category := range categories { return category }
+	return "settings.changed"
 }
 
 // UpdateBusinessSettings updates only the provided columns (keys must be in
@@ -247,19 +385,271 @@ func (s *Store) UpdateBusinessSettings(ctx context.Context, businessID string, f
 	return nil
 }
 
-// CapturePolicy is the org-controlled capture configuration the desktop applies.
-type CapturePolicy struct {
-	ScreenshotIntervalS     int      `json:"screenshot_interval_s"`
-	IdleThresholdS          int      `json:"idle_threshold_s"`
-	ScreenshotRetentionDays *int     `json:"screenshot_retention_days"`
-	AllowEmployeeOverride   bool     `json:"allow_employee_override"`
-	Kind                    string   `json:"kind"` // 'team' | 'family' — drives onboarding copy
-	ScreenshotMode          string   `json:"screenshot_mode"`
-	ScreenshotSkipApps      []string `json:"screenshot_skip_apps"`
+// UpdateBusinessSettingsAudited applies organization policy changes atomically
+// with an audit event. Values are restricted by settableColumns and contain no secrets.
+func (s *Store) UpdateBusinessSettingsAudited(
+	ctx context.Context,
+	actorID, businessID string,
+	fields map[string]any,
+) error {
+	if len(fields) == 0 {
+		return nil
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := requireBusinessPermissionTx(
+		ctx, tx, actorID, businessID, CapabilitySettingsManage,
+	); err != nil {
+		return err
+	}
+
+	var archivedAt, deletionScheduledAt *time.Time
+	if err := tx.QueryRow(ctx, `
+		SELECT archived_at, deletion_scheduled_at
+		  FROM businesses
+		 WHERE id = $1
+		 FOR UPDATE`, businessID,
+	).Scan(&archivedAt, &deletionScheduledAt); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	}
+	if deletionScheduledAt != nil {
+		return ErrOrganizationDeletionPending
+	}
+	if archivedAt != nil {
+		return ErrOrganizationArchived
+	}
+
+	current, err := getBusiness(ctx, tx, businessID)
+	if err != nil {
+		return err
+	}
+
+	sets := make([]string, 0, len(fields)+1)
+	args := []any{businessID}
+	fieldNames := make([]string, 0, len(fields))
+	values := map[string]any{}
+	changes := []AuditChange{}
+	for col, val := range fields {
+		if !settableColumns[col] {
+			return fmt.Errorf("not a settable column: %s", col)
+		}
+		args = append(args, val)
+		sets = append(sets, fmt.Sprintf("%s = $%d", col, len(args)))
+		before := businessSettingValue(current, col)
+		if !reflect.DeepEqual(before, val) {
+			fieldNames = append(fieldNames, col)
+			values[col] = val
+			changes = append(changes, auditChange(col, before, val))
+		}
+	}
+	if len(changes) == 0 {
+		return tx.Commit(ctx)
+	}
+	sort.Strings(fieldNames)
+	sort.Slice(changes, func(i, j int) bool {
+		return changes[i].Field < changes[j].Field
+	})
+	sets = append(sets, "updated_at = now()")
+	q := fmt.Sprintf("UPDATE businesses SET %s WHERE id = $1", strings.Join(sets, ", "))
+	ct, err := tx.Exec(ctx, q, args...)
+	if err != nil {
+		return err
+	}
+	if ct.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+
+	action := settingsAuditAction(fieldNames)
+	if err := insertAuditTx(ctx, tx, businessID, actorID, action, "organization", businessID, map[string]any{
+		"fields":  fieldNames,
+		"values":  values,
+		"changes": changes,
+	}); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
-// PolicyForUser returns the capture policy for the user's business, or nil when the
-// user belongs to no business (a standalone user → the desktop keeps local defaults).
+func (s *Store) DefaultMonitoringImpact(
+	ctx context.Context,
+	actorID, businessID string,
+	enabled bool,
+) (int64, error) {
+	if err := s.BusinessPermissionOrForbidden(
+		ctx, actorID, businessID, CapabilitySettingsManage,
+	); err != nil {
+		return 0, err
+	}
+	var count int64
+	err := s.pool.QueryRow(ctx, `
+		SELECT count(*)
+		  FROM memberships
+		 WHERE business_id = $1
+		   AND status = 'active'
+		   AND role <> 'owner'
+		   AND monitoring_enabled IS DISTINCT FROM $2`,
+		businessID, enabled,
+	).Scan(&count)
+	return count, err
+}
+
+func (s *Store) UpdateDefaultMonitoring(
+	ctx context.Context,
+	actorID, businessID string,
+	enabled, applyExisting bool,
+) (int64, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := requireBusinessPermissionTx(
+		ctx, tx, actorID, businessID, CapabilitySettingsManage,
+	); err != nil {
+		return 0, err
+	}
+	var archivedAt, deletionScheduledAt *time.Time
+	var currentDefaultMonitoring bool
+	if err := tx.QueryRow(ctx, `
+		SELECT archived_at, deletion_scheduled_at, default_member_monitoring_enabled
+		  FROM businesses
+		 WHERE id = $1
+		 FOR UPDATE`, businessID,
+	).Scan(&archivedAt, &deletionScheduledAt, &currentDefaultMonitoring); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, ErrNotFound
+		}
+		return 0, err
+	}
+	if deletionScheduledAt != nil {
+		return 0, ErrOrganizationDeletionPending
+	}
+	if archivedAt != nil {
+		return 0, ErrOrganizationArchived
+	}
+
+	if _, err := tx.Exec(ctx, `
+		UPDATE businesses
+		   SET default_member_monitoring_enabled = $1, updated_at = now()
+		 WHERE id = $2`,
+		enabled, businessID,
+	); err != nil {
+		return 0, err
+	}
+
+	var affected int64
+	if applyExisting {
+		ct, err := tx.Exec(ctx, `
+			UPDATE memberships
+			   SET monitoring_enabled = $1, updated_at = now()
+			 WHERE business_id = $2
+			   AND status = 'active'
+			   AND role <> 'owner'
+			   AND monitoring_enabled IS DISTINCT FROM $1`,
+			enabled, businessID,
+		)
+		if err != nil {
+			return 0, err
+		}
+		affected = ct.RowsAffected()
+	}
+
+	if err := insertAuditTx(ctx, tx, businessID, actorID, "settings.default_monitoring_changed", "organization", businessID, map[string]any{
+		"enabled":        enabled,
+		"apply_existing": applyExisting,
+		"affected_count": affected,
+		"changes": auditChanges(
+			auditChange("default_member_monitoring_enabled", currentDefaultMonitoring, enabled),
+		),
+	}); err != nil {
+		return 0, err
+	}
+	return affected, tx.Commit(ctx)
+}
+
+// CapturePolicy is the org-controlled capture configuration the desktop applies.
+type CapturePolicy struct {
+	BusinessID                     string   `json:"business_id"`
+	Managed                        bool     `json:"managed"`
+	Archived                       bool     `json:"archived"`
+	DefaultMemberMonitoringEnabled bool     `json:"default_member_monitoring_enabled"`
+	CollectAppActivity             bool     `json:"collect_app_activity"`
+	CollectWindowTitles            bool     `json:"collect_window_titles"`
+	CollectScreenshots             bool     `json:"collect_screenshots"`
+	CollectBrowserActivity         bool     `json:"collect_browser_activity"`
+	CollectKeystrokeCounts         bool     `json:"collect_keystroke_counts"`
+	ScreenshotIntervalS            int      `json:"screenshot_interval_s"`
+	ScreenshotCaptureScope         string   `json:"screenshot_capture_scope"`
+	IdleThresholdS                 int      `json:"idle_threshold_s"`
+	ScreenshotRetentionDays        *int     `json:"screenshot_retention_days"`
+	Kind                           string   `json:"kind"`
+	ScreenshotMode                 string   `json:"screenshot_mode"` // compatibility
+	ScreenshotSkipApps             []string      `json:"screenshot_skip_apps"` // compatibility
+	PrivacyRules                   []PrivacyRule `json:"privacy_rules"`
+}
+
+func (s *Store) PolicyForUserInBusiness(ctx context.Context, userID, businessID string) (*CapturePolicy, error) {
+	var p CapturePolicy
+	var status string
+	var archived, deletionPending bool
+	err := s.pool.QueryRow(ctx, `
+		SELECT b.id, m.status,
+		       b.archived_at IS NOT NULL,
+		       b.deletion_scheduled_at IS NOT NULL,
+		       b.default_member_monitoring_enabled,
+		       b.collect_app_activity, b.collect_window_titles, b.collect_screenshots,
+		       b.collect_browser_activity, b.collect_keystroke_counts,
+		       b.screenshot_interval_s, b.screenshot_capture_scope, b.idle_threshold_s,
+		       b.screenshot_retention_days, b.kind, b.screenshot_mode, b.screenshot_skip_apps
+		  FROM memberships m
+		  JOIN businesses b ON b.id = m.business_id
+		 WHERE m.user_id = $1 AND m.business_id = $2`,
+		userID, businessID,
+	).Scan(
+		&p.BusinessID, &status, &archived, &deletionPending, &p.DefaultMemberMonitoringEnabled,
+		&p.CollectAppActivity, &p.CollectWindowTitles, &p.CollectScreenshots,
+		&p.CollectBrowserActivity, &p.CollectKeystrokeCounts,
+		&p.ScreenshotIntervalS, &p.ScreenshotCaptureScope, &p.IdleThresholdS,
+		&p.ScreenshotRetentionDays, &p.Kind, &p.ScreenshotMode, &p.ScreenshotSkipApps,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	if status == "blocked" {
+		return nil, ErrMemberBlocked
+	}
+	if status == "removed" {
+		return nil, ErrMemberRemoved
+	}
+	if deletionPending {
+		return nil, ErrOrganizationDeletionPending
+	}
+	if archived {
+		return nil, ErrOrganizationArchived
+	}
+	rules, err := s.privacyRulesForBusiness(ctx, businessID)
+	if err != nil {
+		return nil, err
+	}
+	p.PrivacyRules = rules
+	p.Managed = true
+	return &p, nil
+}
+
+// PolicyForUser remains for old clients. Multi-organization users are deliberately
+// treated as unmanaged rather than selecting an arbitrary organization.
 func (s *Store) PolicyForUser(ctx context.Context, userID string) (*CapturePolicy, error) {
 	bizID, err := s.ResolveBusinessForUser(ctx, userID, nil)
 	if errors.Is(err, ErrNotFound) {
@@ -268,15 +658,7 @@ func (s *Store) PolicyForUser(ctx context.Context, userID string) (*CapturePolic
 	if err != nil {
 		return nil, err
 	}
-	var p CapturePolicy
-	err = s.pool.QueryRow(ctx,
-		`SELECT screenshot_interval_s, idle_threshold_s, screenshot_retention_days, allow_employee_override, kind, screenshot_mode, screenshot_skip_apps
-		   FROM businesses WHERE id = $1`, bizID,
-	).Scan(&p.ScreenshotIntervalS, &p.IdleThresholdS, &p.ScreenshotRetentionDays, &p.AllowEmployeeOverride, &p.Kind, &p.ScreenshotMode, &p.ScreenshotSkipApps)
-	if err != nil {
-		return nil, err
-	}
-	return &p, nil
+	return s.PolicyForUserInBusiness(ctx, userID, bizID)
 }
 
 // --- transaction-scoped helpers (work with both *pgxpool.Pool and pgx.Tx) ---

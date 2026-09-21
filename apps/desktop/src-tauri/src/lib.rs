@@ -44,22 +44,28 @@ fn apply_dock_policy(app: &tauri::AppHandle, hide: bool) {
 fn apply_dock_policy(_app: &tauri::AppHandle, _hide: bool) {}
 
 #[cfg(target_os = "windows")]
-fn ensure_windows_autostart() {
+fn apply_windows_autostart(enabled: bool) {
     use winreg::enums::HKEY_CURRENT_USER;
     use winreg::RegKey;
-    let Ok(exe) = std::env::current_exe() else {
-        return;
-    };
+
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let Ok((run, _)) = hkcu.create_subkey(r"Software\Microsoft\Windows\CurrentVersion\Run") else {
         return;
     };
-    let command = format!("\"{}\" --autostart", exe.display());
-    let _ = run.set_value("ActiLens", &command);
+
+    if enabled {
+        let Ok(exe) = std::env::current_exe() else {
+            return;
+        };
+        let command = format!("\"{}\" --autostart", exe.display());
+        let _ = run.set_value("ActiLens", &command);
+    } else {
+        let _ = run.delete_value("ActiLens");
+    }
 }
 
 #[cfg(not(target_os = "windows"))]
-fn ensure_windows_autostart() {}
+fn apply_windows_autostart(_enabled: bool) {}
 
 /// Fetch the curated sensitive-app list from the backend (skip-list suggestions
 /// + prefill), falling back to the baked-in copy when the backend is
@@ -90,41 +96,30 @@ pub fn run() {
         // public github.com/0xDive/actilens updater.
         .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
-            commands::ping,
             commands::track_event,
-            commands::set_paused,
             commands::set_in_setup,
-            commands::is_paused,
-            commands::tracking_state,
-            commands::dashboard_data,
-            commands::keystroke_buckets,
-            commands::screenshot_list,
-            commands::browser_visits,
             commands::get_settings,
             commands::set_settings,
             commands::set_locale,
-            commands::export_csv,
-            commands::export_json,
             commands::permissions_status,
             commands::open_permission_settings,
             commands::request_screen_recording,
             commands::request_input_monitoring,
             commands::request_accessibility,
-            commands::capture_now,
-            commands::browser_link,
-            commands::list_businesses,
             commands::signup_url,
             commands::login,
+            commands::complete_mfa_login,
             commands::logout,
+            commands::prepare_device_reconnect,
             commands::current_session,
-            commands::sync_status,
+            commands::runtime_state,
+            commands::runtime_diagnostics,
+            commands::local_storage_summary,
+            commands::web_dashboard_url,
             commands::apply_org_policy,
-            commands::capture_policy,
-            commands::privacy_apps,
         ])
         .setup(|app| {
             let launched_from_autostart = std::env::args().any(|a| a == "--autostart");
-            ensure_windows_autostart();
             // Open the local SQLite DB under the app data dir.
             let data_dir = app.path().app_data_dir().expect("resolve app data dir");
             std::fs::create_dir_all(&data_dir).expect("create app data dir");
@@ -138,6 +133,7 @@ pub fn run() {
             let settings_path = data_dir.join("settings.json");
             let loaded = settings::load_with_device_id(&settings_path);
             settings::apply(&loaded, &control);
+            apply_windows_autostart(loaded.start_at_login);
             let hide_dock = loaded.hide_dock;
             let loaded_locale = loaded.locale.clone();
             // One fresh Aptabase session id per launch, shared by the native launch/focus
@@ -156,6 +152,28 @@ pub fn run() {
             app.manage(settings_state.clone());
             // Manage control early so the tray can read pause state.
             app.manage(control.clone());
+
+            // Restore native ownership of tracking before the webview renders. A
+            // managed agent must keep collecting even if the React UI fails to boot,
+            // is hidden to tray, or never calls the setup command after an update.
+            let auth = Arc::new(sync::AuthState::load(data_dir.join("session.json")));
+            if auth
+                .session()
+                .and_then(|session| session.business_id)
+                .is_some()
+            {
+                control
+                    .managed
+                    .store(true, std::sync::atomic::Ordering::Relaxed);
+                control
+                    .in_setup
+                    .store(false, std::sync::atomic::Ordering::Relaxed);
+                let mut managed = settings_state.managed.lock().unwrap();
+                managed.managed = true;
+                managed.allow_employee_override = false;
+                managed.monitoring_enabled = loaded.org_monitoring_enabled;
+            }
+            app.manage(auth.clone());
 
             // Menu bar item (Start/Stop/Open) + Dock visibility per settings.
             tray::build(&app.handle(), control.clone())?;
@@ -200,9 +218,9 @@ pub fn run() {
                 });
             }
 
-            // Permissions are NOT requested at startup — the UI detects missing ones
-            // and routes the user to the Permissions screen, where every request is
-            // user-initiated (see App.tsx startup check).
+            // Permissions are never requested automatically. Home can surface
+            // attention, while every OS prompt remains explicitly user-initiated
+            // from the Permissions screen.
 
             // Start the trackers, keyboard counter, screenshots, retention cleanup.
             let shots_dir = data_dir.join("screenshots");
@@ -215,10 +233,6 @@ pub fn run() {
             let link = server::start(db.clone(), control.clone());
             app.manage(link);
 
-            // Auth/session (task 51): load any persisted session from disk.
-            let auth = Arc::new(sync::AuthState::load(data_dir.join("session.json")));
-            app.manage(auth.clone());
-
             // Sync worker (task 53): pushes pending rows to the backend in the
             // background. No-op while logged out / offline.
             let status = Arc::new(sync::worker::SyncStatus::default());
@@ -229,6 +243,7 @@ pub fn run() {
                 status,
                 control: control.clone(),
                 settings: settings_state,
+                app: app.handle().clone(),
             });
 
             // Manage remaining state so commands can reach the DB.

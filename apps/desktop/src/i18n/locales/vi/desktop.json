@@ -1,0 +1,202 @@
+{
+  "nav": {
+    "home": "Trang chủ",
+    "device": "Thiết bị",
+    "permissions": "Quyền",
+    "settings": "Cài đặt"
+  },
+  "common": {
+    "loading": "Đang tải…"
+  },
+  "actions": {
+    "retry": "Thử lại",
+    "refresh": "Làm mới",
+    "openPermissions": "Mở quyền",
+    "openDevice": "Mở thiết bị",
+    "openWeb": "Mở bảng điều khiển web",
+    "copy": "Sao chép",
+    "copied": "Đã sao chép",
+    "signOut": "Đăng xuất",
+    "setupAgain": "Đăng nhập",
+    "manageWeb": "Quản lý trên web",
+    "cancel": "Hủy"
+  },
+  "home": {
+    "status": "Máy tính này",
+    "unavailable": "Không đọc được trạng thái chạy",
+    "unavailableBody": "ActiLens không thể đọc trạng thái runtime gốc.",
+    "connection": "Kết nối",
+    "sync": "Đồng bộ",
+    "lastSync": "Lần đồng bộ thành công gần nhất: {{value}}",
+    "pending": "{{count}} mục đang chờ tải lên",
+    "noPending": "Không có dữ liệu chờ tải lên.",
+    "attention": "Cần chú ý",
+    "hero": {
+      "healthy": {
+        "title": "ActiLens đang hoạt động",
+        "body": "Thu thập và đồng bộ trên máy tính này đang hoạt động bình thường."
+      },
+      "idle": {
+        "title": "ActiLens đang hoạt động",
+        "body": "Máy tính đang nhàn rỗi. ActiLens vẫn hoạt động trong nền."
+      },
+      "paused": {
+        "title": "ActiLens đang tạm dừng",
+        "body": "Thu thập cục bộ hiện đang tạm dừng."
+      },
+      "offline": {
+        "title": "Không có kết nối",
+        "body": "ActiLens lưu dữ liệu an toàn trên máy này và sẽ đồng bộ khi máy chủ kết nối lại."
+      },
+      "permissions": {
+        "title": "Cần quyền hệ thống",
+        "body": "Có {{count}} quyền bắt buộc cần chú ý."
+      },
+      "syncError": {
+        "title": "Cần kiểm tra đồng bộ",
+        "body": "ActiLens không thể hoàn tất lần đồng bộ gần nhất."
+      },
+      "revoked": {
+        "title": "Thiết bị này đã bị ngắt kết nối",
+        "body": "Máy chủ không còn chấp nhận dữ liệu từ bản cài đặt này."
+      },
+      "blocked": {
+        "title": "Không thể thu thập",
+        "body": "Trạng thái hiện tại của tổ chức hoặc thành viên không cho phép thu thập trên máy này."
+      }
+    },
+    "localStored": "Ở chế độ cục bộ, dữ liệu chỉ được lưu trên máy này.",
+    "localConnection": "Chế độ cục bộ không sử dụng kết nối máy chủ.",
+    "collection": "Thu thập",
+    "recentActivity": "Đã ghi cục bộ trong 15 phút qua: {{minutes}} phút",
+    "lastLocalActivity": "Bản ghi hoạt động cục bộ gần nhất: {{value}}",
+    "systemIdle": "Thời gian Windows không hoạt động: {{seconds}} giây"
+  },
+  "attention": {
+    "deviceRevoked": "Thiết bị này đã bị thu hồi",
+    "deviceBlocked": "Hiện không thể truy cập tổ chức",
+    "permissions": "Có {{count}} quyền hệ thống cần chú ý",
+    "offline": "Hiện không thể kết nối máy chủ",
+    "sync": "Đồng bộ thất bại"
+  },
+  "connection": {
+    "online": "Đã kết nối",
+    "offline": "Ngoại tuyến",
+    "checking": "Đang kiểm tra kết nối…",
+    "signed_out": "Cần đăng nhập",
+    "local": "Chế độ cục bộ"
+  },
+  "sync": {
+    "synced": "Đã đồng bộ tất cả",
+    "syncing": "Đang đồng bộ…",
+    "queued": "Đang chờ đồng bộ",
+    "error": "Lỗi đồng bộ",
+    "signed_out": "Cần đăng nhập",
+    "local": "Chỉ cục bộ"
+  },
+  "deviceState": {
+    "active": "Hoạt động",
+    "revoked": "Đã thu hồi",
+    "blocked": "Bị chặn",
+    "enrollment_required": "Cần kết nối lại",
+    "local": "Chế độ cục bộ"
+  },
+  "device": {
+    "thisDevice": "Thiết bị này",
+    "installation": "Bản cài đặt",
+    "version": "Phiên bản",
+    "deviceState": "Trạng thái",
+    "deviceId": "ID thiết bị",
+    "account": "Tài khoản",
+    "connectionSync": "Kết nối & đồng bộ",
+    "connection": "Kết nối",
+    "lastSync": "Lần đồng bộ thành công gần nhất",
+    "queue": "Hàng đợi tải lên",
+    "allSynced": "Đã đồng bộ tất cả",
+    "pendingCount": "Đang chờ: {{count}}",
+    "browserBridge": "Cầu nối trình duyệt",
+    "ready": "Sẵn sàng",
+    "notReady": "Không khả dụng",
+    "localStorage": "Lưu cục bộ",
+    "reconnect": "Kết nối lại thiết bị",
+    "reconnectBody": "Kết nối lại tạo một ID thiết bị mới. Dữ liệu chưa gửi của ID bị thu hồi vẫn ở máy và không được gán lại.",
+    "organization": "Tổ chức",
+    "organizationId": "ID tổ chức",
+    "revokedTitle": "Bản cài đặt đã bị thu hồi",
+    "confirmReconnectTitle": "Kết nối lại bản cài đặt này?",
+    "confirmReconnect": "Kết nối lại",
+    "reconnecting": "Đang kết nối lại…",
+    "reconnectFailed": "Không thể kết nối lại thiết bị này. Hãy chạy chẩn đoán rồi thử lại."
+  },
+  "diagnostics": {
+    "title": "Chẩn đoán",
+    "subtitle": "Kiểm tra runtime cục bộ và kết nối với ActiLens.",
+    "run": "Chạy chẩn đoán",
+    "running": "Đang kiểm tra…",
+    "copy": "Sao chép báo cáo chẩn đoán",
+    "checks": {
+      "local_database": "Cơ sở dữ liệu cục bộ",
+      "session": "Phiên",
+      "device": "Danh tính thiết bị",
+      "permissions": "Quyền hệ thống",
+      "collector": "Bộ thu thập",
+      "uploader": "Bộ tải lên",
+      "browser_bridge": "Cầu nối trình duyệt",
+      "backend": "Máy chủ",
+      "policy_cache": "Bộ nhớ đệm cấu hình"
+    },
+    "failed": "Không thể hoàn tất chẩn đoán."
+  },
+  "settings": {
+    "appearance": "Giao diện",
+    "theme": "Chủ đề",
+    "themeBody": "Dùng giao diện hệ thống hoặc chọn chủ đề cố định.",
+    "language": "Ngôn ngữ",
+    "languageBody": "Ứng dụng và khay hệ thống dùng cùng một ngôn ngữ.",
+    "behavior": "Hoạt động ứng dụng",
+    "background": "Tiếp tục chạy nền",
+    "backgroundBody": "Đóng cửa sổ chỉ ẩn ActiLens; agent gốc vẫn tiếp tục chạy.",
+    "alwaysOn": "Luôn bật",
+    "hideDock": "Ẩn khỏi Dock / thanh tác vụ",
+    "hideDockBody": "Giữ ActiLens trong khay hệ thống mà không cần biểu tượng ứng dụng thường trực.",
+    "updates": "Cập nhật",
+    "currentVersion": "Phiên bản hiện tại: {{version}}",
+    "about": "Giới thiệu",
+    "aboutBody": "Desktop agent cho máy tính này.",
+    "managedUpdates": "Bản cài đặt được quản lý này do quản trị viên phân phối cập nhật.",
+    "manualUpdates": "Cài ActiLens mới hơn bằng bộ cài của môi trường triển khai.",
+    "managed": "Được quản lý",
+    "manual": "Bộ cài",
+    "startAtLogin": "Khởi động ActiLens cùng Windows",
+    "startAtLoginBody": "Tự động chạy agent khi bạn đăng nhập. Khi tự khởi động, cửa sổ vẫn ẩn."
+  },
+  "theme": {
+    "light": "Sáng",
+    "dark": "Tối",
+    "system": "Hệ thống"
+  },
+  "time": {
+    "never": "Chưa bao giờ",
+    "justNow": "vừa xong",
+    "minutesAgo": "{{count}} phút trước",
+    "hoursAgo": "{{count}} giờ trước"
+  },
+  "runtime": {
+    "running": "Đang chạy",
+    "idle": "Nhàn rỗi",
+    "paused": "Tạm dừng",
+    "blocked": "Bị chặn",
+    "offline": "Ngoại tuyến",
+    "attention": "Cần chú ý",
+    "revoked": "Đã thu hồi",
+    "loading": "Đang tải…"
+  },
+  "storage": {
+    "title": "Lưu trữ cục bộ",
+    "total": "Đang dùng trên máy này",
+    "database": "Cơ sở dữ liệu cục bộ",
+    "screenshots": "Bộ nhớ đệm ảnh chụp",
+    "unsynced": "Đang chờ đồng bộ",
+    "note": "ActiLens tự động quản lý lưu trữ cục bộ. Không thể xóa dữ liệu chưa đồng bộ trong ứng dụng."
+  }
+}

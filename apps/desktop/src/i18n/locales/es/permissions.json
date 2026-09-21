@@ -36,5 +36,8 @@
       "label": "Capturas de pantalla",
       "description": "Realiza capturas periódicas de tu(s) pantalla(s)."
     }
-  }
+  },
+  "noneRequiredTitle": "No se requieren permisos adicionales del sistema",
+  "noneRequiredBody": "Este sistema operativo no requiere permisos independientes para ActiLens.",
+  "ready": "Listo"
 }
